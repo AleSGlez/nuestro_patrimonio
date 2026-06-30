@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
+import { auth } from '@lib/supabase'
 import { useToast } from '@ui/Toast'
 import { Input, PasswordInput } from '@ui/Field'
 import Spinner from '@ui/Spinner'
@@ -173,7 +174,6 @@ function ForgotForm({ onBack }) {
     if (!email.includes('@')) { toast.error('Correo inválido'); return }
     setLoading(true)
     try {
-      const { auth } = await import('@lib/supabase')
       await auth.resetPassword(email.trim().toLowerCase())
       setSent(true)
     } catch (e) {
