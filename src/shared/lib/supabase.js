@@ -140,7 +140,7 @@ async function apiFetch(path, opts = {}, retry = true) {
 
 // ── Query string builder ──────────────────────────────────────
 // Acepta objeto { col: 'eq.val', order: 'col.desc' }
-// o string raw 'or=col.eq.x,col.eq.y&limit=1'
+// o string raw 'or=(col.eq.x,col.eq.y)&limit=1' — OJO: PostgREST requiere parentesis en or=
 function toQS(params) {
   if (typeof params === 'string') return params
   return Object.entries(params)
@@ -155,7 +155,7 @@ export const db = {
 
     // SELECT con filtros
     // query({ pareja_id: 'eq.UUID', order: 'fecha.desc', limit: 100 })
-    // query('or=col.eq.x,col.eq.y&limit=1')   ← string raw para filtros complejos
+    // query('or=(col.eq.x,col.eq.y)&limit=1') ← parentesis obligatorios en or= de PostgREST
     query(params = {}) {
       const qs = toQS(params)
       return apiFetch(`/${table}${qs ? '?' + qs : ''}`)

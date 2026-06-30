@@ -12,7 +12,7 @@ export function usePareja() {
     queryKey: ['pareja', user?.id],
     queryFn: async () => {
       const result = await db.from('parejas').query(
-        `or=user1_id.eq.${user.id},user2_id.eq.${user.id}&limit=1`
+        `or=(user1_id.eq.${user.id},user2_id.eq.${user.id})&limit=1`
       )
       const pareja = Array.isArray(result) ? result[0] : null
       setPareja(pareja)
