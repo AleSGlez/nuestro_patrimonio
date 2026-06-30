@@ -8,6 +8,7 @@ import BottomNav from '@shared/components/layout/BottomNav'
 import PlaceholderPage from '@shared/components/layout/PlaceholderPage'
 import AccountsPage from '@modules/accounts/AccountsPage'
 import CardsPage from '@modules/cards/CardsPage'
+import TransactionsPage from '@modules/transactions/TransactionsPage'
 
 // ── Home tab content ─────────────────────────────────────────
 function HomeTab() {
@@ -40,7 +41,7 @@ function HomeTab() {
           <div className="text-4xl mb-3">🏗️</div>
           <h2 className="text-white font-semibold mb-1">Dashboard</h2>
           <p className="text-xs text-gray-500 mb-3">{user?.email}</p>
-          <div className="badge-ok inline-flex">Fase 3 ✅ — Cuentas y tarjetas funcionando</div>
+          <div className="badge-ok inline-flex">Fase 4 ✅ — Movimientos funcionando</div>
         </div>
 
         {pareja && !parejaCompleta && (
@@ -75,7 +76,7 @@ export default function DashboardPage() {
       case 'dashboard':     return <HomeTab />
       case 'cuentas':       return <AccountsPage />
       case 'tarjetas':      return <CardsPage />
-      case 'transacciones': return <PlaceholderPage emoji="💸" title="Movimientos" fase={4} />
+      case 'transacciones': return <TransactionsPage />
       case 'ajustes':       return <PlaceholderPage emoji="⚙️" title="Ajustes" fase={11} />
       default:              return <HomeTab />
     }

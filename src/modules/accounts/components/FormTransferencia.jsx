@@ -7,12 +7,16 @@ import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
 import { useCuentas } from '../hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
-import { useTransferirEntreCuentas, usePagarTarjeta, useTransferirPersonalNegocio } from '../hooks/useTransferencias'
+import {
+  useTransferirEntreCuentas, usePagarTarjeta,
+  useTransferirPersonalNegocio, useDisposicionEfectivo,
+} from '../hooks/useTransferencias'
 import { fmt, today, cn } from '@lib/utils'
 
 const TIPOS = [
   { id: 'entre_cuentas',       label: 'Entre cuentas' },
   { id: 'pago_tarjeta',        label: 'Pagar tarjeta' },
+  { id: 'disposicion_efectivo', label: 'Disposición de efectivo' },
   { id: 'personal_a_negocio',  label: 'Personal → Negocio' },
   { id: 'negocio_a_personal',  label: 'Negocio → Personal' },
 ]
@@ -24,15 +28,17 @@ export default function FormTransferencia({ open, onClose }) {
   const transferir = useTransferirEntreCuentas()
   const pagarTarjeta = usePagarTarjeta()
   const transferirPN = useTransferirPersonalNegocio()
+  const disposicion = useDisposicionEfectivo()
 
   const [tipo, setTipo]           = useState('entre_cuentas')
   const [origenId, setOrigenId]   = useState('')
   const [destinoId, setDestinoId] = useState('')
   const [monto, setMonto]         = useState('')
+  const [comision, setComision]   = useState('')
   const [descripcion, setDesc]    = useState('')
   const [fecha, setFecha]         = useState(today())
 
-  const loading = transferir.isPending || pagarTarjeta.isPending || transferirPN.isPending
+  const loading = transferir.isPending || pagarTarjeta.isPending || transferirPN.isPending || disposicion.isPending
 
   const cuentasPersonal = cuentas.filter((c) => c.persona !== 'negocio')
   const cuentasNegocio  = cuentas.filter((c) => c.persona === 'negocio')
@@ -47,15 +53,23 @@ export default function FormTransferencia({ open, onClose }) {
     : cuentas.filter((c) => c.id !== origenId)
 
   const destinoOptsFmt = destinoOpts.map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` }))
+  const cuentaDestinoOpts = cuentas.map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` }))
   const tarjetaOpts = tarjetas.map((t) => ({ value: t.id, label: `${t.nombre} — deuda ${fmt(t.saldo_total)}` }))
 
+  const totalConComision = (Number(monto) || 0) + (Number(comision) || 0)
+
   const reset = () => {
-    setOrigenId(''); setDestinoId(''); setMonto(''); setDesc(''); setFecha(today())
+    setOrigenId(''); setDestinoId(''); setMonto(''); setComision(''); setDesc(''); setFecha(today())
   }
 
   const handleSave = async () => {
-    if (!origenId)  { toast.error('Selecciona origen'); return }
-    if (!destinoId) { toast.error('Selecciona destino'); return }
+    if (tipo === 'disposicion_efectivo') {
+      if (!origenId)  { toast.error('Selecciona la tarjeta'); return }
+      if (!destinoId) { toast.error('Selecciona la cuenta destino'); return }
+    } else {
+      if (!origenId)  { toast.error('Selecciona origen'); return }
+      if (!destinoId) { toast.error('Selecciona destino'); return }
+    }
     if (!monto || Number(monto) <= 0) { toast.error('Ingresa el monto'); return }
 
     try {
@@ -68,6 +82,16 @@ export default function FormTransferencia({ open, onClose }) {
           tarjetaSaldoTotal: tarjeta.saldo_total,
           tarjetaSaldoAnterior: tarjeta.saldo_periodo_anterior,
           monto, descripcion, fecha,
+        })
+      } else if (tipo === 'disposicion_efectivo') {
+        const tarjeta = tarjetas.find((t) => t.id === origenId)
+        const cuenta  = cuentas.find((c) => c.id === destinoId)
+        await disposicion.mutateAsync({
+          tarjetaId: origenId,
+          tarjetaSaldoTotal: tarjeta.saldo_total,
+          tarjetaGastosPeriodo: tarjeta.gastos_periodo_actual,
+          cuentaId: destinoId, cuentaSaldo: cuenta.saldo,
+          monto, comision, descripcion, fecha,
         })
       } else if (tipo === 'personal_a_negocio' || tipo === 'negocio_a_personal') {
         const origen  = cuentas.find((c) => c.id === origenId)
@@ -100,7 +124,7 @@ export default function FormTransferencia({ open, onClose }) {
         {TIPOS.map((t) => (
           <button
             key={t.id}
-            onClick={() => { setTipo(t.id); setOrigenId(''); setDestinoId('') }}
+            onClick={() => { setTipo(t.id); setOrigenId(''); setDestinoId(''); setComision('') }}
             className={cn(
               'py-2.5 px-2 text-xs font-medium rounded-xl border transition-all',
               tipo === t.id
@@ -113,22 +137,42 @@ export default function FormTransferencia({ open, onClose }) {
         ))}
       </div>
 
-      <AmountInput label="Monto" value={monto} onChange={setMonto} placeholder="0.00" />
-
-      <Select
-        label={tipo === 'negocio_a_personal' ? 'Cuenta negocio origen' : 'Cuenta origen'}
-        value={origenId} onChange={setOrigenId} options={origenOpts}
-        placeholder="Selecciona cuenta"
+      <AmountInput
+        label={tipo === 'disposicion_efectivo' ? 'Monto a retirar' : 'Monto'}
+        value={monto} onChange={setMonto} placeholder="0.00"
       />
 
-      {tipo === 'pago_tarjeta' ? (
-        <Select label="Tarjeta a pagar" value={destinoId} onChange={setDestinoId} options={tarjetaOpts} placeholder="Selecciona tarjeta" />
+      {tipo === 'disposicion_efectivo' ? (
+        <>
+          <Select label="Tarjeta de crédito" value={origenId} onChange={setOrigenId} options={tarjetaOpts} placeholder="Selecciona tarjeta" />
+          <Select label="Cuenta destino" value={destinoId} onChange={setDestinoId} options={cuentaDestinoOpts} placeholder="Selecciona cuenta" />
+          <AmountInput label="Comisión por disposición" value={comision} onChange={setComision} placeholder="0.00" />
+          {(Number(monto) > 0 || Number(comision) > 0) && (
+            <div className="p-3 bg-warn/10 border border-warn/20 rounded-xl mb-4">
+              <p className="text-xs text-gray-300">
+                Tu deuda en la tarjeta subirá <strong className="text-warn">{fmt(totalConComision)}</strong>
+                {' '}({fmt(monto || 0)} retirado + {fmt(comision || 0)} comisión)
+              </p>
+            </div>
+          )}
+        </>
       ) : (
-        <Select
-          label={tipo === 'personal_a_negocio' ? 'Cuenta negocio destino' : 'Cuenta destino'}
-          value={destinoId} onChange={setDestinoId} options={destinoOptsFmt}
-          placeholder="Selecciona cuenta"
-        />
+        <>
+          <Select
+            label={tipo === 'negocio_a_personal' ? 'Cuenta negocio origen' : 'Cuenta origen'}
+            value={origenId} onChange={setOrigenId} options={origenOpts}
+            placeholder="Selecciona cuenta"
+          />
+          {tipo === 'pago_tarjeta' ? (
+            <Select label="Tarjeta a pagar" value={destinoId} onChange={setDestinoId} options={tarjetaOpts} placeholder="Selecciona tarjeta" />
+          ) : (
+            <Select
+              label={tipo === 'personal_a_negocio' ? 'Cuenta negocio destino' : 'Cuenta destino'}
+              value={destinoId} onChange={setDestinoId} options={destinoOptsFmt}
+              placeholder="Selecciona cuenta"
+            />
+          )}
+        </>
       )}
 
       <Input

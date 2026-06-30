@@ -67,6 +67,47 @@ export function usePagarTarjeta() {
   })
 }
 
+// Disposición de efectivo: retiras dinero de tu tarjeta de crédito
+// hacia una cuenta. La deuda de la tarjeta sube por (monto + comisión).
+// No hay cuenta "origen" — el dinero nace de la línea de crédito.
+export function useDisposicionEfectivo() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+
+  return useMutation({
+    mutationFn: async ({ tarjetaId, tarjetaSaldoTotal, tarjetaGastosPeriodo, cuentaId, cuentaSaldo, monto, comision, descripcion, fecha }) => {
+      const m = Number(monto)
+      const com = Number(comision) || 0
+      const totalDeuda = m + com
+
+      await db.from('transferencias').insert({
+        pareja_id: parejaId,
+        tipo: 'disposicion_efectivo',
+        monto: m,
+        comision: com,
+        origen_cuenta_id: null,
+        destino_cuenta_id: cuentaId,
+        destino_tarjeta_id: tarjetaId,
+        descripcion: descripcion || null,
+        fecha,
+      })
+
+      // El dinero retirado entra a la cuenta destino
+      await db.from('cuentas').update({ saldo: Number(cuentaSaldo) + m }, { id: cuentaId })
+
+      // La deuda de la tarjeta sube por el monto retirado MÁS la comisión
+      await db.from('tarjetas').update({
+        saldo_total: Number(tarjetaSaldoTotal) + totalDeuda,
+        gastos_periodo_actual: Number(tarjetaGastosPeriodo) + totalDeuda,
+      }, { id: tarjetaId })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+    },
+  })
+}
+
 // Transferencia personal → negocio o negocio → personal
 export function useTransferirPersonalNegocio() {
   const qc = useQueryClient()
@@ -90,5 +131,59 @@ export function useTransferirPersonalNegocio() {
       await db.from('cuentas').update({ saldo: Number(destinoSaldo) + m }, { id: destinoId })
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cuentas', parejaId] }),
+  })
+}
+
+// Eliminar una transferencia — revierte el efecto en saldos según su tipo
+export function useEliminarTransferencia() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+
+  return useMutation({
+    mutationFn: async ({ transferencia, cuentas, tarjetas }) => {
+      const t = transferencia
+      const m = Number(t.monto)
+
+      if (t.tipo === 'entre_cuentas' || t.tipo === 'personal_a_negocio' || t.tipo === 'negocio_a_personal') {
+        const origen  = cuentas.find((c) => c.id === t.origen_cuenta_id)
+        const destino = cuentas.find((c) => c.id === t.destino_cuenta_id)
+        if (origen)  await db.from('cuentas').update({ saldo: Number(origen.saldo) + m },  { id: origen.id })
+        if (destino) await db.from('cuentas').update({ saldo: Number(destino.saldo) - m }, { id: destino.id })
+      }
+
+      if (t.tipo === 'pago_tarjeta') {
+        const cuenta  = cuentas.find((c) => c.id === t.origen_cuenta_id)
+        const tarjeta = tarjetas.find((tj) => tj.id === t.destino_tarjeta_id)
+        if (cuenta)  await db.from('cuentas').update({ saldo: Number(cuenta.saldo) + m }, { id: cuenta.id })
+        if (tarjeta) {
+          await db.from('tarjetas').update({
+            saldo_total: Number(tarjeta.saldo_total) + m,
+            saldo_periodo_anterior: Number(tarjeta.saldo_periodo_anterior) + m,
+            pago_sin_intereses: Number(tarjeta.pago_sin_intereses) + m,
+          }, { id: tarjeta.id })
+        }
+      }
+
+      if (t.tipo === 'disposicion_efectivo') {
+        const com = Number(t.comision || 0)
+        const totalDeuda = m + com
+        const cuenta  = cuentas.find((c) => c.id === t.destino_cuenta_id)
+        const tarjeta = tarjetas.find((tj) => tj.id === t.destino_tarjeta_id)
+        if (cuenta)  await db.from('cuentas').update({ saldo: Math.max(0, Number(cuenta.saldo) - m) }, { id: cuenta.id })
+        if (tarjeta) {
+          await db.from('tarjetas').update({
+            saldo_total: Math.max(0, Number(tarjeta.saldo_total) - totalDeuda),
+            gastos_periodo_actual: Math.max(0, Number(tarjeta.gastos_periodo_actual) - totalDeuda),
+          }, { id: tarjeta.id })
+        }
+      }
+
+      await db.from('transferencias').delete({ id: t.id })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transferencias-list', parejaId] })
+      qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+    },
   })
 }
