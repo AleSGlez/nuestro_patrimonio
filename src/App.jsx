@@ -10,7 +10,7 @@ import LoadingScreen from '@ui/LoadingScreen'
 
 export default function App() {
   const { user, initialized, init, logout } = useAuthStore()
-  const { tema, setupCompleto, setSetupCompleto } = useAppStore()
+  const { tema } = useAppStore()
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', tema)
@@ -27,24 +27,30 @@ export default function App() {
   if (!initialized) return <LoadingScreen />
   if (!user)        return <AuthPage />
 
-  return <AuthedApp setupCompleto={setupCompleto} setSetupCompleto={setSetupCompleto} />
+  return <AuthedApp />
 }
 
-// Componente separado para poder usar usePareja solo cuando hay user
-function AuthedApp({ setupCompleto, setSetupCompleto }) {
-  const { data: pareja, isLoading } = usePareja()
+// Componente separado: solo se monta cuando hay user autenticado
+function AuthedApp() {
+  const { data: pareja, isPending, isError, isFetched } = usePareja()
+  const { setSetupCompleto } = useAppStore()
 
   useEffect(() => {
-    // Si ya existe una pareja vinculada a este usuario en BD,
-    // el setup ya está completo aunque localStorage se haya limpiado
-    if (pareja && !setupCompleto) {
-      setSetupCompleto(true)
-    }
+    // Si la BD confirma que existe pareja, marcamos setup como completo
+    // (sincroniza localStorage con la fuente de verdad real: la BD)
+    if (pareja) setSetupCompleto(true)
   }, [pareja])
 
-  if (isLoading) return <LoadingScreen msg="Cargando tu pareja…" />
-  if (!pareja && !setupCompleto) return <SetupPage />
-  if (!pareja) return <LoadingScreen />
+  // isPending: la query nunca ha corrido o sigue en su primer fetch.
+  // Esto es lo único confiable para saber "todavía no sé si hay pareja".
+  if (isPending) return <LoadingScreen msg="Cargando tu pareja…" />
+
+  // isFetched + sin pareja + sin error = la BD confirmó que NO existe pareja
+  if (isFetched && !pareja && !isError) return <SetupPage />
+
+  // Error de red u otro — no asumas que no hay pareja, muestra loading
+  // en vez de mandar al usuario a recrear todo
+  if (!pareja) return <LoadingScreen msg="Verificando tu cuenta…" />
 
   return <DashboardPage />
 }
