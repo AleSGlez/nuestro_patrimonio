@@ -10,10 +10,11 @@ import { useAppStore } from '@store/appStore'
 import { PALETTE } from '@lib/utils'
 
 const TIPOS = [
-  { value: 'debito',    label: '💳 Débito' },
-  { value: 'ahorro',    label: '🏦 Ahorro' },
-  { value: 'efectivo',  label: '💵 Efectivo' },
-  { value: 'inversion', label: '📈 Inversión' },
+  { value: 'debito',     label: '💳 Débito' },
+  { value: 'ahorro',     label: '🏦 Ahorro' },
+  { value: 'efectivo',   label: '💵 Efectivo' },
+  { value: 'inversion',  label: '📈 Inversión' },
+  { value: 'transporte', label: '🚇 Transporte (Metro, prepago)' },
 ]
 
 const BANCOS = ['BBVA','Banamex','Santander','HSBC','Banorte','Scotiabank','Inbursa','Nu','Hey Banco','Otro']
@@ -87,7 +88,7 @@ export default function FormCuenta({ open, onClose, cuenta = null }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Select label="Tipo" value={tipo} onChange={setTipo} options={TIPOS} className="mb-0" />
-        {tipo !== 'efectivo' && (
+        {tipo !== 'efectivo' && tipo !== 'transporte' && (
           <Select label="Banco" value={banco} onChange={setBanco} options={BANCOS} className="mb-0" />
         )}
       </div>

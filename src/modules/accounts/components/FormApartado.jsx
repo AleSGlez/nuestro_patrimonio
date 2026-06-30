@@ -1,12 +1,12 @@
 // src/modules/accounts/components/FormApartado.jsx
 import { useState, useEffect } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Store } from 'lucide-react'
 import Modal from '@ui/Modal'
 import { Input, AmountInput, Select } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
 import { useCrearApartado, useActualizarApartado } from '../hooks/useApartados'
-import { today, fmt } from '@lib/utils'
+import { today, fmt, cn } from '@lib/utils'
 
 const TIPO_INTERES = [
   { value: 'simple',    label: 'Interés simple' },
@@ -30,6 +30,7 @@ export default function FormApartado({ open, onClose, cuenta, apartado = null })
   const [metaMonto, setMetaMonto]   = useState('')
   const [metaFecha, setMetaFecha]   = useState('')
   const [emoji, setEmoji]           = useState('🏦')
+  const [esNegocio, setEsNegocio]   = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -42,16 +43,14 @@ export default function FormApartado({ open, onClose, cuenta, apartado = null })
       setMetaMonto(apartado.meta_monto ? String(apartado.meta_monto) : '')
       setMetaFecha(apartado.meta_fecha || '')
       setEmoji(apartado.emoji)
+      setEsNegocio(Boolean(apartado.es_negocio))
     } else {
       setNombre(''); setMonto(''); setTasaAnual('')
       setTipoInteres('simple'); setFechaInicio(today())
-      setMetaMonto(''); setMetaFecha(''); setEmoji('🏦')
+      setMetaMonto(''); setMetaFecha(''); setEmoji('🏦'); setEsNegocio(false)
     }
   }, [open, apartado])
 
-  // Disponible real: saldo de la cuenta (ya excluye apartados existentes)
-  // + lo que este apartado específico ya tenía apartado (si es edición,
-  // ese monto ya se restó del saldo, así que se puede usar de nuevo)
   const disponibleParaEsteApartado = isEdit
     ? Number(cuenta?.saldo || 0) + Number(apartado.monto)
     : Number(cuenta?.saldo || 0)
@@ -75,6 +74,7 @@ export default function FormApartado({ open, onClose, cuenta, apartado = null })
       meta_monto: metaMonto ? Number(metaMonto) : null,
       meta_fecha: metaFecha || null,
       emoji,
+      es_negocio: esNegocio,
     }
 
     try {
@@ -131,6 +131,36 @@ export default function FormApartado({ open, onClose, cuenta, apartado = null })
       <p className="text-xs text-gray-500 -mt-3 mb-4">
         Disponible para apartar: <span className="text-white font-medium">{fmt(disponibleParaEsteApartado)}</span>
       </p>
+
+      {/* Toggle: este dinero es del negocio aunque viva en cuenta personal */}
+      <button
+        type="button"
+        onClick={() => setEsNegocio(!esNegocio)}
+        className={cn(
+          'w-full flex items-center gap-3 p-3 rounded-xl border transition-all mb-4 text-left',
+          esNegocio ? 'border-[var(--accent)] bg-[var(--accent-muted)]' : 'border-white/10 bg-surface-700'
+        )}
+      >
+        <div className={cn(
+          'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+          esNegocio ? 'bg-[var(--accent)]' : 'bg-surface-600'
+        )}>
+          <Store size={16} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-white">Es dinero del negocio</p>
+          <p className="text-xs text-gray-400">Aunque esté en tu cuenta personal, cuenta en los reportes de negocio</p>
+        </div>
+        <div className={cn(
+          'w-10 h-6 rounded-full flex-shrink-0 transition-all relative',
+          esNegocio ? 'bg-[var(--accent)]' : 'bg-surface-600'
+        )}>
+          <div className={cn(
+            'w-4 h-4 rounded-full bg-white absolute top-1 transition-all',
+            esNegocio ? 'left-5' : 'left-1'
+          )} />
+        </div>
+      </button>
 
       <div className="grid grid-cols-2 gap-3">
         <AmountInput
