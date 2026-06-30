@@ -1,16 +1,18 @@
 // src/modules/dashboard/DashboardPage.jsx
-// Placeholder — Fase 5 construye el dashboard completo
-import { Copy, Check } from 'lucide-react'
 import { useState } from 'react'
+import { Copy, Check } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
-import { usePareja } from '@modules/couple/hooks/usePareja'
 import { useToast } from '@ui/Toast'
+import BottomNav from '@shared/components/layout/BottomNav'
+import PlaceholderPage from '@shared/components/layout/PlaceholderPage'
+import AccountsPage from '@modules/accounts/AccountsPage'
+import CardsPage from '@modules/cards/CardsPage'
 
-export default function DashboardPage() {
+// ── Home tab content ─────────────────────────────────────────
+function HomeTab() {
   const { user, logout, pareja } = useAuthStore()
   const { nombres } = useAppStore()
-  const { isLoading } = usePareja()
   const toast = useToast()
   const [copiado, setCopiado] = useState(false)
 
@@ -25,39 +27,64 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="page p-4">
-      <div className="card p-6 text-center mb-4">
-        <div className="text-4xl mb-3">🏗️</div>
-        <h2 className="text-white font-semibold mb-1">Dashboard</h2>
-        <p className="text-sm text-gray-400 mb-1">{nombres.p1} & {nombres.p2}</p>
-        <p className="text-xs text-gray-500 mb-4">{user?.email}</p>
-        <div className="badge-ok inline-flex mb-2">Fase 2 ✅ — Setup funcionando</div>
+    <>
+      <div className="top-header">
+        <div>
+          <p className="section-label">Bienvenidos</p>
+          <h1 className="text-lg font-bold text-white leading-tight">{nombres.p1} & {nombres.p2}</h1>
+        </div>
       </div>
 
-      {!isLoading && pareja && !parejaCompleta && (
-        <div className="card p-5 mb-4 border-[var(--accent)]/30">
-          <p className="text-sm text-white font-semibold mb-1">Esperando a {nombres.p2}</p>
-          <p className="text-xs text-gray-400 mb-3">Comparte este código para que se una:</p>
-          <div className="flex items-center gap-2">
-            <p className="flex-1 text-center text-xl font-mono font-bold tracking-[0.2em] gradient-text">
-              {pareja.codigo_invitacion}
-            </p>
-            <button onClick={copiarCodigo} className="btn-ghost w-10 h-10 rounded-xl flex-shrink-0">
-              {copiado ? <Check size={15} /> : <Copy size={15} />}
-            </button>
+      <div className="page px-4 pt-4">
+        <div className="card p-6 text-center mb-4">
+          <div className="text-4xl mb-3">🏗️</div>
+          <h2 className="text-white font-semibold mb-1">Dashboard</h2>
+          <p className="text-xs text-gray-500 mb-3">{user?.email}</p>
+          <div className="badge-ok inline-flex">Fase 3 ✅ — Cuentas y tarjetas funcionando</div>
+        </div>
+
+        {pareja && !parejaCompleta && (
+          <div className="card p-5 mb-4 border-[var(--accent)]/30">
+            <p className="text-sm text-white font-semibold mb-1">Esperando a {nombres.p2}</p>
+            <p className="text-xs text-gray-400 mb-3">Comparte este código para que se una:</p>
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-center text-xl font-mono font-bold tracking-[0.2em] gradient-text">
+                {pareja.codigo_invitacion}
+              </p>
+              <button onClick={copiarCodigo} className="btn-ghost w-10 h-10 rounded-xl flex-shrink-0">
+                {copiado ? <Check size={15} /> : <Copy size={15} />}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {parejaCompleta && (
-        <div className="card p-4 mb-4 bg-ok/5 border-ok/20">
-          <p className="text-sm text-ok font-medium text-center">✅ Pareja vinculada completa</p>
-        </div>
-      )}
+        <button onClick={logout} className="btn-ghost w-full py-2.5 text-sm">
+          Cerrar sesión
+        </button>
+      </div>
+    </>
+  )
+}
 
-      <button onClick={logout} className="btn-ghost w-full py-2.5 text-sm">
-        Cerrar sesión
-      </button>
+// ── Main shell with bottom nav ────────────────────────────────
+export default function DashboardPage() {
+  const { tab, setTab } = useAppStore()
+
+  const renderTab = () => {
+    switch (tab) {
+      case 'dashboard':     return <HomeTab />
+      case 'cuentas':       return <AccountsPage />
+      case 'tarjetas':      return <CardsPage />
+      case 'transacciones': return <PlaceholderPage emoji="💸" title="Movimientos" fase={4} />
+      case 'ajustes':       return <PlaceholderPage emoji="⚙️" title="Ajustes" fase={11} />
+      default:              return <HomeTab />
+    }
+  }
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {renderTab()}
+      <BottomNav active={tab} onChange={setTab} />
     </div>
   )
 }

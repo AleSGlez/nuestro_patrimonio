@@ -30,26 +30,26 @@ export default function App() {
   return <AuthedApp />
 }
 
-// Componente separado: solo se monta cuando hay user autenticado
+// Componente separado: solo se monta cuando hay user autenticado.
+// El shell de navegación (BottomNav + tabs) vive DENTRO de DashboardPage,
+// este componente solo decide: setup wizard vs dashboard.
 function AuthedApp() {
   const { data: pareja, isPending, isError, isFetched } = usePareja()
-  const { setSetupCompleto } = useAppStore()
+  const setSetupCompleto = useAppStore((s) => s.setSetupCompleto)
+  const setNombres = useAppStore((s) => s.setNombres)
+  const setTema = useAppStore((s) => s.setTema)
 
   useEffect(() => {
-    // Si la BD confirma que existe pareja, marcamos setup como completo
-    // (sincroniza localStorage con la fuente de verdad real: la BD)
-    if (pareja) setSetupCompleto(true)
-  }, [pareja])
+    if (!pareja) return
+    setSetupCompleto(true)
+    // Sincroniza nombres y tema reales de la BD — sobreescribe
+    // cualquier valor default que haya quedado en localStorage
+    setNombres({ p1: pareja.nombre1, p2: pareja.nombre2 })
+    if (pareja.tema) setTema(pareja.tema)
+  }, [pareja?.id, pareja?.nombre1, pareja?.nombre2, pareja?.tema])
 
-  // isPending: la query nunca ha corrido o sigue en su primer fetch.
-  // Esto es lo único confiable para saber "todavía no sé si hay pareja".
   if (isPending) return <LoadingScreen msg="Cargando tu pareja…" />
-
-  // isFetched + sin pareja + sin error = la BD confirmó que NO existe pareja
   if (isFetched && !pareja && !isError) return <SetupPage />
-
-  // Error de red u otro — no asumas que no hay pareja, muestra loading
-  // en vez de mandar al usuario a recrear todo
   if (!pareja) return <LoadingScreen msg="Verificando tu cuenta…" />
 
   return <DashboardPage />

@@ -155,12 +155,11 @@ body {
 
   /* ── Bottom nav ── */
   .bottom-nav {
-    position: fixed;
+    position: absolute;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
     width: 100%;
-    max-width: 430px;
     height: calc(var(--nav-height) + var(--sab));
     padding-bottom: var(--sab);
     @apply bg-surface-900/95 backdrop-blur-md border-t border-white/[0.06] flex-shrink-0;
@@ -177,7 +176,7 @@ body {
 
   /* ── FAB ── */
   .fab {
-    position: fixed;
+    position: absolute;
     right: 16px;
     bottom: calc(var(--nav-height) + var(--sab) + 12px);
     @apply w-14 h-14 rounded-2xl bg-[var(--accent)] text-white shadow-lg
