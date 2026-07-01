@@ -6,6 +6,7 @@ import { Select, Input } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
+import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useCrearTransaccion, useActualizarTransaccion } from '../hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
@@ -18,6 +19,7 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
   const toast = useToast()
   const { data: cuentas = [] } = useCuentas()
   const { data: tarjetas = [] } = useTarjetas()
+  const { data: todosApartados = [] } = useTodosLosApartados()
   const crear = useCrearTransaccion()
   const actualizar = useActualizarTransaccion()
   const isEdit = Boolean(tx)
@@ -39,10 +41,17 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
   // metodoPago ahora es un valor compuesto: "cuenta:UUID" | "tarjeta:UUID" | "efectivo-generico"
   const [metodoValor, setMetodoValor] = useState('')
 
-  // ── Filtrado por persona ──────────────────────────────────────
-  // Cuentas: propias de la persona + compartidas (persona='ambos' en la cuenta)
+  // IDs de cuentas personales que tienen al menos un apartado con es_negocio=true
+  const cuentasConApartadoNegocio = new Set(
+    todosApartados.filter((a) => a.es_negocio).map((a) => a.cuenta_id)
+  )
+
+  // Filtrado por persona y contexto
   const cuentasFiltradas = cuentas.filter((c) => {
-    if (contexto === 'negocio') return c.persona === 'negocio'
+    if (contexto === 'negocio') {
+      // Cuentas reales de negocio + cuentas personales con apartado de negocio
+      return c.persona === 'negocio' || cuentasConApartadoNegocio.has(c.id)
+    }
     if (c.persona === 'negocio') return false
     if (persona === 'ambos') return true
     return c.persona === persona || c.persona === 'ambos'
@@ -57,10 +66,13 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
 
   // ── Dropdown unificado de método de pago ──────────────────────
   const metodoOpts = [
-    ...cuentasFiltradas.map((c) => ({
-      value: `cuenta:${c.id}`,
-      label: `${TIPO_EMOJI[c.tipo] || '💳'} ${c.nombre}`,
-    })),
+    ...cuentasFiltradas.map((c) => {
+      const esPersonalParaNegocio = contexto === 'negocio' && c.persona !== 'negocio' && cuentasConApartadoNegocio.has(c.id)
+      return {
+        value: `cuenta:${c.id}`,
+        label: `${TIPO_EMOJI[c.tipo] || '💳'} ${c.nombre}${esPersonalParaNegocio ? ' (apartado negocio)' : ''}`,
+      }
+    }),
     ...tarjetasFiltradas.map((t) => ({
       value: `tarjeta:${t.id}`,
       label: `💳 ${t.nombre} (crédito)`,
