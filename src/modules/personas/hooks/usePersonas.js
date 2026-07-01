@@ -69,10 +69,10 @@ export function useEliminarPersona() {
 //   pago_enviado  → saldo BAJA   (le pagué, le debo menos)
 
 const DELTA = {
-  prestamo:      +1,
-  cobro:         +1,
-  pago_recibido: -1,
-  pago_enviado:  -1,
+  prestamo:      +1,  // me debe más
+  le_debo:       -1,  // yo le debo (saldo negativo = le debo)
+  pago_recibido: -1,  // me pagó, me debe menos
+  pago_enviado:  +1,  // le pagué, ya no le debo tanto
 }
 
 export function useRegistrarMovimiento() {

@@ -11,7 +11,7 @@ import { today, fmt, cn } from '@lib/utils'
 
 const TIPOS = [
   { value: 'prestamo',      label: '💸 Le presté dinero',    desc: 'Me lo debe de regreso' },
-  { value: 'cobro',         label: '📋 Me debe por algo',    desc: 'Una deuda que me quedó pendiente' },
+  { value: 'le_debo',       label: '🔴 Le debo dinero',      desc: 'Tengo una deuda pendiente con esta persona' },
   { value: 'pago_recibido', label: '✅ Me pagó',             desc: 'Saldó parte o todo lo que me debía' },
   { value: 'pago_enviado',  label: '💳 Le pagué',            desc: 'Saldé parte o todo lo que le debía' },
 ]
@@ -38,10 +38,8 @@ export default function FormMovimientoPersona({ open, onClose, persona }) {
 
   const cuentaOpts = cuentas.map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` }))
 
-  // Mueve dinero de cuenta solo cuando tiene sentido:
-  // prestamo/pago_enviado → sale dinero  | pago_recibido → entra dinero
-  // cobro → no toca cuentas (es solo un registro de deuda)
-  const afectaCuenta = tipo !== 'cobro'
+  // le_debo y cobro no tocan cuentas — son solo registros de deuda
+  const afectaCuenta = tipo === 'prestamo' || tipo === 'pago_recibido' || tipo === 'pago_enviado'
 
   const handleSave = async () => {
     if (!monto || Number(monto) <= 0) { toast.error('Ingresa el monto'); return }

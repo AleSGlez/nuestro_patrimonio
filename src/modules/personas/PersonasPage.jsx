@@ -11,10 +11,10 @@ import FormMovimientoPersona from './components/FormMovimientoPersona'
 import { fmt, fmtDate, cn } from '@lib/utils'
 
 const TIPO_INFO = {
-  prestamo:      { emoji: '💸', label: 'Préstamo', signo: '+' },
-  cobro:         { emoji: '📋', label: 'Deuda registrada', signo: '+' },
-  pago_recibido: { emoji: '✅', label: 'Pago recibido', signo: '-' },
-  pago_enviado:  { emoji: '💳', label: 'Pago enviado', signo: '-' },
+  prestamo:      { emoji: '💸', label: 'Préstamo dado',   signo: '+' },
+  le_debo:       { emoji: '🔴', label: 'Deuda mía',       signo: '-' },
+  pago_recibido: { emoji: '✅', label: 'Pago recibido',   signo: '-' },
+  pago_enviado:  { emoji: '💳', label: 'Pago enviado',    signo: '+' },
 }
 
 function DetallPersona({ persona, onClose, onEdit }) {
