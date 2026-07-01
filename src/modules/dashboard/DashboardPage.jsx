@@ -1,14 +1,13 @@
 // src/modules/dashboard/DashboardPage.jsx
-import { useState } from 'react'
-import { Copy, Check, LogOut, TrendingUp, TrendingDown } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Copy, Check, LogOut, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
-import { useDashboardData } from './hooks/useDashboard'
+import { useDashboardData, buildSparklineData } from './hooks/useDashboard'
 import BottomNav from '@shared/components/layout/BottomNav'
-import PlaceholderPage from '@shared/components/layout/PlaceholderPage'
 import AccountsPage from '@modules/accounts/AccountsPage'
 import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
@@ -16,66 +15,43 @@ import PersonasPage from '@modules/personas/PersonasPage'
 import GraficaFlujo from './components/GraficaFlujo'
 import GraficaCategorias from './components/GraficaCategorias'
 import UltimosMovimientos from './components/UltimosMovimientos'
+import Sparkline from './components/Sparkline'
 import { fmt, cn } from '@lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-// ── Header fijo con saludo + resumen ─────────────────────────
-function DashboardHeader({ nombres, patrimonio, flujo, logout }) {
-  const hora = new Date().getHours()
-  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
-
+// ── Card de métrica con sparkline ─────────────────────────────
+function MetricaCard({ label, valor, positivo, sparkData, colorLinea, sufijo }) {
+  const isPositive = positivo ?? valor >= 0
   return (
-    <div className="flex-shrink-0 px-4 pt-5 pb-4 border-b border-white/[0.06]">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <p className="text-xs text-gray-500">{saludo} 👋</p>
-          <h1 className="text-xl font-bold text-white">{nombres.p1} & {nombres.p2}</h1>
-        </div>
-        <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl flex-shrink-0">
-          <LogOut size={18} />
-        </button>
-      </div>
-
-      {/* Resumen numérico en el header */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-surface-700 rounded-2xl p-3">
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="w-5 h-5 rounded-lg bg-[var(--accent-muted)] flex items-center justify-center">
-              <TrendingUp size={11} className="text-[var(--accent)]" />
-            </div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Patrimonio</p>
-          </div>
-          <p className={cn('text-lg font-bold font-mono', patrimonio >= 0 ? 'text-white' : 'text-bad')}>
-            {fmt(patrimonio)}
-          </p>
-        </div>
-        <div className="bg-surface-700 rounded-2xl p-3">
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className={cn('w-5 h-5 rounded-lg flex items-center justify-center', flujo >= 0 ? 'bg-ok/10' : 'bg-bad/10')}>
-              {flujo >= 0
-                ? <TrendingUp size={11} className="text-ok" />
-                : <TrendingDown size={11} className="text-bad" />
-              }
-            </div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Flujo mes</p>
-          </div>
-          <p className={cn('text-lg font-bold font-mono', flujo >= 0 ? 'text-ok' : 'text-bad')}>
-            {flujo >= 0 ? '+' : ''}{fmt(flujo)}
-          </p>
+    <div className="card p-3.5 flex flex-col">
+      <div className="flex items-start justify-between mb-1">
+        <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
+        <div className={cn('flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
+          isPositive ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
+        )}>
+          {isPositive ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+          {sufijo}
         </div>
       </div>
+      <p className={cn('text-xl font-bold font-mono leading-tight mb-2', isPositive ? 'text-white' : 'text-bad')}>
+        {valor >= 0 && isPositive !== false ? '' : valor < 0 ? '' : ''}{fmt(Math.abs(valor))}
+      </p>
+      {sparkData && sparkData.length >= 2 && (
+        <div className="mt-auto -mx-1">
+          <Sparkline data={sparkData} color={isPositive ? '#10B981' : '#EF4444'} height={32} />
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Expenses vs Income card ───────────────────────────────────
+// ── Ingresos vs Gastos ────────────────────────────────────────
 function IngresosGastosCard({ transacciones }) {
   const ingresos = transacciones.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
   const gastos   = transacciones.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
   const total    = ingresos + gastos
-  const pctIngresos = total > 0 ? (ingresos / total) * 100 : 50
-  const pctGastos   = total > 0 ? (gastos / total) * 100 : 50
+  const pctGastos = total > 0 ? Math.min(100, (gastos / ingresos) * 100) : 0
   const mes = format(new Date(), 'MMMM', { locale: es })
 
   return (
@@ -91,31 +67,33 @@ function IngresosGastosCard({ transacciones }) {
             <div className="w-2 h-2 rounded-full bg-ok" />
             <p className="text-xs text-gray-400">Ingresos</p>
           </div>
-          <p className="text-base font-bold font-mono text-ok">{fmt(ingresos)}</p>
-          <p className="text-[11px] text-gray-500">{Math.round(pctIngresos)}% del total</p>
+          <p className="text-lg font-bold font-mono text-ok">{fmt(ingresos)}</p>
         </div>
         <div>
           <div className="flex items-center gap-1.5 mb-1">
             <div className="w-2 h-2 rounded-full bg-bad" />
             <p className="text-xs text-gray-400">Gastos</p>
           </div>
-          <p className="text-base font-bold font-mono text-bad">{fmt(gastos)}</p>
-          <p className="text-[11px] text-gray-500">{Math.round(pctGastos)}% del total</p>
+          <p className="text-lg font-bold font-mono text-bad">{fmt(gastos)}</p>
         </div>
       </div>
 
-      {/* Barra comparativa */}
       {total > 0 && (
-        <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
-          <div className="bg-ok rounded-full transition-all" style={{ width: `${pctIngresos}%` }} />
-          <div className="bg-bad rounded-full transition-all" style={{ width: `${pctGastos}%` }} />
-        </div>
+        <>
+          <div className="flex h-2 rounded-full overflow-hidden gap-0.5 mb-1.5">
+            <div className="bg-ok rounded-l-full" style={{ width: `${100 - pctGastos}%` }} />
+            <div className="bg-bad rounded-r-full" style={{ width: `${Math.min(pctGastos, 100)}%` }} />
+          </div>
+          <p className="text-[10px] text-gray-500 text-right">
+            {Math.round(pctGastos)}% de tus ingresos gastado
+          </p>
+        </>
       )}
     </div>
   )
 }
 
-// ── Home tab ─────────────────────────────────────────────────
+// ── Home tab ──────────────────────────────────────────────────
 function HomeTab() {
   const { logout, pareja } = useAuthStore()
   const { nombres } = useAppStore()
@@ -130,14 +108,23 @@ function HomeTab() {
   const txHistoricoData = txHistorico.data || []
   const parejaCompleta  = pareja?.user1_id && pareja?.user2_id
 
-  const patrimonio = cuentas
+  const totalCuentas = cuentas
     .filter((c) => c.persona !== 'negocio')
     .reduce((s, c) => s + Number(c.saldo), 0)
-    - tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
+  const totalDeuda = tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
+  const patrimonio = totalCuentas - totalDeuda
 
   const ingresos = txMesData.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
   const gastos   = txMesData.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
   const flujo    = ingresos - gastos
+
+  // Sparkline: flujo acumulado de los últimos 14 días
+  const sparkFlujo = useMemo(() => buildSparklineData(txMesData, 14), [txMesData])
+  // Sparkline de patrimonio: flujo acumulado histórico (aproximación)
+  const sparkPatrimonio = useMemo(() => buildSparklineData(txHistoricoData, 30), [txHistoricoData])
+
+  const hora = new Date().getHours()
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
 
   const copiarCodigo = async () => {
     if (!pareja?.codigo_invitacion) return
@@ -149,15 +136,50 @@ function HomeTab() {
 
   return (
     <>
-      <DashboardHeader nombres={nombres} patrimonio={patrimonio} flujo={flujo} logout={logout} />
+      {/* Header fijo */}
+      <div className="flex-shrink-0 px-4 pt-5 pb-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs text-gray-500">{saludo} 👋</p>
+            <h1 className="text-xl font-bold text-white">{nombres.p1} & {nombres.p2}</h1>
+          </div>
+          <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
+            <LogOut size={18} />
+          </button>
+        </div>
 
+        {/* Grid 2 columnas con sparklines */}
+        <div className="grid grid-cols-2 gap-3">
+          <MetricaCard
+            label="Patrimonio neto"
+            valor={patrimonio}
+            sufijo={patrimonio >= 0 ? 'activo' : 'déficit'}
+            sparkData={sparkPatrimonio}
+          />
+          <MetricaCard
+            label="Flujo del mes"
+            valor={flujo}
+            positivo={flujo >= 0}
+            sufijo={flujo >= 0 ? 'positivo' : 'negativo'}
+            sparkData={sparkFlujo}
+          />
+        </div>
+      </div>
+
+      {/* Contenido scrolleable */}
       <div className="page px-4 pt-4">
-        {/* Gráfica barras 6 meses — la más visual, va primero */}
-        {txHistoricoData.length > 0 && (
-          <GraficaFlujo transacciones={txHistoricoData} />
-        )}
 
-        {/* Ingresos vs Gastos del mes */}
+        {/* Gráfica barras 6 meses */}
+        {txHistoricoData.length > 0
+          ? <GraficaFlujo transacciones={txHistoricoData} />
+          : (
+            <div className="card p-4 mb-3 flex items-center justify-center h-24">
+              <p className="text-xs text-gray-500">Registra movimientos para ver la gráfica de 6 meses</p>
+            </div>
+          )
+        }
+
+        {/* Ingresos vs Gastos */}
         <IngresosGastosCard transacciones={txMesData} />
 
         {/* Gastos por categoría */}
@@ -166,9 +188,9 @@ function HomeTab() {
         )}
 
         {/* Últimos movimientos */}
-        <UltimosMovimientos transacciones={txMesData} />
+        <UltimosMovimientos transacciones={[...txMesData].reverse()} />
 
-        {/* Código de invitación si pareja incompleta */}
+        {/* Código de invitación */}
         {pareja && !parejaCompleta && (
           <div className="card p-5 mb-4 border-[var(--accent)]/30">
             <p className="text-sm text-white font-semibold mb-1">Esperando a {nombres.p2}</p>
@@ -184,18 +206,19 @@ function HomeTab() {
           </div>
         )}
 
-        {/* Espacio para fases futuras:
-            - Fase 6: resumen negocio (utilidad, ventas del mes)
-            - Fase 7: barra de presupuesto (gauge como en la imagen)
-            - Fase 9: próximas suscripciones a vencer
-            - Fase 10: próxima quincena countdown
+        {/*
+          ESPACIO PARA FASES FUTURAS — enchufar aquí sin reorganizar:
+          Fase 6:  <ResumenNegocio />
+          Fase 7:  <BarrasPresupuesto />  ← gauge como en imagen de referencia
+          Fase 9:  <ProximasSuscripciones />
+          Fase 10: <CountdownQuincena />
         */}
       </div>
     </>
   )
 }
 
-// ── Shell con bottom nav ──────────────────────────────────────
+// ── Shell ─────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { tab, setTab } = useAppStore()
 
