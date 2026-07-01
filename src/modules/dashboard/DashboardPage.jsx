@@ -9,6 +9,7 @@ import PlaceholderPage from '@shared/components/layout/PlaceholderPage'
 import AccountsPage from '@modules/accounts/AccountsPage'
 import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
+import PersonasPage from '@modules/personas/PersonasPage'
 
 // ── Home tab content ─────────────────────────────────────────
 function HomeTab() {
@@ -77,6 +78,7 @@ export default function DashboardPage() {
       case 'cuentas':       return <AccountsPage />
       case 'tarjetas':      return <CardsPage />
       case 'transacciones': return <TransactionsPage />
+      case 'personas':      return <PersonasPage />
       case 'ajustes':       return <PlaceholderPage emoji="⚙️" title="Ajustes" fase={11} />
       default:              return <HomeTab />
     }

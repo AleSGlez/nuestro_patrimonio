@@ -1,5 +1,5 @@
 // src/shared/components/layout/BottomNav.jsx
-import { Home, Building2, CreditCard, ArrowLeftRight, Settings } from 'lucide-react'
+import { Home, Building2, CreditCard, ArrowLeftRight, Users } from 'lucide-react'
 import { cn } from '@lib/utils'
 
 const TABS = [
@@ -7,7 +7,7 @@ const TABS = [
   { id: 'cuentas',       label: 'Cuentas',     icon: Building2 },
   { id: 'tarjetas',      label: 'Tarjetas',    icon: CreditCard },
   { id: 'transacciones', label: 'Movimientos', icon: ArrowLeftRight },
-  { id: 'ajustes',       label: 'Ajustes',     icon: Settings },
+  { id: 'personas',      label: 'Personas',    icon: Users },
 ]
 
 export default function BottomNav({ active, onChange }) {
