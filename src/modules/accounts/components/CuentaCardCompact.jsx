@@ -7,7 +7,9 @@ const TIPO_EMOJI = { debito: '💳', ahorro: '🏦', efectivo: '💵', inversion
 
 export default function CuentaCardCompact({ cuenta, onTap }) {
   const { data: apartados = [] } = useApartados(cuenta.id)
-  const totalApartado = apartados.reduce((s, a) => s + Number(a.monto), 0)
+  const totalApartado = apartados
+    .filter((a) => !a.es_negocio)
+    .reduce((s, a) => s + Number(a.monto), 0)
   const tieneNegocio = apartados.some((a) => a.es_negocio)
 
   return (

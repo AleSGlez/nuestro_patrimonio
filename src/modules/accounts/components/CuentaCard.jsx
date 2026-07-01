@@ -80,8 +80,12 @@ export default function CuentaCard({ cuenta, onEdit, onDelete, onAddApartado, on
     p1: nombres.p1, p2: nombres.p2, ambos: 'Compartida', negocio: '🏪 Negocio',
   }[cuenta.persona]
 
-  const totalApartado = apartados.reduce((s, a) => s + Number(a.monto), 0)
-  const totalApartadoNegocio = apartados.filter((a) => a.es_negocio).reduce((s, a) => s + Number(a.monto), 0)
+  const totalApartado = apartados
+    .filter((a) => !a.es_negocio)
+    .reduce((s, a) => s + Number(a.monto), 0)
+  const totalApartadoNegocio = apartados
+    .filter((a) => a.es_negocio)
+    .reduce((s, a) => s + Number(a.monto), 0)
   const tieneApartados = cuenta.tipo !== 'efectivo' && cuenta.tipo !== 'transporte'
 
   return (
@@ -143,9 +147,23 @@ export default function CuentaCard({ cuenta, onEdit, onDelete, onAddApartado, on
 
       {expanded && tieneApartados && (
         <div className="px-4 pb-4 pt-1 space-y-2 border-t border-white/[0.06] mt-1">
-          {apartados.map((a) => (
+          {/* Apartados personales */}
+          {apartados.filter((a) => !a.es_negocio).map((a) => (
             <ApartadoRow key={a.id} apartado={a} cuenta={cuenta} onEdit={onEditApartado} />
           ))}
+
+          {/* Apartados de negocio — separados visualmente */}
+          {apartados.filter((a) => a.es_negocio).length > 0 && (
+            <div className="pt-1 border-t border-white/[0.04]">
+              <p className="text-[10px] text-gray-500 mb-1.5 flex items-center gap-1">
+                <Store size={9} /> Apartados del negocio (no cuentan en tu saldo personal)
+              </p>
+              {apartados.filter((a) => a.es_negocio).map((a) => (
+                <ApartadoRow key={a.id} apartado={a} cuenta={cuenta} onEdit={onEditApartado} />
+              ))}
+            </div>
+          )}
+
           <button
             onClick={() => onAddApartado(cuenta)}
             className="w-full py-2 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 text-xs text-gray-400 hover:border-[var(--accent)]/40 hover:text-[var(--accent)] transition-all"
