@@ -57,9 +57,11 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
     return c.persona === persona || c.persona === 'ambos'
   })
 
-  // Tarjetas: solo aplican a gastos personales con tarjeta de crédito.
-  // No tiene sentido "recibir un ingreso" en una tarjeta de crédito.
-  const tarjetasFiltradas = (contexto === 'negocio' || tipo === 'ingreso') ? [] : tarjetas.filter((t) => {
+  // Tarjetas: aplican a gastos (no ingresos).
+  // En contexto negocio también se pueden usar tarjetas personales
+  // para gastos del negocio (ej: compra de inventario con BBVA Oro).
+  const tarjetasFiltradas = tipo === 'ingreso' ? [] : tarjetas.filter((t) => {
+    if (contexto === 'negocio') return true // todas las tarjetas disponibles para negocio
     if (persona === 'ambos') return true
     return t.persona === persona || t.persona === 'ambos'
   })
