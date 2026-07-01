@@ -34,6 +34,7 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
   const [banco, setBanco]             = useState('BBVA')
   const [limite, setLimite]           = useState('')
   const [saldoAnterior, setSaldoAnterior] = useState('')
+  const [pagoSinIntereses, setPagoSinIntereses] = useState('')
   const [pagoMinimo, setPagoMinimo]   = useState('')
   const [diaCorte, setDiaCorte]       = useState('')
   const [diaLimite, setDiaLimite]     = useState('')
@@ -46,13 +47,14 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
       setNombre(tarjeta.nombre); setBanco(tarjeta.banco || 'BBVA')
       setLimite(String(tarjeta.limite))
       setSaldoAnterior(String(tarjeta.saldo_periodo_anterior))
+      setPagoSinIntereses(String(tarjeta.pago_sin_intereses))
       setPagoMinimo(String(tarjeta.pago_minimo))
       setDiaCorte(tarjeta.dia_corte ? String(tarjeta.dia_corte) : '')
       setDiaLimite(tarjeta.dia_limite_pago ? String(tarjeta.dia_limite_pago) : '')
       setPersona(tarjeta.persona); setColor(tarjeta.color)
     } else {
       setNombre(''); setBanco('BBVA'); setLimite('')
-      setSaldoAnterior(''); setPagoMinimo('')
+      setSaldoAnterior(''); setPagoSinIntereses(''); setPagoMinimo('')
       setDiaCorte(''); setDiaLimite(''); setPersona('p1'); setColor(CARD_COLORS[0])
     }
   }, [open, tarjeta])
@@ -65,6 +67,7 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
       nombre: nombre.trim(), banco,
       limite: Number(limite),
       saldo_periodo_anterior: Number(saldoAnterior) || 0,
+      pago_sin_intereses: Number(pagoSinIntereses) || 0,
       pago_minimo: Number(pagoMinimo) || 0,
       dia_corte: diaCorte ? Number(diaCorte) : null,
       dia_limite_pago: diaLimite ? Number(diaLimite) : null,
@@ -103,7 +106,18 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
         <AmountInput label="Deuda actual" value={saldoAnterior} onChange={setSaldoAnterior} placeholder="0.00" className="mb-0" />
       </div>
       <p className="text-xs text-gray-500 -mt-2 mb-3">
-        La deuda actual se considera pago sin intereses pendiente
+        La deuda actual es el total que debes en la tarjeta ahora mismo
+      </p>
+
+      {/* Pago sin intereses: editable manualmente para corregir el valor inicial */}
+      <AmountInput
+        label="Pago sin intereses"
+        value={pagoSinIntereses}
+        onChange={setPagoSinIntereses}
+        placeholder="0.00"
+      />
+      <p className="text-xs text-gray-500 -mt-3 mb-4">
+        Lo que debes pagar antes del límite para no generar intereses. Ajústalo si el valor automático no es correcto.
       </p>
 
       <AmountInput label="Pago mínimo" value={pagoMinimo} onChange={setPagoMinimo} placeholder="0.00" />
