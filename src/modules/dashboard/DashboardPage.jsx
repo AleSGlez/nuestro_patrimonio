@@ -1,6 +1,6 @@
 // src/modules/dashboard/DashboardPage.jsx
 import { useState } from 'react'
-import { Copy, Check, LogOut } from 'lucide-react'
+import { Copy, Check, LogOut, TrendingUp, TrendingDown } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
@@ -13,26 +13,131 @@ import AccountsPage from '@modules/accounts/AccountsPage'
 import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
 import PersonasPage from '@modules/personas/PersonasPage'
-import PatrimonioCard from './components/PatrimonioCard'
-import FlujoCard from './components/FlujoCard'
 import GraficaFlujo from './components/GraficaFlujo'
 import GraficaCategorias from './components/GraficaCategorias'
 import UltimosMovimientos from './components/UltimosMovimientos'
+import { fmt, cn } from '@lib/utils'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
+
+// ── Header fijo con saludo + resumen ─────────────────────────
+function DashboardHeader({ nombres, patrimonio, flujo, logout }) {
+  const hora = new Date().getHours()
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
+
+  return (
+    <div className="flex-shrink-0 px-4 pt-5 pb-4 border-b border-white/[0.06]">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <p className="text-xs text-gray-500">{saludo} 👋</p>
+          <h1 className="text-xl font-bold text-white">{nombres.p1} & {nombres.p2}</h1>
+        </div>
+        <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl flex-shrink-0">
+          <LogOut size={18} />
+        </button>
+      </div>
+
+      {/* Resumen numérico en el header */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-surface-700 rounded-2xl p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="w-5 h-5 rounded-lg bg-[var(--accent-muted)] flex items-center justify-center">
+              <TrendingUp size={11} className="text-[var(--accent)]" />
+            </div>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Patrimonio</p>
+          </div>
+          <p className={cn('text-lg font-bold font-mono', patrimonio >= 0 ? 'text-white' : 'text-bad')}>
+            {fmt(patrimonio)}
+          </p>
+        </div>
+        <div className="bg-surface-700 rounded-2xl p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className={cn('w-5 h-5 rounded-lg flex items-center justify-center', flujo >= 0 ? 'bg-ok/10' : 'bg-bad/10')}>
+              {flujo >= 0
+                ? <TrendingUp size={11} className="text-ok" />
+                : <TrendingDown size={11} className="text-bad" />
+              }
+            </div>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Flujo mes</p>
+          </div>
+          <p className={cn('text-lg font-bold font-mono', flujo >= 0 ? 'text-ok' : 'text-bad')}>
+            {flujo >= 0 ? '+' : ''}{fmt(flujo)}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Expenses vs Income card ───────────────────────────────────
+function IngresosGastosCard({ transacciones }) {
+  const ingresos = transacciones.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
+  const gastos   = transacciones.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
+  const total    = ingresos + gastos
+  const pctIngresos = total > 0 ? (ingresos / total) * 100 : 50
+  const pctGastos   = total > 0 ? (gastos / total) * 100 : 50
+  const mes = format(new Date(), 'MMMM', { locale: es })
+
+  return (
+    <div className="card p-4 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold text-white">Ingresos vs Gastos</p>
+        <p className="text-[11px] text-gray-500 capitalize">{mes}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="w-2 h-2 rounded-full bg-ok" />
+            <p className="text-xs text-gray-400">Ingresos</p>
+          </div>
+          <p className="text-base font-bold font-mono text-ok">{fmt(ingresos)}</p>
+          <p className="text-[11px] text-gray-500">{Math.round(pctIngresos)}% del total</p>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="w-2 h-2 rounded-full bg-bad" />
+            <p className="text-xs text-gray-400">Gastos</p>
+          </div>
+          <p className="text-base font-bold font-mono text-bad">{fmt(gastos)}</p>
+          <p className="text-[11px] text-gray-500">{Math.round(pctGastos)}% del total</p>
+        </div>
+      </div>
+
+      {/* Barra comparativa */}
+      {total > 0 && (
+        <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
+          <div className="bg-ok rounded-full transition-all" style={{ width: `${pctIngresos}%` }} />
+          <div className="bg-bad rounded-full transition-all" style={{ width: `${pctGastos}%` }} />
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Home tab ─────────────────────────────────────────────────
 function HomeTab() {
-  const { user, logout, pareja } = useAuthStore()
+  const { logout, pareja } = useAuthStore()
   const { nombres } = useAppStore()
   const toast = useToast()
   const [copiado, setCopiado] = useState(false)
 
-  const { data: cuentas = [] }   = useCuentas()
-  const { data: tarjetas = [] }  = useTarjetas()
-  const { txMes, txHistorico }   = useDashboardData()
+  const { data: cuentas = [] }  = useCuentas()
+  const { data: tarjetas = [] } = useTarjetas()
+  const { txMes, txHistorico }  = useDashboardData()
 
   const txMesData       = txMes.data || []
   const txHistoricoData = txHistorico.data || []
   const parejaCompleta  = pareja?.user1_id && pareja?.user2_id
+
+  const patrimonio = cuentas
+    .filter((c) => c.persona !== 'negocio')
+    .reduce((s, c) => s + Number(c.saldo), 0)
+    - tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
+
+  const ingresos = txMesData.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
+  const gastos   = txMesData.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
+  const flujo    = ingresos - gastos
 
   const copiarCodigo = async () => {
     if (!pareja?.codigo_invitacion) return
@@ -44,29 +149,18 @@ function HomeTab() {
 
   return (
     <>
-      <div className="top-header">
-        <div>
-          <p className="section-label">Bienvenidos</p>
-          <h1 className="text-lg font-bold text-white">{nombres.p1} & {nombres.p2}</h1>
-        </div>
-        <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
-          <LogOut size={18} />
-        </button>
-      </div>
+      <DashboardHeader nombres={nombres} patrimonio={patrimonio} flujo={flujo} logout={logout} />
 
       <div className="page px-4 pt-4">
-        {/* Grid 2 columnas: Patrimonio + Flujo */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <PatrimonioCard cuentas={cuentas} tarjetas={tarjetas} />
-          <FlujoCard transacciones={txMesData} />
-        </div>
-
-        {/* Gráfica 6 meses */}
+        {/* Gráfica barras 6 meses — la más visual, va primero */}
         {txHistoricoData.length > 0 && (
           <GraficaFlujo transacciones={txHistoricoData} />
         )}
 
-        {/* Gráfica por categoría */}
+        {/* Ingresos vs Gastos del mes */}
+        <IngresosGastosCard transacciones={txMesData} />
+
+        {/* Gastos por categoría */}
         {txMesData.filter((t) => t.tipo === 'gasto').length > 0 && (
           <GraficaCategorias transacciones={txMesData} />
         )}
@@ -89,6 +183,13 @@ function HomeTab() {
             </div>
           </div>
         )}
+
+        {/* Espacio para fases futuras:
+            - Fase 6: resumen negocio (utilidad, ventas del mes)
+            - Fase 7: barra de presupuesto (gauge como en la imagen)
+            - Fase 9: próximas suscripciones a vencer
+            - Fase 10: próxima quincena countdown
+        */}
       </div>
     </>
   )
