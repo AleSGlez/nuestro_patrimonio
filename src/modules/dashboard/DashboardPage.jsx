@@ -1,125 +1,31 @@
 // src/modules/dashboard/DashboardPage.jsx
-import { useState, useMemo } from 'react'
-import { Copy, Check, LogOut, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useState } from 'react'
+import { Copy, Check, LogOut } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
-import { useCuentas } from '@modules/accounts/hooks/useCuentas'
-import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
-import { useDashboardData, buildSparklineData } from './hooks/useDashboard'
+import { useDashboardData } from './hooks/useDashboard'
 import BottomNav from '@shared/components/layout/BottomNav'
 import AccountsPage from '@modules/accounts/AccountsPage'
 import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
 import PersonasPage from '@modules/personas/PersonasPage'
-import GraficaFlujo from './components/GraficaFlujo'
-import GraficaCategorias from './components/GraficaCategorias'
-import UltimosMovimientos from './components/UltimosMovimientos'
-import Sparkline from './components/Sparkline'
+import DashboardPersonal from './components/DashboardPersonal'
 import DashboardNegocio from './components/DashboardNegocio'
-import { fmt, cn } from '@lib/utils'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { cn } from '@lib/utils'
 
-// ── Card de métrica con sparkline ────────────────────────────
-function MetricaCard({ label, valor, positivo, sparkData, sufijo }) {
-  const isPos = positivo ?? valor >= 0
-  return (
-    <div className="card p-3.5 flex flex-col">
-      <div className="flex items-start justify-between mb-1">
-        <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
-        <div className={cn('flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
-          isPos ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
-        )}>
-          {isPos ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
-          {sufijo}
-        </div>
-      </div>
-      <p className={cn('text-xl font-bold font-mono leading-tight mb-2', isPos ? 'text-white' : 'text-bad')}>
-        {fmt(Math.abs(valor))}
-      </p>
-      {sparkData && sparkData.length >= 2 && (
-        <div className="mt-auto -mx-1">
-          <Sparkline data={sparkData} color={isPos ? '#10B981' : '#EF4444'} height={32} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Ingresos vs Gastos personal ───────────────────────────────
-function IngresosGastosCard({ transacciones }) {
-  const tx = transacciones.filter((t) => t.contexto !== 'negocio')
-  const ingresos = tx.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
-  const gastos   = tx.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
-  const total    = ingresos + gastos
-  const pctGastos = total > 0 ? Math.min(100, (gastos / ingresos) * 100) : 0
-  const mes = format(new Date(), 'MMMM', { locale: es })
-
-  return (
-    <div className="card p-4 mb-3">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-white">Ingresos vs Gastos</p>
-        <p className="text-[11px] text-gray-500 capitalize">{mes}</p>
-      </div>
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <div>
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="w-2 h-2 rounded-full bg-ok" />
-            <p className="text-xs text-gray-400">Ingresos</p>
-          </div>
-          <p className="text-lg font-bold font-mono text-ok">{fmt(ingresos)}</p>
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="w-2 h-2 rounded-full bg-bad" />
-            <p className="text-xs text-gray-400">Gastos</p>
-          </div>
-          <p className="text-lg font-bold font-mono text-bad">{fmt(gastos)}</p>
-        </div>
-      </div>
-      {total > 0 && (
-        <>
-          <div className="flex h-2 rounded-full overflow-hidden gap-0.5 mb-1.5">
-            <div className="bg-ok rounded-l-full" style={{ width: `${Math.max(0, 100 - pctGastos)}%` }} />
-            <div className="bg-bad rounded-r-full" style={{ width: `${Math.min(pctGastos, 100)}%` }} />
-          </div>
-          <p className="text-[10px] text-gray-500 text-right">
-            {Math.round(pctGastos)}% de tus ingresos gastado
-          </p>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ── Home tab con toggle Personal / Negocio ────────────────────
+// ── Home tab ──────────────────────────────────────────────────
 function HomeTab() {
-  const { logout, pareja }  = useAuthStore()
-  const { nombres }         = useAppStore()
-  const toast               = useToast()
-  const [vista, setVista]   = useState('personal')
+  const { logout, pareja }    = useAuthStore()
+  const { nombres }           = useAppStore()
+  const toast                 = useToast()
+  const [vista, setVista]     = useState('personal')
   const [copiado, setCopiado] = useState(false)
 
-  const { data: cuentas = [] }  = useCuentas()
-  const { data: tarjetas = [] } = useTarjetas()
-  const { txMes, txHistorico }  = useDashboardData()
-
+  const { txMes, txHistorico } = useDashboardData()
   const txMesData       = txMes.data || []
   const txHistoricoData = txHistorico.data || []
   const parejaCompleta  = pareja?.user1_id && pareja?.user2_id
-
-  // Métricas personales
-  const txPersonalMes = txMesData.filter((t) => t.contexto !== 'negocio')
-  const totalCuentas  = cuentas.filter((c) => c.persona !== 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
-  const totalDeuda    = tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
-  const patrimonio    = totalCuentas - totalDeuda
-  const ingresos      = txPersonalMes.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
-  const gastos        = txPersonalMes.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
-  const flujo         = ingresos - gastos
-
-  const sparkFlujo      = useMemo(() => buildSparklineData(txPersonalMes, 14), [txPersonalMes])
-  const sparkPatrimonio = useMemo(() => buildSparklineData(txHistoricoData.filter((t) => t.contexto !== 'negocio'), 30), [txHistoricoData])
 
   const hora   = new Date().getHours()
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
@@ -146,7 +52,7 @@ function HomeTab() {
         </div>
 
         {/* Toggle Personal / Negocio */}
-        <div className="flex bg-surface-700 rounded-xl p-1 mb-4">
+        <div className="flex bg-surface-700 rounded-xl p-1">
           {[['personal','👤 Personal'],['negocio','🏪 Negocio']].map(([id, label]) => (
             <button
               key={id} onClick={() => setVista(id)}
@@ -159,35 +65,18 @@ function HomeTab() {
             </button>
           ))}
         </div>
-
-        {/* Métricas del header — cambian según vista */}
-        {vista === 'personal' ? (
-          <div className="grid grid-cols-2 gap-3">
-            <MetricaCard label="Patrimonio" valor={patrimonio} sufijo={patrimonio >= 0 ? 'activo' : 'déficit'} sparkData={sparkPatrimonio} />
-            <MetricaCard label="Flujo del mes" valor={flujo} positivo={flujo >= 0} sufijo={flujo >= 0 ? 'positivo' : 'negativo'} sparkData={sparkFlujo} />
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500 text-center py-1">
-            Métricas de negocio abajo ↓
-          </p>
-        )}
       </div>
 
       {/* Contenido scrolleable */}
       <div className="page px-4 pt-4">
         {vista === 'personal' ? (
           <>
-            {txHistoricoData.filter((t) => t.contexto !== 'negocio').length > 0
-              ? <GraficaFlujo transacciones={txHistoricoData.filter((t) => t.contexto !== 'negocio')} />
-              : <div className="card p-4 mb-3 flex items-center justify-center h-20">
-                  <p className="text-xs text-gray-500">Registra movimientos para ver la gráfica</p>
-                </div>
-            }
-            <IngresosGastosCard transacciones={txMesData} />
-            {txPersonalMes.filter((t) => t.tipo === 'gasto').length > 0 && (
-              <GraficaCategorias transacciones={txPersonalMes} />
-            )}
-            <UltimosMovimientos transacciones={[...txPersonalMes].reverse()} />
+            <DashboardPersonal
+              txMesData={txMesData}
+              txHistoricoData={txHistoricoData}
+              nombres={nombres}
+            />
+            {/* Código invitación */}
             {pareja && !parejaCompleta && (
               <div className="card p-5 mb-4 border-[var(--accent)]/30">
                 <p className="text-sm text-white font-semibold mb-1">Esperando a {nombres.p2}</p>
