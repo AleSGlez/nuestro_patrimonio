@@ -1,6 +1,6 @@
 // src/modules/dashboard/DashboardPage.jsx
 import { useState, useMemo } from 'react'
-import { Copy, Check, LogOut, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Copy, Check, LogOut, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
@@ -16,40 +16,42 @@ import GraficaFlujo from './components/GraficaFlujo'
 import GraficaCategorias from './components/GraficaCategorias'
 import UltimosMovimientos from './components/UltimosMovimientos'
 import Sparkline from './components/Sparkline'
+import DashboardNegocio from './components/DashboardNegocio'
 import { fmt, cn } from '@lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-// ── Card de métrica con sparkline ─────────────────────────────
-function MetricaCard({ label, valor, positivo, sparkData, colorLinea, sufijo }) {
-  const isPositive = positivo ?? valor >= 0
+// ── Card de métrica con sparkline ────────────────────────────
+function MetricaCard({ label, valor, positivo, sparkData, sufijo }) {
+  const isPos = positivo ?? valor >= 0
   return (
     <div className="card p-3.5 flex flex-col">
       <div className="flex items-start justify-between mb-1">
         <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
         <div className={cn('flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
-          isPositive ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
+          isPos ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
         )}>
-          {isPositive ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+          {isPos ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
           {sufijo}
         </div>
       </div>
-      <p className={cn('text-xl font-bold font-mono leading-tight mb-2', isPositive ? 'text-white' : 'text-bad')}>
-        {valor >= 0 && isPositive !== false ? '' : valor < 0 ? '' : ''}{fmt(Math.abs(valor))}
+      <p className={cn('text-xl font-bold font-mono leading-tight mb-2', isPos ? 'text-white' : 'text-bad')}>
+        {fmt(Math.abs(valor))}
       </p>
       {sparkData && sparkData.length >= 2 && (
         <div className="mt-auto -mx-1">
-          <Sparkline data={sparkData} color={isPositive ? '#10B981' : '#EF4444'} height={32} />
+          <Sparkline data={sparkData} color={isPos ? '#10B981' : '#EF4444'} height={32} />
         </div>
       )}
     </div>
   )
 }
 
-// ── Ingresos vs Gastos ────────────────────────────────────────
+// ── Ingresos vs Gastos personal ───────────────────────────────
 function IngresosGastosCard({ transacciones }) {
-  const ingresos = transacciones.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
-  const gastos   = transacciones.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
+  const tx = transacciones.filter((t) => t.contexto !== 'negocio')
+  const ingresos = tx.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
+  const gastos   = tx.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
   const total    = ingresos + gastos
   const pctGastos = total > 0 ? Math.min(100, (gastos / ingresos) * 100) : 0
   const mes = format(new Date(), 'MMMM', { locale: es })
@@ -60,7 +62,6 @@ function IngresosGastosCard({ transacciones }) {
         <p className="text-sm font-semibold text-white">Ingresos vs Gastos</p>
         <p className="text-[11px] text-gray-500 capitalize">{mes}</p>
       </div>
-
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <div className="flex items-center gap-1.5 mb-1">
@@ -77,11 +78,10 @@ function IngresosGastosCard({ transacciones }) {
           <p className="text-lg font-bold font-mono text-bad">{fmt(gastos)}</p>
         </div>
       </div>
-
       {total > 0 && (
         <>
           <div className="flex h-2 rounded-full overflow-hidden gap-0.5 mb-1.5">
-            <div className="bg-ok rounded-l-full" style={{ width: `${100 - pctGastos}%` }} />
+            <div className="bg-ok rounded-l-full" style={{ width: `${Math.max(0, 100 - pctGastos)}%` }} />
             <div className="bg-bad rounded-r-full" style={{ width: `${Math.min(pctGastos, 100)}%` }} />
           </div>
           <p className="text-[10px] text-gray-500 text-right">
@@ -93,11 +93,12 @@ function IngresosGastosCard({ transacciones }) {
   )
 }
 
-// ── Home tab ──────────────────────────────────────────────────
+// ── Home tab con toggle Personal / Negocio ────────────────────
 function HomeTab() {
-  const { logout, pareja } = useAuthStore()
-  const { nombres } = useAppStore()
-  const toast = useToast()
+  const { logout, pareja }  = useAuthStore()
+  const { nombres }         = useAppStore()
+  const toast               = useToast()
+  const [vista, setVista]   = useState('personal')
   const [copiado, setCopiado] = useState(false)
 
   const { data: cuentas = [] }  = useCuentas()
@@ -108,29 +109,25 @@ function HomeTab() {
   const txHistoricoData = txHistorico.data || []
   const parejaCompleta  = pareja?.user1_id && pareja?.user2_id
 
-  const totalCuentas = cuentas
-    .filter((c) => c.persona !== 'negocio')
-    .reduce((s, c) => s + Number(c.saldo), 0)
-  const totalDeuda = tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
-  const patrimonio = totalCuentas - totalDeuda
+  // Métricas personales
+  const txPersonalMes = txMesData.filter((t) => t.contexto !== 'negocio')
+  const totalCuentas  = cuentas.filter((c) => c.persona !== 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
+  const totalDeuda    = tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
+  const patrimonio    = totalCuentas - totalDeuda
+  const ingresos      = txPersonalMes.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
+  const gastos        = txPersonalMes.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
+  const flujo         = ingresos - gastos
 
-  const ingresos = txMesData.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
-  const gastos   = txMesData.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
-  const flujo    = ingresos - gastos
+  const sparkFlujo      = useMemo(() => buildSparklineData(txPersonalMes, 14), [txPersonalMes])
+  const sparkPatrimonio = useMemo(() => buildSparklineData(txHistoricoData.filter((t) => t.contexto !== 'negocio'), 30), [txHistoricoData])
 
-  // Sparkline: flujo acumulado de los últimos 14 días
-  const sparkFlujo = useMemo(() => buildSparklineData(txMesData, 14), [txMesData])
-  // Sparkline de patrimonio: flujo acumulado histórico (aproximación)
-  const sparkPatrimonio = useMemo(() => buildSparklineData(txHistoricoData, 30), [txHistoricoData])
-
-  const hora = new Date().getHours()
+  const hora   = new Date().getHours()
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
 
   const copiarCodigo = async () => {
     if (!pareja?.codigo_invitacion) return
     await navigator.clipboard.writeText(pareja.codigo_invitacion)
-    setCopiado(true)
-    toast.success('Código copiado')
+    setCopiado(true); toast.success('Código copiado')
     setTimeout(() => setCopiado(false), 2000)
   }
 
@@ -148,71 +145,73 @@ function HomeTab() {
           </button>
         </div>
 
-        {/* Grid 2 columnas con sparklines */}
-        <div className="grid grid-cols-2 gap-3">
-          <MetricaCard
-            label="Patrimonio neto"
-            valor={patrimonio}
-            sufijo={patrimonio >= 0 ? 'activo' : 'déficit'}
-            sparkData={sparkPatrimonio}
-          />
-          <MetricaCard
-            label="Flujo del mes"
-            valor={flujo}
-            positivo={flujo >= 0}
-            sufijo={flujo >= 0 ? 'positivo' : 'negativo'}
-            sparkData={sparkFlujo}
-          />
+        {/* Toggle Personal / Negocio */}
+        <div className="flex bg-surface-700 rounded-xl p-1 mb-4">
+          {[['personal','👤 Personal'],['negocio','🏪 Negocio']].map(([id, label]) => (
+            <button
+              key={id} onClick={() => setVista(id)}
+              className={cn(
+                'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
+                vista === id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+
+        {/* Métricas del header — cambian según vista */}
+        {vista === 'personal' ? (
+          <div className="grid grid-cols-2 gap-3">
+            <MetricaCard label="Patrimonio" valor={patrimonio} sufijo={patrimonio >= 0 ? 'activo' : 'déficit'} sparkData={sparkPatrimonio} />
+            <MetricaCard label="Flujo del mes" valor={flujo} positivo={flujo >= 0} sufijo={flujo >= 0 ? 'positivo' : 'negativo'} sparkData={sparkFlujo} />
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500 text-center py-1">
+            Métricas de negocio abajo ↓
+          </p>
+        )}
       </div>
 
       {/* Contenido scrolleable */}
       <div className="page px-4 pt-4">
-
-        {/* Gráfica barras 6 meses */}
-        {txHistoricoData.length > 0
-          ? <GraficaFlujo transacciones={txHistoricoData} />
-          : (
-            <div className="card p-4 mb-3 flex items-center justify-center h-24">
-              <p className="text-xs text-gray-500">Registra movimientos para ver la gráfica de 6 meses</p>
-            </div>
-          )
-        }
-
-        {/* Ingresos vs Gastos */}
-        <IngresosGastosCard transacciones={txMesData} />
-
-        {/* Gastos por categoría */}
-        {txMesData.filter((t) => t.tipo === 'gasto').length > 0 && (
-          <GraficaCategorias transacciones={txMesData} />
+        {vista === 'personal' ? (
+          <>
+            {txHistoricoData.filter((t) => t.contexto !== 'negocio').length > 0
+              ? <GraficaFlujo transacciones={txHistoricoData.filter((t) => t.contexto !== 'negocio')} />
+              : <div className="card p-4 mb-3 flex items-center justify-center h-20">
+                  <p className="text-xs text-gray-500">Registra movimientos para ver la gráfica</p>
+                </div>
+            }
+            <IngresosGastosCard transacciones={txMesData} />
+            {txPersonalMes.filter((t) => t.tipo === 'gasto').length > 0 && (
+              <GraficaCategorias transacciones={txPersonalMes} />
+            )}
+            <UltimosMovimientos transacciones={[...txPersonalMes].reverse()} />
+            {pareja && !parejaCompleta && (
+              <div className="card p-5 mb-4 border-[var(--accent)]/30">
+                <p className="text-sm text-white font-semibold mb-1">Esperando a {nombres.p2}</p>
+                <p className="text-xs text-gray-400 mb-3">Comparte este código para que se una:</p>
+                <div className="flex items-center gap-2">
+                  <p className="flex-1 text-center text-xl font-mono font-bold tracking-[0.2em] gradient-text">
+                    {pareja.codigo_invitacion}
+                  </p>
+                  <button onClick={copiarCodigo} className="btn-ghost w-10 h-10 rounded-xl flex-shrink-0">
+                    {copiado ? <Check size={15} /> : <Copy size={15} />}
+                  </button>
+                </div>
+              </div>
+            )}
+            {/*
+              FASES FUTURAS — Personal:
+              Fase 7: <BarrasPresupuesto />
+              Fase 9: <ProximasSuscripciones />
+              Fase 10: <CountdownQuincena />
+            */}
+          </>
+        ) : (
+          <DashboardNegocio />
         )}
-
-        {/* Últimos movimientos */}
-        <UltimosMovimientos transacciones={[...txMesData].reverse()} />
-
-        {/* Código de invitación */}
-        {pareja && !parejaCompleta && (
-          <div className="card p-5 mb-4 border-[var(--accent)]/30">
-            <p className="text-sm text-white font-semibold mb-1">Esperando a {nombres.p2}</p>
-            <p className="text-xs text-gray-400 mb-3">Comparte este código para que se una:</p>
-            <div className="flex items-center gap-2">
-              <p className="flex-1 text-center text-xl font-mono font-bold tracking-[0.2em] gradient-text">
-                {pareja.codigo_invitacion}
-              </p>
-              <button onClick={copiarCodigo} className="btn-ghost w-10 h-10 rounded-xl flex-shrink-0">
-                {copiado ? <Check size={15} /> : <Copy size={15} />}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/*
-          ESPACIO PARA FASES FUTURAS — enchufar aquí sin reorganizar:
-          Fase 6:  <ResumenNegocio />
-          Fase 7:  <BarrasPresupuesto />  ← gauge como en imagen de referencia
-          Fase 9:  <ProximasSuscripciones />
-          Fase 10: <CountdownQuincena />
-        */}
       </div>
     </>
   )
