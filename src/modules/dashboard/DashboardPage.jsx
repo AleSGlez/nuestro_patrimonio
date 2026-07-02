@@ -41,7 +41,10 @@ function HomeTab() {
   return (
     <>
       {/* Header fijo */}
-      <div className="flex-shrink-0 px-4 pt-5 pb-4 border-b border-white/[0.06]">
+      <div
+        className="flex-shrink-0 px-4 pb-4 border-b border-white/[0.06]"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}
+      >
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-xs text-gray-500">{saludo} 👋</p>
