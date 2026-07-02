@@ -7,6 +7,7 @@ import GraficaFlujo from './GraficaFlujo'
 import GraficaCategorias from './GraficaCategorias'
 import UltimosMovimientos from './UltimosMovimientos'
 import Sparkline from './Sparkline'
+import PresupuestosWidget from './PresupuestosWidget'
 import { fmt, cn } from '@lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -102,6 +103,7 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas }) {
         : <div className="card p-4 mb-3 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
       }
       <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
+      <PresupuestosWidget transacciones={txMesData} />
       {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
     </>
@@ -167,6 +169,7 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
         : <div className="card p-4 mb-3 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
       }
       <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
+      <PresupuestosWidget transacciones={tx} persona={persona} />
       {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
     </>

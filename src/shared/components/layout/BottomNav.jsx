@@ -1,13 +1,13 @@
 // src/shared/components/layout/BottomNav.jsx
-import { Home, Building2, CreditCard, ArrowLeftRight, Users } from 'lucide-react'
+import { Home, Building2, CreditCard, ArrowLeftRight, Target } from 'lucide-react'
 import { cn } from '@lib/utils'
 
 const TABS = [
-  { id: 'dashboard',     label: 'Inicio',      icon: Home },
-  { id: 'cuentas',       label: 'Cuentas',     icon: Building2 },
-  { id: 'tarjetas',      label: 'Tarjetas',    icon: CreditCard },
-  { id: 'transacciones', label: 'Movimientos', icon: ArrowLeftRight },
-  { id: 'personas',      label: 'Personas',    icon: Users },
+  { id: 'dashboard',     label: 'Inicio',        icon: Home },
+  { id: 'cuentas',       label: 'Cuentas',       icon: Building2 },
+  { id: 'tarjetas',      label: 'Tarjetas',      icon: CreditCard },
+  { id: 'transacciones', label: 'Movimientos',   icon: ArrowLeftRight },
+  { id: 'presupuestos',  label: 'Presupuestos',  icon: Target },
 ]
 
 export default function BottomNav({ active, onChange }) {
