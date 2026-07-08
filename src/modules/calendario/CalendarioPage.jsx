@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
+import { useSuscripciones } from '@modules/suscripciones/hooks/useSuscripciones'
 import { quincenasDelMes, periodoTarjeta, fmt, cn } from '@lib/utils'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -15,11 +16,13 @@ const COLOR_EVENTO = {
   quincena:      '#10B981',  // verde
   corte_tarjeta: '#F59E0B',  // amarillo/ámbar
   pago_tarjeta:  '#EF4444',  // rojo
-  manual:        '#7C6EFA',  // violeta
+  suscripcion:   '#7C6EFA',  // violeta
+  manual:        '#6B7280',  // gris
 }
 
-function generarEventos(año, mes, tarjetas) {
+function generarEventos(año, mes, tarjetas, suscripciones = []) {
   const eventos = []
+  const mesStr = `${año}-${String(mes + 1).padStart(2, '0')}`
 
   const quincenas = quincenasDelMes(año, mes)
   quincenas.forEach((fecha, i) => {
@@ -37,7 +40,7 @@ function generarEventos(año, mes, tarjetas) {
       eventos.push({
         fecha: fechaCorte, tipo: 'corte_tarjeta',
         titulo: `✂️ Corte ${t.nombre}`,
-        color: COLOR_EVENTO.corte_tarjeta,  // siempre amarillo, no el color de la tarjeta
+        color: COLOR_EVENTO.corte_tarjeta,
         referencia: t,
       })
     }
@@ -48,8 +51,22 @@ function generarEventos(año, mes, tarjetas) {
         fecha: fechaLimite, tipo: 'pago_tarjeta',
         titulo: `📅 Pago ${t.nombre}`,
         subtitulo: `Sin intereses: ${fmt(t.pago_sin_intereses)}`,
-        color: COLOR_EVENTO.pago_tarjeta,   // siempre rojo
+        color: COLOR_EVENTO.pago_tarjeta,
         referencia: t,
+      })
+    }
+  })
+
+  // Suscripciones que caen en este mes
+  suscripciones.forEach((s) => {
+    if (s.proxima_fecha?.startsWith(mesStr)) {
+      eventos.push({
+        fecha: s.proxima_fecha,
+        tipo: 'suscripcion',
+        titulo: `${s.emoji} ${s.nombre}`,
+        subtitulo: `${fmt(s.monto)} · ${s.frecuencia}`,
+        color: COLOR_EVENTO.suscripcion,
+        referencia: s,
       })
     }
   })
@@ -229,12 +246,13 @@ export default function CalendarioPage() {
   const [diaDetalle, setDiaDetalle] = useState(null)
   const [eventosDetalle, setEventosDetalle] = useState([])
 
-  const { data: tarjetas = [] } = useTarjetas()
+  const { data: tarjetas = [] }      = useTarjetas()
+  const { data: suscripciones = [] } = useSuscripciones()
 
   const año = fecha.getFullYear()
   const mes  = fecha.getMonth()
 
-  const eventos = useMemo(() => generarEventos(año, mes, tarjetas), [año, mes, tarjetas])
+  const eventos = useMemo(() => generarEventos(año, mes, tarjetas, suscripciones), [año, mes, tarjetas, suscripciones])
 
   // Para vista semanal, también incluir eventos del mes adyacente
   const eventosSemana = useMemo(() => {
@@ -243,10 +261,10 @@ export default function CalendarioPage() {
     const mesesNecesarios = new Set([semInicio.getMonth(), semFin.getMonth()])
     let todos = []
     mesesNecesarios.forEach((m) => {
-      todos = [...todos, ...generarEventos(semInicio.getFullYear(), m, tarjetas)]
+      todos = [...todos, ...generarEventos(semInicio.getFullYear(), m, tarjetas, suscripciones)]
     })
     return todos
-  }, [fecha, tarjetas])
+  }, [fecha, tarjetas, suscripciones])
 
   const navAnterior = () => vista === 'mes' ? setFecha(subMonths(fecha, 1)) : setFecha(subWeeks(fecha, 1))
   const navSiguiente = () => vista === 'mes' ? setFecha(addMonths(fecha, 1)) : setFecha(addWeeks(fecha, 1))
@@ -288,6 +306,7 @@ export default function CalendarioPage() {
             { color: COLOR_EVENTO.quincena,      label: 'Quincena' },
             { color: COLOR_EVENTO.corte_tarjeta, label: 'Corte tarjeta' },
             { color: COLOR_EVENTO.pago_tarjeta,  label: 'Pago tarjeta' },
+            { color: COLOR_EVENTO.suscripcion,   label: 'Suscripción' },
           ].map((l) => (
             <div key={l.label} className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: l.color }} />
