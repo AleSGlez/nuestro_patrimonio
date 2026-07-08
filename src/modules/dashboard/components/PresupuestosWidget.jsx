@@ -21,45 +21,46 @@ function calcularParaVista(presupuesto, transacciones, vista) {
   const hoy = new Date()
   const hoyStr = hoy.toISOString().slice(0, 10)
 
-  // Si la vista coincide con el tipo, usar el cálculo de roll-over normal
+  // Filtro base: solo gastos personales de la persona del presupuesto
+  const txFiltradas = transacciones.filter((t) => {
+    if (t.tipo !== 'gasto' || t.contexto === 'negocio') return false
+    if (presupuesto.persona === 'ambos') return true
+    return t.persona === presupuesto.persona || t.persona === 'ambos'
+  })
+
   if (vista === presupuesto.tipo) {
-    return calcularDisponible(presupuesto, transacciones)
+    return calcularDisponible(presupuesto, txFiltradas)
   }
 
-  // Vista DIARIA de presupuesto semanal o mensual
   if (vista === 'diario' && desglose?.porDia) {
-    const gastadoHoy = transacciones
-      .filter((t) => t.tipo === 'gasto' && t.contexto !== 'negocio' && t.fecha === hoyStr)
+    const gastadoHoy = txFiltradas
+      .filter((t) => t.fecha === hoyStr)
       .reduce((s, t) => s + Number(t.monto), 0)
     const disponible = desglose.porDia - gastadoHoy
-    const pctUsado   = desglose.porDia > 0 ? Math.round((gastadoHoy / desglose.porDia) * 100) : 0
+    const pctUsado = desglose.porDia > 0 ? Math.round((gastadoHoy / desglose.porDia) * 100) : 0
     return { disponible, presupuestoAcumulado: desglose.porDia, gastado: gastadoHoy, pctUsado }
   }
 
-  // Vista SEMANAL de presupuesto mensual
   if (vista === 'semanal' && desglose?.porSemana) {
-    // Inicio de la semana actual (lunes)
     const inicioSemana = startOfWeek(hoy, { weekStartsOn: 1 }).toISOString().slice(0, 10)
-    const gastadoSemana = transacciones
-      .filter((t) => t.tipo === 'gasto' && t.contexto !== 'negocio' && t.fecha >= inicioSemana)
+    const gastadoSemana = txFiltradas
+      .filter((t) => t.fecha >= inicioSemana)
       .reduce((s, t) => s + Number(t.monto), 0)
     const disponible = desglose.porSemana - gastadoSemana
-    const pctUsado   = desglose.porSemana > 0 ? Math.round((gastadoSemana / desglose.porSemana) * 100) : 0
+    const pctUsado = desglose.porSemana > 0 ? Math.round((gastadoSemana / desglose.porSemana) * 100) : 0
     return { disponible, presupuestoAcumulado: desglose.porSemana, gastado: gastadoSemana, pctUsado }
   }
 
-  // Vista MENSUAL de presupuesto diario o semanal (proyección)
   if (vista === 'mensual') {
     const diasMes = getDaysInMonth(hoy)
     const proyeccion = Number(presupuesto.monto_base) * (presupuesto.tipo === 'diario' ? diasMes : diasMes / 7)
-    const { gastado } = calcularDisponible(presupuesto, transacciones)
+    const { gastado } = calcularDisponible(presupuesto, txFiltradas)
     const disponible = proyeccion - gastado
     const pctUsado = proyeccion > 0 ? Math.round((gastado / proyeccion) * 100) : 0
     return { disponible, presupuestoAcumulado: proyeccion, gastado, pctUsado }
   }
 
-  // Fallback
-  return calcularDisponible(presupuesto, transacciones)
+  return calcularDisponible(presupuesto, txFiltradas)
 }
 
 export default function PresupuestosWidget({ transacciones, persona = null }) {
