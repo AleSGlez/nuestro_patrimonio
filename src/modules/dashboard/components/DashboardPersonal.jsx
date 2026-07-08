@@ -169,7 +169,7 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
         : <div className="card p-4 mb-3 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
       }
       <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
-      <PresupuestosWidget transacciones={tx} persona={persona} />
+      <PresupuestosWidget transacciones={txMesData} persona={persona} />
       {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
     </>

@@ -21,7 +21,7 @@ export const useAppStore = create(
       setSetupCompleto: (v) => set({ setupCompleto: v }),
 
       // Tab activo de navegación
-      tab: 'dashboard',
+      tab: 'inicio',
       setTab: (tab) => set({ tab }),
     }),
     {
