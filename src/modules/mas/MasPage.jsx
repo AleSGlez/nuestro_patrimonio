@@ -15,6 +15,11 @@ export default function MasPage() {
   const { user, logout } = useAuthStore()
   const { nombres, tema, setTema } = useAppStore()
 
+  // Determinar el nombre del usuario logueado
+  // El setup wizard guarda en pareja.user1_id al creador (p1) y user2_id al que se une (p2)
+  const pareja = useAuthStore((s) => s.pareja)
+  const miNombre = pareja?.user2_id === user?.id ? nombres.p2 : nombres.p1
+
   const cambiarTema = (id) => {
     setTema(id)
     document.documentElement.setAttribute('data-theme', id)
@@ -35,7 +40,7 @@ export default function MasPage() {
               👤
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">{nombres.p1}</p>
+              <p className="text-sm font-semibold text-white">{miNombre}</p>
               <p className="text-xs text-gray-500">{user?.email}</p>
             </div>
           </div>

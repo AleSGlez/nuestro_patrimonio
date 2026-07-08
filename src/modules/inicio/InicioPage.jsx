@@ -55,7 +55,11 @@ export default function InicioPage({ onNavegar }) {
   const saldoNegocio = cuentas.filter((c) => c.persona === 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
   const personasPendientes = personas.filter((p) => Math.abs(Number(p.saldo)) > 0)
 
-  // Alertas automáticas
+  // Saldo disponible por persona (solo sus cuentas propias)
+  const saldoP1 = cuentas.filter((c) => c.persona === 'p1').reduce((s, c) => s + Number(c.saldo), 0)
+  const saldoP2 = cuentas.filter((c) => c.persona === 'p2').reduce((s, c) => s + Number(c.saldo), 0)
+
+  // Solo alertas de tarjetas — personas ya aparece en el grid
   const alertas = []
   tarjetas.forEach((t) => {
     if (t.dia_limite_pago) {
@@ -67,9 +71,6 @@ export default function InicioPage({ onNavegar }) {
       }
     }
   })
-  if (personasPendientes.length > 0) {
-    alertas.push({ msg: `${personasPendientes.length} ${personasPendientes.length === 1 ? 'persona' : 'personas'} con saldo pendiente`, tipo: 'info' })
-  }
 
   const ultimos = [...txMesData].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5)
 
@@ -79,8 +80,8 @@ export default function InicioPage({ onNavegar }) {
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs text-gray-500">{saludo}, {nombres.p1} 👋</p>
-            <h1 className="text-xl font-bold text-white">{nombres.p1} & {nombres.p2}</h1>
+            <p className="text-xs text-gray-500">{saludo},</p>
+            <h1 className="text-xl font-bold text-white">{nombres.p1} 👋</h1>
           </div>
           <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
             <LogOut size={18} />
@@ -116,12 +117,16 @@ export default function InicioPage({ onNavegar }) {
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <EspacioCard emoji="👤" titulo="Personal" subtitulo="Tus finanzas"
-            valor={fmt(totalCuentas)} onClick={() => onNavegar('finanzas')} />
-          <EspacioCard emoji="❤️" titulo="Pareja" subtitulo={`${nombres.p1} & ${nombres.p2}`}
-            valor={fmt(patrimonio)} onClick={() => onNavegar('finanzas', 'pareja')} />
-          <EspacioCard emoji="🏪" titulo="Negocio" subtitulo="Inventario y ventas"
+          {/* Personal — muestra saldo de p1 */}
+          <EspacioCard emoji="👤" titulo={nombres.p1} subtitulo="Disponible en cuentas"
+            valor={fmt(saldoP1)} onClick={() => onNavegar('finanzas')} />
+          {/* Pareja — muestra saldo de p2 */}
+          <EspacioCard emoji="🧑" titulo={nombres.p2} subtitulo="Disponible en cuentas"
+            valor={fmt(saldoP2)} onClick={() => onNavegar('finanzas', 'pareja')} />
+          {/* Negocio — capital de negocio */}
+          <EspacioCard emoji="🏪" titulo="Negocio" subtitulo="Capital disponible"
             valor={saldoNegocio > 0 ? fmt(saldoNegocio) : '—'} onClick={() => onNavegar('negocio')} />
+          {/* Personas — pendientes */}
           <EspacioCard emoji="👥" titulo="Personas" subtitulo="Deudas y cobros"
             badge={personasPendientes.length > 0 ? String(personasPendientes.length) : null}
             valor={personasPendientes.length > 0 ? `${personasPendientes.length} pendientes` : 'Al día'}
