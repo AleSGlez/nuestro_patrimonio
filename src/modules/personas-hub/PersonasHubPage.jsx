@@ -80,12 +80,14 @@ export default function PersonasHubPage() {
   const [tab, setTab] = useState('todas')
 
   return (
-    <>
+    <div className="flex-1 flex flex-col overflow-hidden">
       <SubNav tabs={TABS} active={tab} onChange={setTab} />
-      {tab === 'todas'
-        ? <PersonasPage />
-        : <ListaPersonasFiltrada filtro={tab} />
-      }
-    </>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {tab === 'todas'
+          ? <PersonasPage />
+          : <ListaPersonasFiltrada filtro={tab} />
+        }
+      </div>
+    </div>
   )
 }

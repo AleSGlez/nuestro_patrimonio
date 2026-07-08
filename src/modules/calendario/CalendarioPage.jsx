@@ -10,31 +10,34 @@ import {
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-// ── Generar eventos automáticos del mes ──────────────────────
+// Colores fijos por tipo de evento — consistentes en leyenda y grid
+const COLOR_EVENTO = {
+  quincena:      '#10B981',  // verde
+  corte_tarjeta: '#F59E0B',  // amarillo/ámbar
+  pago_tarjeta:  '#EF4444',  // rojo
+  manual:        '#7C6EFA',  // violeta
+}
+
 function generarEventos(año, mes, tarjetas) {
   const eventos = []
 
-  // Quincenas
   const quincenas = quincenasDelMes(año, mes)
   quincenas.forEach((fecha, i) => {
     eventos.push({
-      fecha,
-      tipo: 'quincena',
+      fecha, tipo: 'quincena',
       titulo: i === 0 ? '💰 1ra Quincena' : '💰 2da Quincena',
-      color: '#10B981',
+      color: COLOR_EVENTO.quincena,
     })
   })
 
-  // Eventos de tarjetas: corte y límite de pago
   tarjetas.forEach((t) => {
     if (t.dia_corte) {
       const diaCorte = Number(t.dia_corte)
       const fechaCorte = `${año}-${String(mes + 1).padStart(2, '0')}-${String(diaCorte).padStart(2, '0')}`
       eventos.push({
-        fecha: fechaCorte,
-        tipo: 'corte_tarjeta',
+        fecha: fechaCorte, tipo: 'corte_tarjeta',
         titulo: `✂️ Corte ${t.nombre}`,
-        color: t.color || '#F59E0B',
+        color: COLOR_EVENTO.corte_tarjeta,  // siempre amarillo, no el color de la tarjeta
         referencia: t,
       })
     }
@@ -42,11 +45,10 @@ function generarEventos(año, mes, tarjetas) {
       const diaLimite = Number(t.dia_limite_pago)
       const fechaLimite = `${año}-${String(mes + 1).padStart(2, '0')}-${String(diaLimite).padStart(2, '0')}`
       eventos.push({
-        fecha: fechaLimite,
-        tipo: 'pago_tarjeta',
+        fecha: fechaLimite, tipo: 'pago_tarjeta',
         titulo: `📅 Pago ${t.nombre}`,
-        subtitulo: `Pagar sin intereses: ${fmt(t.pago_sin_intereses)}`,
-        color: t.color || '#EF4444',
+        subtitulo: `Sin intereses: ${fmt(t.pago_sin_intereses)}`,
+        color: COLOR_EVENTO.pago_tarjeta,   // siempre rojo
         referencia: t,
       })
     }
@@ -283,9 +285,9 @@ export default function CalendarioPage() {
         {/* Leyenda */}
         <div className="flex gap-3 mb-3 flex-wrap">
           {[
-            { color: '#10B981', label: 'Quincena' },
-            { color: '#F59E0B', label: 'Corte tarjeta' },
-            { color: '#EF4444', label: 'Pago tarjeta' },
+            { color: COLOR_EVENTO.quincena,      label: 'Quincena' },
+            { color: COLOR_EVENTO.corte_tarjeta, label: 'Corte tarjeta' },
+            { color: COLOR_EVENTO.pago_tarjeta,  label: 'Pago tarjeta' },
           ].map((l) => (
             <div key={l.label} className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: l.color }} />
