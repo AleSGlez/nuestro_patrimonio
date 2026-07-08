@@ -122,3 +122,73 @@ export const IDIOMAS = [
   { value: 'KO', label: '🇰🇷 Coreano',  flag: '🇰🇷' },
   { value: 'ZH', label: '🇨🇳 Chino',    flag: '🇨🇳' },
 ]
+
+// ── Gasto efectivo para una persona ──────────────────────────
+// Si la transacción es 'ambos', cuenta al 50% para cada persona.
+// Si es de la persona específica o el filtro es 'ambos', cuenta al 100%.
+export function montoParaPersona(tx, persona) {
+  if (!persona || persona === 'ambos') return Number(tx.monto)
+  if (tx.persona === 'ambos') return Number(tx.monto) * 0.5
+  return Number(tx.monto)
+}
+
+// ── Período de tarjeta de crédito ────────────────────────────
+// Dado un día de corte (ej: 7), devuelve el rango del período actual:
+// inicio = día 8 del mes anterior, fin = día 7 del mes actual
+export function periodoTarjeta(diaCorte, fechaReferencia = new Date()) {
+  const ref = new Date(fechaReferencia)
+  const año = ref.getFullYear()
+  const mes = ref.getMonth() // 0-based
+
+  // Fin del período: día de corte del mes de referencia
+  const fin = new Date(año, mes, diaCorte)
+
+  // Si hoy es antes o igual al día de corte, el período es del mes anterior
+  // Si hoy es después del corte, el período va del 8 de este mes al 7 del próximo
+  let inicio
+  if (ref <= fin) {
+    // Período: 8 del mes anterior → diaCorte de este mes
+    inicio = new Date(año, mes - 1, diaCorte + 1)
+  } else {
+    // Período: diaCorte+1 de este mes → diaCorte del próximo mes
+    inicio = new Date(año, mes, diaCorte + 1)
+    fin.setMonth(mes + 1)
+    fin.setDate(diaCorte)
+  }
+
+  const toISO = (d) => d.toISOString().slice(0, 10)
+  return { inicio: toISO(inicio), fin: toISO(fin) }
+}
+
+// ── Festivos fijos México (sin año) ───────────────────────────
+const FESTIVOS_MX = [
+  '01-01', // Año Nuevo
+  '02-05', // Constitución
+  '03-21', // Natalicio Juárez
+  '05-01', // Día del Trabajo
+  '09-16', // Independencia
+  '11-20', // Revolución
+  '12-25', // Navidad
+]
+
+function esFestivo(fecha) {
+  const mmdd = fecha.toISOString().slice(5, 10)
+  return FESTIVOS_MX.includes(mmdd)
+}
+
+// ── Quincenas ajustadas a día hábil anterior ─────────────────
+// Si el día 15 o 30 cae en sábado, domingo o festivo → retrocede al día hábil anterior
+export function quincenasDelMes(año, mes) { // mes: 0-based
+  const candidatos = [15, 30]
+  // Febrero: usar último día del mes en vez de 30
+  const ultimoDia = new Date(año, mes + 1, 0).getDate()
+
+  return candidatos.map((dia) => {
+    const d = new Date(año, mes, Math.min(dia, ultimoDia))
+    // Retroceder si cae en fin de semana o festivo
+    while (d.getDay() === 0 || d.getDay() === 6 || esFestivo(d)) {
+      d.setDate(d.getDate() - 1)
+    }
+    return d.toISOString().slice(0, 10)
+  })
+}

@@ -1,6 +1,6 @@
 // src/shared/components/layout/BottomNav.jsx
 import { useState } from 'react'
-import { Home, Building2, CreditCard, ArrowLeftRight, Target, Users, MoreHorizontal, X, Package } from 'lucide-react'
+import { Home, Building2, CreditCard, ArrowLeftRight, Target, Users, MoreHorizontal, X, Package, CalendarDays } from 'lucide-react'
 import { cn } from '@lib/utils'
 
 const MAIN_TABS = [
@@ -14,6 +14,7 @@ const MORE_TABS = [
   { id: 'presupuestos',  label: 'Presupuestos', icon: Target },
   { id: 'personas',      label: 'Personas',     icon: Users },
   { id: 'inventario',    label: 'Inventario',   icon: Package },
+  { id: 'calendario',    label: 'Calendario',   icon: CalendarDays },
 ]
 
 export default function BottomNav({ active, onChange }) {

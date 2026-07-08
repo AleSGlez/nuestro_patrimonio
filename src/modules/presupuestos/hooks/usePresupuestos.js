@@ -5,6 +5,7 @@ import { useAuthStore } from '@store/authStore'
 import { differenceInDays, differenceInWeeks, differenceInCalendarMonths,
          startOfDay, parseISO, format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { montoParaPersona } from '@lib/utils'
 
 export function usePresupuestos() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
@@ -76,16 +77,16 @@ export function calcularDisponible(presupuesto, transacciones) {
   const presupuestoAcumulado = Number(presupuesto.monto_base) * Math.max(1, periodos)
 
   // Filtrar transacciones de gasto desde fecha_inicio
+  // Si el presupuesto es de una persona específica, los gastos 'ambos' cuentan al 50%
   const gastado = transacciones
     .filter((t) => {
       if (t.tipo !== 'gasto') return false
       if (t.contexto === 'negocio') return false
-      // Filtrar por persona si aplica
       if (presupuesto.persona !== 'ambos' && t.persona !== presupuesto.persona && t.persona !== 'ambos') return false
-      const fechaTx = t.fecha // 'YYYY-MM-DD'
+      const fechaTx = t.fecha
       return fechaTx >= presupuesto.fecha_inicio
     })
-    .reduce((s, t) => s + Number(t.monto), 0)
+    .reduce((s, t) => s + montoParaPersona(t, presupuesto.persona === 'ambos' ? null : presupuesto.persona), 0)
 
   const disponible = presupuestoAcumulado - gastado
 

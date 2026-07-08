@@ -4,7 +4,8 @@ import { ChevronRight } from 'lucide-react'
 import { useAppStore } from '@store/appStore'
 import { usePresupuestos, calcularDisponible, calcularDesglose } from '@modules/presupuestos/hooks/usePresupuestos'
 import { fmt, cn } from '@lib/utils'
-import { getDaysInMonth, getDay, startOfWeek, differenceInDays, parseISO } from 'date-fns'
+import { getDaysInMonth, startOfWeek } from 'date-fns'
+import { montoParaPersona } from '@lib/utils'
 
 const VISTAS = [
   { id: 'diario',   label: 'Hoy' },
@@ -22,6 +23,7 @@ function calcularParaVista(presupuesto, transacciones, vista) {
   const hoyStr = hoy.toISOString().slice(0, 10)
 
   // Filtro base: solo gastos personales de la persona del presupuesto
+  const personaCalculo = presupuesto.persona === 'ambos' ? null : presupuesto.persona
   const txFiltradas = transacciones.filter((t) => {
     if (t.tipo !== 'gasto' || t.contexto === 'negocio') return false
     if (presupuesto.persona === 'ambos') return true
@@ -35,7 +37,7 @@ function calcularParaVista(presupuesto, transacciones, vista) {
   if (vista === 'diario' && desglose?.porDia) {
     const gastadoHoy = txFiltradas
       .filter((t) => t.fecha === hoyStr)
-      .reduce((s, t) => s + Number(t.monto), 0)
+      .reduce((s, t) => s + montoParaPersona(t, personaCalculo), 0)
     const disponible = desglose.porDia - gastadoHoy
     const pctUsado = desglose.porDia > 0 ? Math.round((gastadoHoy / desglose.porDia) * 100) : 0
     return { disponible, presupuestoAcumulado: desglose.porDia, gastado: gastadoHoy, pctUsado }
@@ -45,7 +47,7 @@ function calcularParaVista(presupuesto, transacciones, vista) {
     const inicioSemana = startOfWeek(hoy, { weekStartsOn: 1 }).toISOString().slice(0, 10)
     const gastadoSemana = txFiltradas
       .filter((t) => t.fecha >= inicioSemana)
-      .reduce((s, t) => s + Number(t.monto), 0)
+      .reduce((s, t) => s + montoParaPersona(t, personaCalculo), 0)
     const disponible = desglose.porSemana - gastadoSemana
     const pctUsado = desglose.porSemana > 0 ? Math.round((gastadoSemana / desglose.porSemana) * 100) : 0
     return { disponible, presupuestoAcumulado: desglose.porSemana, gastado: gastadoSemana, pctUsado }
