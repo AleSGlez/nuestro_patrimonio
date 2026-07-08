@@ -8,11 +8,9 @@ export function useSuscripciones() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useQuery({
     queryKey: ['suscripciones', parejaId],
-    queryFn: () => db.from('suscripciones').query({
-      pareja_id: `eq.${parejaId}`,
-      estado: `neq.cancelada`,
-      order: 'proxima_fecha.asc',
-    }),
+    queryFn: () => db.from('suscripciones').query(
+      `pareja_id=eq.${parejaId}&estado=neq.cancelada&order=proxima_fecha.asc`
+    ),
     enabled: !!parejaId,
     staleTime: 1000 * 60 * 2,
   })
@@ -22,7 +20,7 @@ export function useCrearSuscripcion() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useMutation({
-    mutationFn: (data) => db.from('suscripciones').insert({ ...data, pareja_id: parejaId }),
+    mutationFn: (data) => db.from('suscripciones').insert({ ...data, pareja_id: parejaId, estado: 'activa' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['suscripciones', parejaId] }),
   })
 }
