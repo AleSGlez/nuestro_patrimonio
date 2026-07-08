@@ -187,7 +187,7 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
   ]
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Sub-tabs */}
       <div className="flex gap-1.5 px-4 py-2.5 border-b border-white/[0.06] flex-shrink-0">
         {SUB_TABS.map((t) => (
