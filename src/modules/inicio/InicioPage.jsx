@@ -79,7 +79,7 @@ export default function InicioPage({ onNavegar }) {
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs text-gray-500">{saludo} 👋</p>
+            <p className="text-xs text-gray-500">{saludo}, {nombres.p1} 👋</p>
             <h1 className="text-xl font-bold text-white">{nombres.p1} & {nombres.p2}</h1>
           </div>
           <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">

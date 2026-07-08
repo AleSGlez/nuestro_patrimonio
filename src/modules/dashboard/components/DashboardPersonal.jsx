@@ -93,20 +93,20 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas }) {
   const sparkPatrim  = useMemo(() => buildSparklineData(txHist, 30), [txHist])
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3 mb-3">
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
         <MetricaCard label="Patrimonio" valor={patrimonio} sufijo={patrimonio >= 0 ? 'activo' : 'déficit'} sparkData={sparkPatrim} />
         <MetricaCard label="Flujo mes" valor={flujo} positivo={flujo >= 0} sufijo={flujo >= 0 ? 'positivo' : 'negativo'} sparkData={sparkFlujo} />
       </div>
       {txHist.length > 0
         ? <GraficaFlujo transacciones={txHist} />
-        : <div className="card p-4 mb-3 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
+        : <div className="card p-4 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
       }
       <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
       <PresupuestosWidget transacciones={txMesData} />
       {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
-    </>
+    </div>
   )
 }
 
@@ -132,15 +132,14 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
   const sparkPatrim = useMemo(() => buildSparklineData(txHist, 30), [txHist])
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3 mb-3">
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
         <MetricaCard label={`Patrimonio de ${nombre}`} valor={patrimonio} sufijo={patrimonio >= 0 ? 'activo' : 'déficit'} sparkData={sparkPatrim} />
         <MetricaCard label="Flujo mes" valor={flujo} positivo={flujo >= 0} sufijo={flujo >= 0 ? 'positivo' : 'negativo'} sparkData={sparkFlujo} />
       </div>
 
-      {/* Cuentas propias */}
       {cuentasPersona.length > 0 && (
-        <div className="card p-4 mb-3">
+        <div className="card p-4">
           <p className="text-sm font-semibold text-white mb-3">Cuentas de {nombre}</p>
           {cuentasPersona.map((c) => (
             <div key={c.id} className="flex justify-between items-center py-2 border-b border-white/[0.05] last:border-0">
@@ -151,9 +150,8 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
         </div>
       )}
 
-      {/* Tarjetas propias */}
       {tarjetasPersona.length > 0 && (
-        <div className="card p-4 mb-3">
+        <div className="card p-4">
           <p className="text-sm font-semibold text-white mb-3">Tarjetas de {nombre}</p>
           {tarjetasPersona.map((t) => (
             <div key={t.id} className="flex justify-between items-center py-2 border-b border-white/[0.05] last:border-0">
@@ -166,13 +164,13 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
 
       {txHist.length > 0
         ? <GraficaFlujo transacciones={txHist} />
-        : <div className="card p-4 mb-3 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
+        : <div className="card p-4 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
       }
       <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
       <PresupuestosWidget transacciones={txMesData} persona={persona} />
       {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
-    </>
+    </div>
   )
 }
 
@@ -189,9 +187,9 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
   ]
 
   return (
-    <>
+    <div className="flex-1 flex flex-col overflow-hidden">
       {/* Sub-tabs */}
-      <div className="flex gap-1.5 mb-4">
+      <div className="flex gap-1.5 px-4 py-2.5 border-b border-white/[0.06] flex-shrink-0">
         {SUB_TABS.map((t) => (
           <button
             key={t.id} onClick={() => setSubVista(t.id)}
@@ -207,26 +205,28 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
         ))}
       </div>
 
-      {subVista === 'pareja' && (
-        <VistaPareja
-          txMesData={txMesData} txHistoricoData={txHistoricoData}
-          cuentas={cuentas} tarjetas={tarjetas}
-        />
-      )}
-      {subVista === 'p1' && (
-        <VistaPersona
-          persona="p1" nombre={nombres.p1}
-          txMesData={txMesData} txHistoricoData={txHistoricoData}
-          cuentas={cuentas} tarjetas={tarjetas}
-        />
-      )}
-      {subVista === 'p2' && (
-        <VistaPersona
-          persona="p2" nombre={nombres.p2}
-          txMesData={txMesData} txHistoricoData={txHistoricoData}
-          cuentas={cuentas} tarjetas={tarjetas}
-        />
-      )}
-    </>
+      <div className="page px-4 pt-4">
+        {subVista === 'pareja' && (
+          <VistaPareja
+            txMesData={txMesData} txHistoricoData={txHistoricoData}
+            cuentas={cuentas} tarjetas={tarjetas}
+          />
+        )}
+        {subVista === 'p1' && (
+          <VistaPersona
+            persona="p1" nombre={nombres.p1}
+            txMesData={txMesData} txHistoricoData={txHistoricoData}
+            cuentas={cuentas} tarjetas={tarjetas}
+          />
+        )}
+        {subVista === 'p2' && (
+          <VistaPersona
+            persona="p2" nombre={nombres.p2}
+            txMesData={txMesData} txHistoricoData={txHistoricoData}
+            cuentas={cuentas} tarjetas={tarjetas}
+          />
+        )}
+      </div>
+    </div>
   )
 }
