@@ -33,7 +33,7 @@ function EspacioCard({ emoji, titulo, subtitulo, valor, estado, onClick, badge }
 }
 
 export default function InicioPage({ onNavegar }) {
-  const { logout } = useAuthStore()
+  const { logout, pareja, user } = useAuthStore()
   const { nombres } = useAppStore()
   const { data: cuentas = [] }  = useCuentas()
   const { data: tarjetas = [] } = useTarjetas()
@@ -52,18 +52,24 @@ export default function InicioPage({ onNavegar }) {
   const gastos   = txMesData.filter((t) => t.tipo === 'gasto'   && t.contexto !== 'negocio').reduce((s, t) => s + Number(t.monto), 0)
   const flujo    = ingresos - gastos
 
+  // Determinar quién es el usuario logueado (p1 = quien creó, p2 = quien se unió)
+  const miPersona  = pareja?.user2_id === user?.id ? 'p2' : 'p1'
+  const suPersona  = miPersona === 'p1' ? 'p2' : 'p1'
+  const miNombre   = miPersona === 'p1' ? nombres.p1 : nombres.p2
+  const suNombre   = miPersona === 'p1' ? nombres.p2 : nombres.p1
+
   const saldoNegocio = cuentas.filter((c) => c.persona === 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
   const personasPendientes = personas.filter((p) => Math.abs(Number(p.saldo)) > 0)
 
-  // Patrimonio p1: cuentas p1 - tarjetas p1
-  const cuentasP1   = cuentas.filter((c) => c.persona === 'p1').reduce((s, c) => s + Number(c.saldo), 0)
-  const tarjetasP1  = tarjetas.filter((t) => t.persona === 'p1').reduce((s, t) => s + Number(t.saldo_total), 0)
-  const patrimonioP1 = cuentasP1 - tarjetasP1
+  // Patrimonio del usuario logueado
+  const misCuentas    = cuentas.filter((c) => c.persona === miPersona).reduce((s, c) => s + Number(c.saldo), 0)
+  const misTarjetas   = tarjetas.filter((t) => t.persona === miPersona).reduce((s, t) => s + Number(t.saldo_total), 0)
+  const miPatrimonio  = misCuentas - misTarjetas
 
-  // Patrimonio p2: cuentas p2 - tarjetas p2
-  const cuentasP2   = cuentas.filter((c) => c.persona === 'p2').reduce((s, c) => s + Number(c.saldo), 0)
-  const tarjetasP2  = tarjetas.filter((t) => t.persona === 'p2').reduce((s, t) => s + Number(t.saldo_total), 0)
-  const patrimonioP2 = cuentasP2 - tarjetasP2
+  // Patrimonio de la pareja (el otro usuario)
+  const susCuentas    = cuentas.filter((c) => c.persona === suPersona).reduce((s, c) => s + Number(c.saldo), 0)
+  const susTarjetas   = tarjetas.filter((t) => t.persona === suPersona).reduce((s, t) => s + Number(t.saldo_total), 0)
+  const suPatrimonio  = susCuentas - susTarjetas
 
   // Solo alertas de tarjetas — personas ya aparece en el grid
   const alertas = []
@@ -87,7 +93,7 @@ export default function InicioPage({ onNavegar }) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-xs text-gray-500">{saludo},</p>
-            <h1 className="text-xl font-bold text-white">{nombres.p1} 👋</h1>
+            <h1 className="text-xl font-bold text-white">{miNombre} 👋</h1>
           </div>
           <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
             <LogOut size={18} />
@@ -123,13 +129,13 @@ export default function InicioPage({ onNavegar }) {
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <EspacioCard emoji="👤" titulo={nombres.p1} subtitulo="Patrimonio personal"
-            valor={fmt(patrimonioP1)}
-            estado={patrimonioP1 >= 0 ? null : 'warn'}
+          <EspacioCard emoji="👤" titulo={miNombre} subtitulo="Mi patrimonio"
+            valor={fmt(miPatrimonio)}
+            estado={miPatrimonio >= 0 ? null : 'warn'}
             onClick={() => onNavegar('finanzas')} />
-          <EspacioCard emoji="❤️" titulo="Pareja" subtitulo="Patrimonio conjunto"
-            valor={fmt(patrimonio)}
-            estado={patrimonio >= 0 ? null : 'warn'}
+          <EspacioCard emoji="🧑" titulo={suNombre} subtitulo="Su patrimonio"
+            valor={fmt(suPatrimonio)}
+            estado={suPatrimonio >= 0 ? null : 'warn'}
             onClick={() => onNavegar('finanzas', 'pareja')} />
           <EspacioCard emoji="🏪" titulo="Negocio" subtitulo="Capital disponible"
             valor={saldoNegocio > 0 ? fmt(saldoNegocio) : '—'} onClick={() => onNavegar('negocio')} />
