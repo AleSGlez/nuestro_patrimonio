@@ -47,7 +47,7 @@ export default function FinanzasPage({ subTab = 'resumen' }) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <SubNav tabs={TABS} active={tab} onChange={setTab} />
+      <SubNav tabs={TABS} active={tab} onChange={setTab} titulo="Finanzas" />
       <div className="flex-1 flex flex-col overflow-hidden">
         {renderTab()}
       </div>

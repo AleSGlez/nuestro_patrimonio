@@ -29,7 +29,7 @@ export default function NegocioHubPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <SubNav tabs={TABS} active={tab} onChange={setTab} />
+      <SubNav tabs={TABS} active={tab} onChange={setTab} titulo="Negocio" />
       <div className="flex-1 flex flex-col overflow-hidden">
         {renderTab()}
       </div>

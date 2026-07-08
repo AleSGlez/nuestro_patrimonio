@@ -55,9 +55,15 @@ export default function InicioPage({ onNavegar }) {
   const saldoNegocio = cuentas.filter((c) => c.persona === 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
   const personasPendientes = personas.filter((p) => Math.abs(Number(p.saldo)) > 0)
 
-  // Saldo disponible por persona (solo sus cuentas propias)
-  const saldoP1 = cuentas.filter((c) => c.persona === 'p1').reduce((s, c) => s + Number(c.saldo), 0)
-  const saldoP2 = cuentas.filter((c) => c.persona === 'p2').reduce((s, c) => s + Number(c.saldo), 0)
+  // Patrimonio p1: cuentas p1 - tarjetas p1
+  const cuentasP1   = cuentas.filter((c) => c.persona === 'p1').reduce((s, c) => s + Number(c.saldo), 0)
+  const tarjetasP1  = tarjetas.filter((t) => t.persona === 'p1').reduce((s, t) => s + Number(t.saldo_total), 0)
+  const patrimonioP1 = cuentasP1 - tarjetasP1
+
+  // Patrimonio p2: cuentas p2 - tarjetas p2
+  const cuentasP2   = cuentas.filter((c) => c.persona === 'p2').reduce((s, c) => s + Number(c.saldo), 0)
+  const tarjetasP2  = tarjetas.filter((t) => t.persona === 'p2').reduce((s, t) => s + Number(t.saldo_total), 0)
+  const patrimonioP2 = cuentasP2 - tarjetasP2
 
   // Solo alertas de tarjetas — personas ya aparece en el grid
   const alertas = []
@@ -117,16 +123,16 @@ export default function InicioPage({ onNavegar }) {
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          {/* Personal — muestra saldo de p1 */}
-          <EspacioCard emoji="👤" titulo={nombres.p1} subtitulo="Disponible en cuentas"
-            valor={fmt(saldoP1)} onClick={() => onNavegar('finanzas')} />
-          {/* Pareja — muestra saldo de p2 */}
-          <EspacioCard emoji="🧑" titulo={nombres.p2} subtitulo="Disponible en cuentas"
-            valor={fmt(saldoP2)} onClick={() => onNavegar('finanzas', 'pareja')} />
-          {/* Negocio — capital de negocio */}
+          <EspacioCard emoji="👤" titulo={nombres.p1} subtitulo="Patrimonio personal"
+            valor={fmt(patrimonioP1)}
+            estado={patrimonioP1 >= 0 ? null : 'warn'}
+            onClick={() => onNavegar('finanzas')} />
+          <EspacioCard emoji="❤️" titulo="Pareja" subtitulo="Patrimonio conjunto"
+            valor={fmt(patrimonio)}
+            estado={patrimonio >= 0 ? null : 'warn'}
+            onClick={() => onNavegar('finanzas', 'pareja')} />
           <EspacioCard emoji="🏪" titulo="Negocio" subtitulo="Capital disponible"
             valor={saldoNegocio > 0 ? fmt(saldoNegocio) : '—'} onClick={() => onNavegar('negocio')} />
-          {/* Personas — pendientes */}
           <EspacioCard emoji="👥" titulo="Personas" subtitulo="Deudas y cobros"
             badge={personasPendientes.length > 0 ? String(personasPendientes.length) : null}
             valor={personasPendientes.length > 0 ? `${personasPendientes.length} pendientes` : 'Al día'}
@@ -157,7 +163,9 @@ export default function InicioPage({ onNavegar }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-white truncate">{tx.descripcion || tx.categoria}</p>
-                    <p className="text-[10px] text-gray-500">{tx.fecha} · {tx.persona}</p>
+                    <p className="text-[10px] text-gray-500">
+                      {tx.fecha} · {tx.persona === 'p1' ? nombres.p1 : tx.persona === 'p2' ? nombres.p2 : 'Ambos'}
+                    </p>
                   </div>
                   <p className={cn('text-xs font-mono font-semibold flex-shrink-0',
                     isIngreso ? 'text-ok' : 'text-bad')}>

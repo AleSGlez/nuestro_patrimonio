@@ -81,7 +81,7 @@ export default function PersonasHubPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <SubNav tabs={TABS} active={tab} onChange={setTab} />
+      <SubNav tabs={TABS} active={tab} onChange={setTab} titulo="Personas" />
       <div className="flex-1 flex flex-col overflow-hidden">
         {tab === 'todas'
           ? <PersonasPage />
