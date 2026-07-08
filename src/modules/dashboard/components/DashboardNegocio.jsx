@@ -80,7 +80,7 @@ export default function DashboardNegocio() {
   const pctGastos = total > 0 ? Math.min(100, (gastosNegocio / ingresosNegocio) * 100) : 0
 
   return (
-    <>
+    <div className="page px-4 pt-4 space-y-3">
       {/* Métricas en grid */}
       <div className="grid grid-cols-2 gap-3">
         <MetricaNegocio
@@ -165,7 +165,7 @@ export default function DashboardNegocio() {
 
       {/* Gráfica 6 meses — solo negocio */}
       {txNegocioHistorico.length > 0 ? (
-        <div className="mt-3">
+        <div className="">
           <GraficaFlujo transacciones={txNegocioHistorico} />
         </div>
       ) : (
@@ -176,25 +176,25 @@ export default function DashboardNegocio() {
 
       {/* Gastos por categoría — negocio */}
       {txNegocioMes.filter((t) => t.tipo === 'gasto').length > 0 && (
-        <div className="mt-3">
+        <div className="">
           <GraficaCategorias transacciones={txNegocioMes} />
         </div>
       )}
 
       {/* Últimos movimientos de negocio */}
       {txNegocioMes.length > 0 && (
-        <div className="mt-3">
+        <div className="">
           <UltimosMovimientos transacciones={[...txNegocioMes].reverse()} />
         </div>
       )}
 
       {txNegocioMes.length === 0 && (
-        <div className="card p-6 mt-3 text-center">
+        <div className="card p-6 text-center">
           <p className="text-2xl mb-2">🏪</p>
           <p className="text-sm text-white font-medium mb-1">Sin movimientos de negocio este mes</p>
           <p className="text-xs text-gray-500">Registra un gasto o ingreso con contexto "Negocio" para verlos aquí</p>
         </div>
       )}
-    </>
+    </div>
   )
 }
