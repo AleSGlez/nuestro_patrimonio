@@ -71,7 +71,7 @@ export default function InicioPage({ onNavegar }) {
     alertas.push({ msg: `${personasPendientes.length} ${personasPendientes.length === 1 ? 'persona' : 'personas'} con saldo pendiente`, tipo: 'info' })
   }
 
-  const ultimos = [...txMesData].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 4)
+  const ultimos = [...txMesData].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5)
 
   return (
     <>
@@ -137,21 +137,30 @@ export default function InicioPage({ onNavegar }) {
                 Ver todo
               </button>
             </div>
-            {ultimos.map((tx) => (
-              <div key={tx.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
-                <div className="w-8 h-8 rounded-xl bg-surface-700 flex items-center justify-center text-sm flex-shrink-0">
-                  {tx.tipo === 'ingreso' ? '↓' : '↑'}
+            {ultimos.map((tx) => {
+              const isIngreso = tx.tipo === 'ingreso'
+              return (
+                <div key={tx.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
+                  <div className={cn(
+                    'w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0',
+                    isIngreso ? 'bg-ok/10' : 'bg-bad/10'
+                  )}>
+                    {isIngreso
+                      ? <TrendingUp size={15} className="text-ok" />
+                      : <TrendingDown size={15} className="text-bad" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-white truncate">{tx.descripcion || tx.categoria}</p>
+                    <p className="text-[10px] text-gray-500">{tx.fecha} · {tx.persona}</p>
+                  </div>
+                  <p className={cn('text-xs font-mono font-semibold flex-shrink-0',
+                    isIngreso ? 'text-ok' : 'text-bad')}>
+                    {isIngreso ? '+' : '-'}{fmt(tx.monto)}
+                  </p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white truncate">{tx.descripcion || tx.categoria}</p>
-                  <p className="text-[10px] text-gray-500">{tx.fecha}</p>
-                </div>
-                <p className={cn('text-xs font-mono font-semibold flex-shrink-0',
-                  tx.tipo === 'ingreso' ? 'text-ok' : 'text-white')}>
-                  {tx.tipo === 'ingreso' ? '+' : '-'}{fmt(tx.monto)}
-                </p>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

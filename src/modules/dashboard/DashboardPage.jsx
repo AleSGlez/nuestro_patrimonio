@@ -1,5 +1,4 @@
 // src/modules/dashboard/DashboardPage.jsx
-// Shell principal — orquesta los 5 módulos de primer nivel
 import { useState } from 'react'
 import { useAppStore } from '@store/appStore'
 import BottomNav from '@shared/components/layout/BottomNav'
@@ -8,23 +7,33 @@ import FinanzasPage    from '@modules/finanzas/FinanzasPage'
 import PersonasHubPage from '@modules/personas-hub/PersonasHubPage'
 import NegocioHubPage  from '@modules/negocio-hub/NegocioHubPage'
 import MasPage         from '@modules/mas/MasPage'
-
-// appStore.tab ahora usa: 'inicio' | 'finanzas' | 'personas' | 'negocio' | 'mas'
-// Con subTab opcional: 'finanzas:movimientos', 'finanzas:pareja', etc.
+import FormTransaccion from '@modules/transactions/components/FormTransaccion'
 
 export default function DashboardPage() {
   const { tab, setTab } = useAppStore()
   const [finanzasSubTab, setFinanzasSubTab] = useState('resumen')
+  const [formOpen, setFormOpen] = useState(false)
+  const [formTipo, setFormTipo] = useState('gasto')
+  const [formContexto, setFormContexto] = useState('personal')
 
-  // Permite navegación programática con sub-tab
-  // onNavegar('finanzas', 'movimientos') → va a Finanzas tab Movimientos
   const handleNavegar = (nuevoTab, subTab) => {
     if (nuevoTab === 'finanzas' && subTab) setFinanzasSubTab(subTab)
     setTab(nuevoTab)
   }
 
-  const handleTabChange = (nuevoTab) => {
-    setTab(nuevoTab)
+  const handleAccion = (accion) => {
+    if (accion === 'gasto' || accion === 'ingreso') {
+      setFormTipo(accion)
+      setFormContexto('personal')
+      setFormOpen(true)
+    } else if (accion === 'transferencia') {
+      // Navega a movimientos con tab transferencias
+      setTab('finanzas')
+      setFinanzasSubTab('movimientos')
+    } else if (accion === 'suscripcion') {
+      setTab('finanzas')
+      setFinanzasSubTab('suscripciones')
+    }
   }
 
   const renderTab = () => {
@@ -41,7 +50,15 @@ export default function DashboardPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {renderTab()}
-      <BottomNav active={tab} onChange={handleTabChange} />
+      <BottomNav active={tab} onChange={setTab} onAccion={handleAccion} />
+      {formOpen && (
+        <FormTransaccion
+          open={formOpen}
+          onClose={() => setFormOpen(false)}
+          tipoInicial={formTipo}
+          contextoInicial={formContexto}
+        />
+      )}
     </div>
   )
 }
