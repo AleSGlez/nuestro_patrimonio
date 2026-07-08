@@ -133,9 +133,9 @@ export default function InicioPage({ onNavegar }) {
             valor={fmt(miPatrimonio)}
             estado={miPatrimonio >= 0 ? null : 'warn'}
             onClick={() => onNavegar('finanzas')} />
-          <EspacioCard emoji="🧑" titulo={suNombre} subtitulo="Su patrimonio"
-            valor={fmt(suPatrimonio)}
-            estado={suPatrimonio >= 0 ? null : 'warn'}
+          <EspacioCard emoji="❤️" titulo={`${nombres.p1} & ${nombres.p2}`} subtitulo="Patrimonio conjunto"
+            valor={fmt(patrimonio)}
+            estado={patrimonio >= 0 ? null : 'warn'}
             onClick={() => onNavegar('finanzas', 'pareja')} />
           <EspacioCard emoji="🏪" titulo="Negocio" subtitulo="Capital disponible"
             valor={saldoNegocio > 0 ? fmt(saldoNegocio) : '—'} onClick={() => onNavegar('negocio')} />
