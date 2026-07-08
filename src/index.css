@@ -146,23 +146,23 @@ body {
   .skeleton { @apply bg-surface-700 rounded-lg animate-pulse; }
 
   /* ── Page wrapper ── */
-  /* Contenedor de página que respeta header y bottom nav */
   .page {
     @apply flex-1 overflow-y-auto overflow-x-hidden;
-    /* Bottom padding = nav height + safe area bottom */
-    padding-bottom: calc(var(--nav-height) + var(--sab) + 8px);
+    padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px) + 8px);
   }
 
   /* ── Bottom nav ── */
   .bottom-nav {
-    position: absolute;
+    position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
     width: 100%;
-    height: calc(var(--nav-height) + var(--sab));
-    padding-bottom: var(--sab);
-    @apply bg-surface-900/95 backdrop-blur-md border-t border-white/[0.06] flex-shrink-0;
+    max-width: 430px;
+    height: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px));
+    padding-bottom: env(safe-area-inset-bottom, 34px);
+    padding-top: 4px;
+    @apply bg-surface-900/95 backdrop-blur-md border-t border-white/[0.06];
     z-index: 40;
   }
 
@@ -176,9 +176,9 @@ body {
 
   /* ── FAB ── */
   .fab {
-    position: absolute;
+    position: fixed;
     right: 16px;
-    bottom: calc(var(--nav-height) + var(--sab) + 12px);
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px) + 12px);
     @apply w-14 h-14 rounded-2xl bg-[var(--accent)] text-white shadow-lg
            flex items-center justify-center
            hover:brightness-110 active:scale-95 transition-all;

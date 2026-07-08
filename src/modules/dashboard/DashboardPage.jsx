@@ -11,6 +11,7 @@ import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
 import PersonasPage from '@modules/personas/PersonasPage'
 import PresupuestosPage from '@modules/presupuestos/PresupuestosPage'
+import InventarioPage from '@modules/inventario/InventarioPage'
 import DashboardPersonal from './components/DashboardPersonal'
 import DashboardNegocio from './components/DashboardNegocio'
 import { cn } from '@lib/utils'
@@ -122,6 +123,7 @@ export default function DashboardPage() {
       case 'transacciones': return <TransactionsPage />
       case 'personas':      return <PersonasPage />
       case 'presupuestos':  return <PresupuestosPage />
+      case 'inventario':    return <InventarioPage />
       default:              return <HomeTab />
     }
   }
