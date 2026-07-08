@@ -1,12 +1,13 @@
 // src/modules/inventario/InventarioPage.jsx
 import { useState, useMemo } from 'react'
-import { Plus, Package, ShoppingBag, TrendingUp, Pencil, Trash2, ChevronRight, FileSpreadsheet, Minus } from 'lucide-react'
+import { Plus, Package, Pencil, Trash2, ChevronRight, FileSpreadsheet, Minus, Users } from 'lucide-react'
 import { useLotes, useProductos, useEliminarProducto, useVenderProducto, calcularCostoReal, calcularMargen } from './hooks/useInventario'
 import { useToast } from '@ui/Toast'
 import { EmptyState } from '@ui/Field'
 import FormLote from './components/FormLote'
 import FormProducto from './components/FormProducto'
 import ImportarExcel from './components/ImportarExcel'
+import ProveedoresPage from './components/ProveedoresPage'
 import { fmt, cn } from '@lib/utils'
 
 const ESTADO_INFO = {
@@ -192,6 +193,11 @@ export default function InventarioPage() {
   const [formLoteOpen, setFormLoteOpen] = useState(false)
   const [editLote, setEditLote]         = useState(null)
   const [loteActivo, setLoteActivo]     = useState(null)
+  const [verProveedores, setVerProveedores] = useState(false)
+
+  if (verProveedores) {
+    return <ProveedoresPage onBack={() => setVerProveedores(false)} />
+  }
 
   // Resumen general
   const totalStock     = todosProductos.reduce((s, p) => s + Number(p.cantidad_stock), 0)
@@ -209,7 +215,7 @@ export default function InventarioPage() {
   return (
     <>
       <div className="top-header">
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-1">
           <div>
             <p className="section-label">En stock</p>
             <p className="text-xl font-bold text-ok">{totalStock}</p>
@@ -223,6 +229,9 @@ export default function InventarioPage() {
             <p className="text-lg font-bold font-mono text-white">{fmt(totalInvertido)}</p>
           </div>
         </div>
+        <button onClick={() => setVerProveedores(true)} className="btn-ghost px-2 py-1.5 text-xs flex-shrink-0">
+          <Users size={14} /> Proveedores
+        </button>
       </div>
 
       <div className="page px-4 pt-4">
