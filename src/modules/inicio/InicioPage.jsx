@@ -4,6 +4,7 @@ import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
+import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { usePersonas } from '@modules/personas/hooks/usePersonas'
 import { useDashboardData } from '@modules/dashboard/hooks/useDashboard'
 import { fmt, cn } from '@lib/utils'
@@ -35,8 +36,9 @@ function EspacioCard({ emoji, titulo, subtitulo, valor, estado, onClick, badge }
 export default function InicioPage({ onNavegar }) {
   const { logout, pareja, user } = useAuthStore()
   const { nombres } = useAppStore()
-  const { data: cuentas = [] }  = useCuentas()
-  const { data: tarjetas = [] } = useTarjetas()
+  const { data: cuentas = [] }       = useCuentas()
+  const { data: tarjetas = [] }      = useTarjetas()
+  const { data: todosApartados = [] } = useTodosLosApartados()
   const { data: personas = [] } = usePersonas()
   const { txMes } = useDashboardData()
   const txMesData = txMes.data || []
@@ -58,7 +60,10 @@ export default function InicioPage({ onNavegar }) {
   const miNombre   = miPersona === 'p1' ? nombres.p1 : nombres.p2
   const suNombre   = miPersona === 'p1' ? nombres.p2 : nombres.p1
 
-  const saldoNegocio = cuentas.filter((c) => c.persona === 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
+  // Capital negocio = cuentas de negocio + apartados marcados es_negocio
+  const saldoCuentasNegocio   = cuentas.filter((c) => c.persona === 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
+  const saldoApartadosNegocio = todosApartados.filter((a) => a.es_negocio).reduce((s, a) => s + Number(a.monto), 0)
+  const saldoNegocio          = saldoCuentasNegocio + saldoApartadosNegocio
   const personasPendientes = personas.filter((p) => Math.abs(Number(p.saldo)) > 0)
 
   // Patrimonio del usuario logueado
