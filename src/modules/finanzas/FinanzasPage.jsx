@@ -7,6 +7,7 @@ import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
 import PresupuestosPage from '@modules/presupuestos/PresupuestosPage'
 import MetasPage from '@modules/metas/MetasPage'
+import ReportesPage from '@modules/reportes/ReportesPage'
 import SuscripcionesPage from '@modules/suscripciones/SuscripcionesPage'
 import RecurrentesPage from '@modules/recurrentes/RecurrentesPage'
 import PersonasHubPage from '@modules/personas-hub/PersonasHubPage'
@@ -23,6 +24,7 @@ const TABS = [
   { id: 'suscripciones', label: 'Suscripciones', emoji: '🔄' },
   { id: 'recurrentes',   label: 'Recurrentes',   emoji: '🔁' },
   { id: 'personas',      label: 'Personas',      emoji: '👥' },
+  { id: 'reportes',      label: 'Reportes',      emoji: '📈' },
 ]
 
 export default function FinanzasPage({ subTab = 'resumen' }) {
@@ -41,6 +43,7 @@ export default function FinanzasPage({ subTab = 'resumen' }) {
       case 'suscripciones': return <SuscripcionesPage />
       case 'recurrentes':   return <RecurrentesPage />
       case 'personas':      return <PersonasHubPage />
+      case 'reportes':      return <ReportesPage />
       default:              return null
     }
   }
