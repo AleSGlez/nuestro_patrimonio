@@ -10,6 +10,7 @@ import MasPage          from '@modules/mas/MasPage'
 import CalendarioPage   from '@modules/calendario/CalendarioPage'
 import FormTransaccion  from '@modules/transactions/components/FormTransaccion'
 import FormTransferencia from '@modules/accounts/components/FormTransferencia'
+import { FormSuscripcionGlobal } from '@modules/suscripciones/SuscripcionesPage'
 
 export default function DashboardPage() {
   const { tab, setTab } = useAppStore()
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const [formOpen, setFormOpen]         = useState(false)
   const [formTipo, setFormTipo]         = useState('gasto')
   const [transfOpen, setTransfOpen]     = useState(false)
+  const [susOpen, setSusOpen]           = useState(false)
 
   const handleNavegar = (nuevoTab, subTab) => {
     if (nuevoTab === 'finanzas' && subTab) setFinanzasSubTab(subTab)
@@ -29,7 +31,7 @@ export default function DashboardPage() {
     } else if (accion === 'transferencia') {
       setTransfOpen(true)
     } else if (accion === 'suscripcion') {
-      setTab('finanzas'); setFinanzasSubTab('suscripciones')
+      setSusOpen(true)
     }
   }
 
@@ -50,13 +52,10 @@ export default function DashboardPage() {
       {renderTab()}
       <BottomNav active={tab} onChange={setTab} onAccion={handleAccion} />
       {formOpen && (
-        <FormTransaccion
-          open={formOpen}
-          onClose={() => setFormOpen(false)}
-          tipoInicial={formTipo}
-        />
+        <FormTransaccion open={formOpen} onClose={() => setFormOpen(false)} tipoInicial={formTipo} />
       )}
       <FormTransferencia open={transfOpen} onClose={() => setTransfOpen(false)} />
+      <FormSuscripcionGlobal open={susOpen} onClose={() => setSusOpen(false)} />
     </div>
   )
 }

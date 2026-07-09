@@ -211,6 +211,10 @@ function SuscripcionCard({ sus, cuentas, onEdit, onDelete, onRegistrar }) {
   )
 }
 
+export function FormSuscripcionGlobal({ open, onClose }) {
+  return <FormSuscripcion open={open} onClose={onClose} />
+}
+
 export default function SuscripcionesPage() {
   const toast = useToast()
   const { data: suscripciones = [], isPending } = useSuscripciones()

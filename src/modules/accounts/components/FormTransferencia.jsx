@@ -6,6 +6,7 @@ import { AmountInput, Select, Input } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
 import { useCuentas } from '../hooks/useCuentas'
+import { useTodosLosApartados } from '../hooks/useApartados'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import {
   useTransferirEntreCuentas, usePagarTarjeta,
@@ -23,7 +24,8 @@ const TIPOS = [
 
 export default function FormTransferencia({ open, onClose }) {
   const toast = useToast()
-  const { data: cuentas = [] } = useCuentas()
+  const { data: cuentas = [] }        = useCuentas()
+  const { data: todosApartados = [] } = useTodosLosApartados()
   const { data: tarjetas = [] } = useTarjetas()
   const transferir = useTransferirEntreCuentas()
   const pagarTarjeta = usePagarTarjeta()
@@ -42,11 +44,25 @@ export default function FormTransferencia({ open, onClose }) {
 
   const cuentasPersonal = cuentas.filter((c) => c.persona !== 'negocio')
   const cuentasNegocio  = cuentas.filter((c) => c.persona === 'negocio')
+  const apartadosNegocio = todosApartados.filter((a) => a.es_negocio && Number(a.monto) > 0)
+
+  // Para negocio→personal: cuentas de negocio + apartados de negocio como origen
+  const origenNegocioOpts = [
+    ...cuentasNegocio.map((c) => ({ value: c.id, label: `🏪 ${c.nombre} — ${fmt(c.saldo)}` })),
+    ...apartadosNegocio.map((a) => {
+      const cuenta = cuentas.find((c) => c.id === a.cuenta_id)
+      return { value: `apartado:${a.id}:${a.cuenta_id}`, label: `${a.emoji} ${a.nombre} (Apartado) — ${fmt(a.monto)}` }
+    }),
+  ]
 
   const origenOpts = (tipo === 'personal_a_negocio' ? cuentasPersonal
-    : tipo === 'negocio_a_personal' ? cuentasNegocio
+    : tipo === 'negocio_a_personal' ? origenNegocioOpts.map((o) => o) // ya formateados
     : cuentas
-  ).map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` }))
+  ).map ? (
+    tipo === 'negocio_a_personal' ? origenNegocioOpts
+    : (tipo === 'personal_a_negocio' ? cuentasPersonal : cuentas)
+        .map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` }))
+  ) : []
 
   const destinoOpts = tipo === 'personal_a_negocio' ? cuentasNegocio
     : tipo === 'negocio_a_personal' ? cuentasPersonal
@@ -94,13 +110,34 @@ export default function FormTransferencia({ open, onClose }) {
           monto, comision, descripcion, fecha,
         })
       } else if (tipo === 'personal_a_negocio' || tipo === 'negocio_a_personal') {
-        const origen  = cuentas.find((c) => c.id === origenId)
-        const destino = cuentas.find((c) => c.id === destinoId)
-        await transferirPN.mutateAsync({
-          tipo, origenId, destinoId,
-          origenSaldo: origen.saldo, destinoSaldo: destino.saldo,
-          monto, descripcion, fecha,
-        })
+        // Si el origen es un apartado, usar la cuenta del apartado y reducir el apartado
+        if (tipo === 'negocio_a_personal' && origenId.startsWith('apartado:')) {
+          const [, apartadoId, cuentaOrigenId] = origenId.split(':')
+          const cuentaOrigen = cuentas.find((c) => c.id === cuentaOrigenId)
+          const apartado = todosApartados.find((a) => a.id === apartadoId)
+          const destino = cuentas.find((c) => c.id === destinoId)
+          // Reducir apartado
+          const { db } = await import('@lib/supabase')
+          await db.from('cuenta_apartados').update(
+            { monto: Math.max(0, Number(apartado.monto) - Number(monto)) },
+            { id: apartadoId }
+          )
+          // Transferir de la cuenta origen a destino
+          await transferirPN.mutateAsync({
+            tipo: 'negocio_a_personal',
+            origenId: cuentaOrigenId, destinoId,
+            origenSaldo: cuentaOrigen.saldo, destinoSaldo: destino.saldo,
+            monto, descripcion: descripcion || `Desde apartado ${apartado.nombre}`, fecha,
+          })
+        } else {
+          const origen  = cuentas.find((c) => c.id === origenId)
+          const destino = cuentas.find((c) => c.id === destinoId)
+          await transferirPN.mutateAsync({
+            tipo, origenId, destinoId,
+            origenSaldo: origen.saldo, destinoSaldo: destino.saldo,
+            monto, descripcion, fecha,
+          })
+        }
       } else {
         const origen  = cuentas.find((c) => c.id === origenId)
         const destino = cuentas.find((c) => c.id === destinoId)

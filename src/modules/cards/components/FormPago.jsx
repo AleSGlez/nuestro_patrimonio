@@ -6,21 +6,36 @@ import { AmountInput, Select } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
+import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { usePagarTarjeta } from '@modules/accounts/hooks/useTransferencias'
 import { fmt, today, cn } from '@lib/utils'
 
 export default function FormPago({ open, onClose, tarjeta }) {
   const toast = useToast()
-  const { data: cuentas = [] } = useCuentas()
+  const { data: cuentas = [] }        = useCuentas()
+  const { data: todosApartados = [] } = useTodosLosApartados()
   const pagar = usePagarTarjeta()
 
   const [monto, setMonto]     = useState('')
   const [cuentaId, setCuenta] = useState('')
   const [fecha, setFecha]     = useState(today())
 
-  const cuentaOpts = cuentas
-    .filter((c) => c.persona !== 'negocio')
-    .map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` }))
+  // Todas las cuentas (personales + negocio) + apartados de negocio como fuente de pago
+  const cuentaOpts = [
+    ...cuentas.map((c) => ({
+      value: c.id,
+      label: `${c.nombre} — ${fmt(c.saldo)}${c.persona === 'negocio' ? ' 🏪' : ''}`,
+    })),
+    ...todosApartados
+      .filter((a) => a.es_negocio && a.monto > 0)
+      .map((a) => {
+        const cuenta = cuentas.find((c) => c.id === a.cuenta_id)
+        return {
+          value: `apartado:${a.id}:${a.cuenta_id}`,
+          label: `${a.emoji} ${a.nombre} (Apartado) — ${fmt(a.monto)} 🏪`,
+        }
+      }),
+  ]
 
   if (!tarjeta) return null
 
@@ -32,17 +47,41 @@ export default function FormPago({ open, onClose, tarjeta }) {
 
   const handlePagar = async () => {
     if (!monto || Number(monto) <= 0) { toast.error('Ingresa el monto'); return }
-    if (!cuentaId) { toast.error('Selecciona la cuenta'); return }
+    if (!cuentaId) { toast.error('Selecciona la cuenta o apartado'); return }
 
-    const cuenta = cuentas.find((c) => c.id === cuentaId)
     try {
-      await pagar.mutateAsync({
-        cuentaId, cuentaSaldo: cuenta.saldo,
-        tarjetaId: tarjeta.id,
-        tarjetaSaldoTotal: tarjeta.saldo_total,
-        tarjetaSaldoAnterior: tarjeta.saldo_periodo_anterior,
-        monto, fecha,
-      })
+      // Si es un apartado, usar la cuenta del apartado y reducir el apartado
+      if (cuentaId.startsWith('apartado:')) {
+        const [, apartadoId, cuentaOrigenId] = cuentaId.split(':')
+        const cuentaOrigen = cuentas.find((c) => c.id === cuentaOrigenId)
+        const apartado = todosApartados.find((a) => a.id === apartadoId)
+        if (!cuentaOrigen || !apartado) { toast.error('Apartado no encontrado'); return }
+
+        // Reducir monto del apartado
+        await import('@lib/supabase').then(({ db }) =>
+          db.from('cuenta_apartados').update(
+            { monto: Math.max(0, Number(apartado.monto) - Number(monto)) },
+            { id: apartadoId }
+          )
+        )
+        // Pagar con la cuenta del apartado
+        await pagar.mutateAsync({
+          cuentaId: cuentaOrigenId, cuentaSaldo: cuentaOrigen.saldo,
+          tarjetaId: tarjeta.id,
+          tarjetaSaldoTotal: tarjeta.saldo_total,
+          tarjetaSaldoAnterior: tarjeta.saldo_periodo_anterior,
+          monto, fecha,
+        })
+      } else {
+        const cuenta = cuentas.find((c) => c.id === cuentaId)
+        await pagar.mutateAsync({
+          cuentaId, cuentaSaldo: cuenta.saldo,
+          tarjetaId: tarjeta.id,
+          tarjetaSaldoTotal: tarjeta.saldo_total,
+          tarjetaSaldoAnterior: tarjeta.saldo_periodo_anterior,
+          monto, fecha,
+        })
+      }
       toast.success(`Pago de ${fmt(monto)} registrado ✅`)
       onClose()
     } catch (e) {
