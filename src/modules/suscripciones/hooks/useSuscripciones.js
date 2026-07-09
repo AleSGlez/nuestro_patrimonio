@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
-import { addDays, addWeeks, addMonths, addYears, parseISO, format, isPast, isToday } from 'date-fns'
+import { addDays, addWeeks, addMonths, addYears, parseISO, isPast, isToday, format } from 'date-fns'
 
 export function useSuscripciones() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
@@ -74,6 +74,52 @@ export function gastoAnual(suscripcion) {
     bimestral: 6, trimestral: 4, semestral: 2, anual: 1,
   }
   return Number(suscripcion.monto) * (multiplicador[suscripcion.frecuencia] || 12)
+}
+
+export function useRegistrarSuscripcion() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  return useMutation({
+    mutationFn: async ({ suscripcion, cuentas }) => {
+      // 1. Crear transacción si hay método de pago
+      if (suscripcion.cuenta_id || suscripcion.tarjeta_id) {
+        await db.from('transacciones').insert({
+          pareja_id: parejaId,
+          tipo: 'gasto',
+          monto: suscripcion.monto,
+          categoria: suscripcion.categoria || 'suscripciones',
+          descripcion: suscripcion.nombre,
+          fecha: suscripcion.proxima_fecha,
+          persona: suscripcion.persona,
+          contexto: suscripcion.contexto || 'personal',
+          metodo_pago: suscripcion.cuenta_id
+            ? `cuenta:${suscripcion.cuenta_id}`
+            : `tarjeta:${suscripcion.tarjeta_id}`,
+        })
+        // Descontar de cuenta si aplica
+        if (suscripcion.cuenta_id) {
+          const cuenta = cuentas.find((c) => c.id === suscripcion.cuenta_id)
+          if (cuenta) {
+            await db.from('cuentas').update(
+              { saldo: Number(cuenta.saldo) - Number(suscripcion.monto) },
+              { id: cuenta.id }
+            )
+          }
+        }
+      }
+      // 2. Avanzar proxima_fecha
+      const siguiente = siguienteFecha(suscripcion.proxima_fecha, suscripcion.frecuencia)
+      await db.from('suscripciones').update(
+        { proxima_fecha: format(siguiente, 'yyyy-MM-dd'), ultimo_pago_fecha: suscripcion.proxima_fecha },
+        { id: suscripcion.id }
+      )
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['suscripciones', parejaId] })
+      qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
+      qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+    },
+  })
 }
 
 export const FRECUENCIA_LABEL = {

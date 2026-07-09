@@ -6,8 +6,9 @@ import AccountsPage from '@modules/accounts/AccountsPage'
 import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
 import PresupuestosPage from '@modules/presupuestos/PresupuestosPage'
-import CalendarioPage from '@modules/calendario/CalendarioPage'
 import SuscripcionesPage from '@modules/suscripciones/SuscripcionesPage'
+import RecurrentesPage from '@modules/recurrentes/RecurrentesPage'
+import PersonasHubPage from '@modules/personas-hub/PersonasHubPage'
 import { useDashboardData } from '@modules/dashboard/hooks/useDashboard'
 import { useAppStore } from '@store/appStore'
 
@@ -18,7 +19,8 @@ const TABS = [
   { id: 'movimientos',   label: 'Movimientos',   emoji: '↕️' },
   { id: 'presupuestos',  label: 'Presupuestos',  emoji: '🎯' },
   { id: 'suscripciones', label: 'Suscripciones', emoji: '🔄' },
-  { id: 'calendario',    label: 'Calendario',    emoji: '📅' },
+  { id: 'recurrentes',   label: 'Recurrentes',   emoji: '🔁' },
+  { id: 'personas',      label: 'Personas',      emoji: '👥' },
 ]
 
 export default function FinanzasPage({ subTab = 'resumen' }) {
@@ -28,19 +30,14 @@ export default function FinanzasPage({ subTab = 'resumen' }) {
 
   const renderTab = () => {
     switch (tab) {
-      case 'resumen':       return (
-        <DashboardPersonal
-          txMesData={txMes.data || []}
-          txHistoricoData={txHistorico.data || []}
-          nombres={nombres}
-        />
-      )
+      case 'resumen':       return <DashboardPersonal txMesData={txMes.data || []} txHistoricoData={txHistorico.data || []} nombres={nombres} />
       case 'cuentas':       return <AccountsPage />
       case 'tarjetas':      return <CardsPage />
       case 'movimientos':   return <TransactionsPage />
       case 'presupuestos':  return <PresupuestosPage />
       case 'suscripciones': return <SuscripcionesPage />
-      case 'calendario':    return <CalendarioPage />
+      case 'recurrentes':   return <RecurrentesPage />
+      case 'personas':      return <PersonasHubPage />
       default:              return null
     }
   }

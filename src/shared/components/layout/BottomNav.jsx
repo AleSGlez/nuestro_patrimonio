@@ -1,17 +1,17 @@
 // src/shared/components/layout/BottomNav.jsx
 import { useState } from 'react'
 import { Home, Wallet, Users, Store, MoreHorizontal, Plus, X,
-         TrendingDown, TrendingUp, ArrowLeftRight, ShoppingCart, CreditCard } from 'lucide-react'
+         TrendingDown, TrendingUp, ArrowLeftRight, ShoppingCart, CreditCard, CalendarDays } from 'lucide-react'
 import { cn } from '@lib/utils'
 import { useAppStore } from '@store/appStore'
 
 const LEFT_TABS  = [
-  { id: 'inicio',   label: 'Inicio',   icon: Home },
-  { id: 'finanzas', label: 'Finanzas', icon: Wallet },
+  { id: 'inicio',    label: 'Inicio',    icon: Home },
+  { id: 'finanzas',  label: 'Finanzas',  icon: Wallet },
 ]
 const RIGHT_TABS = [
-  { id: 'personas', label: 'Personas', icon: Users },
-  { id: 'negocio',  label: 'Negocio',  icon: Store },
+  { id: 'calendario', label: 'Calendario', icon: CalendarDays },
+  { id: 'negocio',    label: 'Negocio',    icon: Store },
 ]
 
 const ACCIONES = [

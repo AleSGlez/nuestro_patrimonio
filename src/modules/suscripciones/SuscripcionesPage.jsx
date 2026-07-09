@@ -1,9 +1,10 @@
 // src/modules/suscripciones/SuscripcionesPage.jsx
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, Check, RefreshCw, AlertCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, Bell, Play } from 'lucide-react'
 import {
   useSuscripciones, useCrearSuscripcion, useActualizarSuscripcion,
-  useEliminarSuscripcion, diasHasta, gastoAnual, FRECUENCIA_LABEL, siguienteFecha
+  useEliminarSuscripcion, useRegistrarSuscripcion,
+  diasHasta, gastoAnual, FRECUENCIA_LABEL, siguienteFecha
 } from './hooks/useSuscripciones'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
@@ -45,6 +46,7 @@ function FormSuscripcion({ open, onClose, suscripcion = null }) {
   const [proximaFecha, setProxima]  = useState(suscripcion?.proxima_fecha || today())
   const [persona, setPersona]       = useState(suscripcion?.persona || 'ambos')
   const [contexto, setContexto]     = useState(suscripcion?.contexto || 'personal')
+  const [cuentaId, setCuentaId]     = useState(suscripcion?.cuenta_id || '')
   const [nota, setNota]             = useState(suscripcion?.nota || '')
 
   const PERSONA_OPTS = [
@@ -53,13 +55,26 @@ function FormSuscripcion({ open, onClose, suscripcion = null }) {
     { value: 'p2', label: nombres.p2 },
   ]
 
+  const metodoPagoOpts = [
+    { value: '', label: 'Sin método de pago' },
+    ...cuentas.map((c) => ({ value: `cuenta:${c.id}`, label: `🏦 ${c.nombre}` })),
+    ...tarjetas.map((t) => ({ value: `tarjeta:${t.id}`, label: `💳 ${t.nombre}` })),
+  ]
+
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
     if (!monto || Number(monto) <= 0) { toast.error('Ingresa el monto'); return }
+
+    let cuenta_id = null
+    let tarjeta_id = null
+    if (cuentaId.startsWith('cuenta:')) cuenta_id = cuentaId.replace('cuenta:', '')
+    if (cuentaId.startsWith('tarjeta:')) tarjeta_id = cuentaId.replace('tarjeta:', '')
+
     const payload = {
       nombre: nombre.trim(), emoji, monto: Number(monto),
       frecuencia, proxima_fecha: proximaFecha,
       persona, contexto, nota: nota.trim() || null,
+      cuenta_id, tarjeta_id,
     }
     try {
       if (isEdit) {
@@ -103,7 +118,10 @@ function FormSuscripcion({ open, onClose, suscripcion = null }) {
         </div>
       </div>
 
-      <div className="flex gap-2 mt-3 mb-4">
+      <Select label="Método de pago" value={cuentaId} onChange={setCuentaId}
+        options={metodoPagoOpts} className="mt-3" />
+
+      <div className="flex gap-2 mb-4">
         {['personal','negocio'].map((c) => (
           <button key={c} onClick={() => setContexto(c)}
             className={cn('flex-1 py-2 rounded-xl text-xs font-medium border transition-all capitalize',
@@ -122,29 +140,42 @@ function FormSuscripcion({ open, onClose, suscripcion = null }) {
   )
 }
 
-function SuscripcionCard({ sus, onEdit, onDelete }) {
+function SuscripcionCard({ sus, cuentas, onEdit, onDelete, onRegistrar }) {
   const dias = diasHasta(sus.proxima_fecha)
   const vencida = dias < 0
   const hoy = dias === 0
   const pronto = dias > 0 && dias <= 3
 
-  const badgeColor = vencida ? 'bg-bad/20 text-bad' : hoy ? 'bg-warn/20 text-warn' : pronto ? 'bg-warn/10 text-warn' : 'bg-surface-700 text-gray-400'
-  const badgeLabel = vencida ? `Venció hace ${Math.abs(dias)}d` : hoy ? 'Hoy' : `${dias}d`
+  const alerta = vencida || hoy || pronto
+  const badgeColor = vencida ? 'bg-bad/20 text-bad' : (hoy || pronto) ? 'bg-warn/20 text-warn' : 'bg-surface-700 text-gray-400'
+  const badgeLabel = vencida ? `Venció hace ${Math.abs(dias)}d` : hoy ? 'Hoy' : pronto ? `${dias}d` : `${dias}d`
+
+  const metodoPago = sus.cuenta_id
+    ? cuentas.find((c) => c.id === sus.cuenta_id)?.nombre
+    : null
 
   return (
-    <div className={cn('card p-4', (vencida || hoy) && 'border border-warn/30')}>
+    <div className={cn('card p-4', alerta && 'border border-warn/30')}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-surface-700 flex items-center justify-center text-xl flex-shrink-0">
+          <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0',
+            alerta ? 'bg-warn/10' : 'bg-surface-700'
+          )}>
             {sus.emoji}
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{sus.nombre}</p>
-            <p className="text-[11px] text-gray-500">{FRECUENCIA_LABEL[sus.frecuencia]} · {sus.persona === 'ambos' ? 'Pareja' : sus.persona}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-white">{sus.nombre}</p>
+              {alerta && <Bell size={11} className="text-warn" />}
+            </div>
+            <p className="text-[11px] text-gray-500">
+              {FRECUENCIA_LABEL[sus.frecuencia]} · {sus.persona === 'ambos' ? 'Pareja' : sus.persona}
+              {metodoPago && ` · ${metodoPago}`}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-medium', badgeColor)}>
+        <div className="flex items-center gap-1">
+          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', badgeColor)}>
             {badgeLabel}
           </span>
           <button onClick={() => onEdit(sus)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
@@ -161,11 +192,19 @@ function SuscripcionCard({ sus, onEdit, onDelete }) {
           <p className="text-lg font-bold font-mono text-white">{fmt(sus.monto)}</p>
           <p className="text-[10px] text-gray-500">~{fmt(gastoAnual(sus))} al año</p>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] text-gray-500">Próximo cobro</p>
-          <p className="text-xs text-gray-300 capitalize">
-            {format(new Date(sus.proxima_fecha + 'T12:00:00'), "d 'de' MMM", { locale: es })}
-          </p>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <p className="text-[10px] text-gray-500">Próximo cobro</p>
+            <p className="text-xs text-gray-300 capitalize">
+              {format(new Date(sus.proxima_fecha + 'T12:00:00'), "d 'de' MMM", { locale: es })}
+            </p>
+          </div>
+          {(vencida || hoy) && (
+            <button onClick={() => onRegistrar(sus)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[var(--accent)] text-white text-[11px] font-medium">
+              <Play size={11} /> Registrar
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -175,23 +214,31 @@ function SuscripcionCard({ sus, onEdit, onDelete }) {
 export default function SuscripcionesPage() {
   const toast = useToast()
   const { data: suscripciones = [], isPending } = useSuscripciones()
+  const { data: cuentas = [] } = useCuentas()
   const eliminar = useEliminarSuscripcion()
+  const registrar = useRegistrarSuscripcion()
   const [formOpen, setFormOpen] = useState(false)
   const [editSus, setEditSus]   = useState(null)
 
-  const totalMensual = useMemo(() => {
-    return suscripciones.reduce((s, sus) => {
-      const multiplicador = { diaria: 30, semanal: 4.33, mensual: 1, bimestral: 0.5, trimestral: 0.33, semestral: 0.17, anual: 0.083 }
-      return s + Number(sus.monto) * (multiplicador[sus.frecuencia] || 1)
-    }, 0)
-  }, [suscripciones])
+  const totalMensual = useMemo(() => suscripciones.reduce((s, sus) => {
+    const mult = { diaria: 30, semanal: 4.33, mensual: 1, bimestral: 0.5, trimestral: 0.33, semestral: 0.17, anual: 0.083 }
+    return s + Number(sus.monto) * (mult[sus.frecuencia] || 1)
+  }, 0), [suscripciones])
 
-  const proximas = suscripciones.filter((s) => diasHasta(s.proxima_fecha) <= 7)
+  const alertas = suscripciones.filter((s) => diasHasta(s.proxima_fecha) <= 3)
 
   const handleDelete = async (sus) => {
     if (!confirm(`¿Desactivar "${sus.nombre}"?`)) return
     try { await eliminar.mutateAsync(sus.id); toast.success('Suscripción desactivada') }
     catch (e) { toast.error(e.message) }
+  }
+
+  const handleRegistrar = async (sus) => {
+    if (!confirm(`¿Registrar el cargo de ${fmt(sus.monto)} de ${sus.nombre}?`)) return
+    try {
+      await registrar.mutateAsync({ suscripcion: sus, cuentas })
+      toast.success('Cargo registrado ✅')
+    } catch (e) { toast.error(e.message) }
   }
 
   return (
@@ -202,10 +249,10 @@ export default function SuscripcionesPage() {
             <p className="text-[10px] text-gray-500 mb-1">Gasto mensual</p>
             <p className="text-lg font-bold font-mono text-white">{fmt(totalMensual)}</p>
           </div>
-          <div className={cn('rounded-xl p-3', proximas.length > 0 ? 'bg-warn/10 border border-warn/20' : 'bg-surface-700')}>
-            <p className="text-[10px] text-gray-500 mb-1">Esta semana</p>
-            <p className={cn('text-lg font-bold', proximas.length > 0 ? 'text-warn' : 'text-white')}>
-              {proximas.length} cobros
+          <div className={cn('rounded-xl p-3', alertas.length > 0 ? 'bg-warn/10 border border-warn/20' : 'bg-surface-700')}>
+            <p className="text-[10px] text-gray-500 mb-1">Próximos 3 días</p>
+            <p className={cn('text-lg font-bold', alertas.length > 0 ? 'text-warn' : 'text-white')}>
+              {alertas.length} cobros
             </p>
           </div>
         </div>
@@ -219,12 +266,16 @@ export default function SuscripcionesPage() {
             description="Agrega tus servicios recurrentes como Netflix, Spotify, gimnasio, etc." />
         ) : (
           <div className="space-y-3">
-            {suscripciones.map((sus) => (
-              <SuscripcionCard key={sus.id} sus={sus}
-                onEdit={(s) => { setEditSus(s); setFormOpen(true) }}
-                onDelete={handleDelete}
-              />
-            ))}
+            {/* Primero las que vencen pronto o ya vencieron */}
+            {suscripciones
+              .sort((a, b) => diasHasta(a.proxima_fecha) - diasHasta(b.proxima_fecha))
+              .map((sus) => (
+                <SuscripcionCard key={sus.id} sus={sus} cuentas={cuentas}
+                  onEdit={(s) => { setEditSus(s); setFormOpen(true) }}
+                  onDelete={handleDelete}
+                  onRegistrar={handleRegistrar}
+                />
+              ))}
           </div>
         )}
       </div>
