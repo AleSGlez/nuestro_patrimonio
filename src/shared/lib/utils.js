@@ -85,11 +85,24 @@ export const CAT_NEGOCIO_GASTO = [
   { value: 'publicidad',   label: 'Publicidad',   emoji: '📣' },
   { value: 'plataformas',  label: 'Plataformas',  emoji: '💻' },
   { value: 'herramientas', label: 'Herramientas', emoji: '🔧' },
+  { value: 'honorarios',   label: 'Honorarios',   emoji: '🤝' },
   { value: 'operativo',    label: 'Operativo',    emoji: '⚙️' },
-  { value: 'otro',         label: 'Otro',         emoji: '📦' },
+  { value: 'otro_negocio', label: 'Otro',         emoji: '📦' },
 ]
 
-export function getCatEmoji(value, tipo = 'gasto') {
+export const CAT_NEGOCIO_INGRESO = [
+  { value: 'ventas',        label: 'Ventas',        emoji: '💰' },
+  { value: 'servicios',     label: 'Servicios',     emoji: '🛠️' },
+  { value: 'comisiones',    label: 'Comisiones',    emoji: '💵' },
+  { value: 'otro_negocio_ingreso', label: 'Otro',   emoji: '📦' },
+]
+
+export function getCatEmoji(value, tipo = 'gasto', contexto = 'personal') {
+  if (contexto === 'negocio') {
+    const list = tipo === 'ingreso' ? CAT_NEGOCIO_INGRESO : CAT_NEGOCIO_GASTO
+    const found = list.find((c) => c.value === value)
+    if (found) return found.emoji
+  }
   const list = tipo === 'ingreso' ? CAT_INGRESO : CAT_GASTO
   return list.find((c) => c.value === value)?.emoji || '📦'
 }

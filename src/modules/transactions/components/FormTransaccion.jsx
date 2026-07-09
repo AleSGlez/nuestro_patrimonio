@@ -10,7 +10,7 @@ import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useCrearTransaccion, useActualizarTransaccion } from '../hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
-import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, today, cn } from '@lib/utils'
+import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, cn } from '@lib/utils'
 
 const TIPO_EMOJI = { debito: '💳', ahorro: '🏦', efectivo: '💵', inversion: '📈' }
 
@@ -82,8 +82,9 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
   ]
 
   const catOpts = (
-    contexto === 'negocio' ? CAT_NEGOCIO_GASTO
-    : tipo === 'ingreso'   ? CAT_INGRESO
+    contexto === 'negocio' && tipo === 'ingreso' ? CAT_NEGOCIO_INGRESO
+    : contexto === 'negocio' ? CAT_NEGOCIO_GASTO
+    : tipo === 'ingreso'    ? CAT_INGRESO
     : CAT_GASTO
   ).map((c) => ({ value: c.value, label: `${c.emoji} ${c.label}` }))
 

@@ -9,12 +9,14 @@ import NegocioHubPage   from '@modules/negocio-hub/NegocioHubPage'
 import MasPage          from '@modules/mas/MasPage'
 import CalendarioPage   from '@modules/calendario/CalendarioPage'
 import FormTransaccion  from '@modules/transactions/components/FormTransaccion'
+import FormTransferencia from '@modules/accounts/components/FormTransferencia'
 
 export default function DashboardPage() {
   const { tab, setTab } = useAppStore()
   const [finanzasSubTab, setFinanzasSubTab] = useState('resumen')
-  const [formOpen, setFormOpen]   = useState(false)
-  const [formTipo, setFormTipo]   = useState('gasto')
+  const [formOpen, setFormOpen]         = useState(false)
+  const [formTipo, setFormTipo]         = useState('gasto')
+  const [transfOpen, setTransfOpen]     = useState(false)
 
   const handleNavegar = (nuevoTab, subTab) => {
     if (nuevoTab === 'finanzas' && subTab) setFinanzasSubTab(subTab)
@@ -25,7 +27,7 @@ export default function DashboardPage() {
     if (accion === 'gasto' || accion === 'ingreso') {
       setFormTipo(accion); setFormOpen(true)
     } else if (accion === 'transferencia') {
-      setTab('finanzas'); setFinanzasSubTab('movimientos')
+      setTransfOpen(true)
     } else if (accion === 'suscripcion') {
       setTab('finanzas'); setFinanzasSubTab('suscripciones')
     }
@@ -54,6 +56,7 @@ export default function DashboardPage() {
           tipoInicial={formTipo}
         />
       )}
+      <FormTransferencia open={transfOpen} onClose={() => setTransfOpen(false)} />
     </div>
   )
 }
