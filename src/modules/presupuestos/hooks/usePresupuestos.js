@@ -11,11 +11,9 @@ export function usePresupuestos() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useQuery({
     queryKey: ['presupuestos', parejaId],
-    queryFn: () => db.from('presupuestos').query({
-      pareja_id: `eq.${parejaId}`,
-      activo: 'eq.true',
-      order: 'created_at.asc',
-    }),
+    queryFn: () => db.from('presupuestos').query(
+      `pareja_id=eq.${parejaId}&activo=eq.true&order=created_at.asc`
+    ),
     enabled: !!parejaId,
     staleTime: 1000 * 60 * 2,
   })

@@ -35,7 +35,7 @@ export function usePagarTarjeta() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ cuentaId, cuentaSaldo, tarjetaId, tarjetaSaldoTotal, tarjetaSaldoAnterior, monto, descripcion, fecha }) => {
+    mutationFn: async ({ cuentaId, cuentaSaldo, tarjetaId, tarjetaSaldoTotal, tarjetaSaldoAnterior, tarjetaPagoSinIntereses, monto, descripcion, fecha }) => {
       const m = Number(monto)
 
       await db.from('transferencias').insert({
@@ -48,16 +48,18 @@ export function usePagarTarjeta() {
         fecha,
       })
 
+      // Descontar de la cuenta origen
       await db.from('cuentas').update({ saldo: Number(cuentaSaldo) - m }, { id: cuentaId })
 
-      // El pago reduce primero el saldo del período anterior (lo exigible)
+      // El pago reduce la deuda total y el saldo del período anterior exigible
+      // pago_sin_intereses es lo que el usuario definió manualmente — NO se toca aquí
+      const nuevoTotal    = Math.max(0, Number(tarjetaSaldoTotal) - m)
       const nuevoAnterior = Math.max(0, Number(tarjetaSaldoAnterior) - m)
-      const nuevoTotal     = Math.max(0, Number(tarjetaSaldoTotal) - m)
 
       await db.from('tarjetas').update({
         saldo_total: nuevoTotal,
         saldo_periodo_anterior: nuevoAnterior,
-        pago_sin_intereses: nuevoAnterior,
+        // pago_sin_intereses NO se modifica — es el campo manual del usuario
       }, { id: tarjetaId })
     },
     onSuccess: () => {

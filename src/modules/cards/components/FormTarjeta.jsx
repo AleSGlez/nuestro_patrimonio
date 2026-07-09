@@ -59,6 +59,15 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
     }
   }, [open, tarjeta])
 
+  const handleDiaCorte = (val) => {
+    setDiaCorte(val)
+    if (val && !diaLimite) {
+      // Auto-calcular día límite = día corte + 20 días
+      const limite = Number(val) + 20
+      setDiaLimite(limite > 28 ? String(limite - 28) : String(limite))
+    }
+  }
+
   const handleSave = async () => {
     if (!nombre.trim())               { toast.error('Ingresa el nombre'); return }
     if (!limite || Number(limite) <= 0) { toast.error('Ingresa el límite de crédito'); return }
@@ -123,7 +132,7 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
       <AmountInput label="Pago mínimo" value={pagoMinimo} onChange={setPagoMinimo} placeholder="0.00" />
 
       <div className="grid grid-cols-2 gap-3">
-        <Select label="Día de corte" value={diaCorte} onChange={setDiaCorte} options={DIAS} placeholder="Día…" className="mb-0" />
+        <Select label="Día de corte" value={diaCorte} onChange={handleDiaCorte} options={DIAS} placeholder="Día…" className="mb-0" />
         <Select label="Día límite de pago" value={diaLimite} onChange={setDiaLimite} options={DIAS} placeholder="Día…" className="mb-0" />
       </div>
 

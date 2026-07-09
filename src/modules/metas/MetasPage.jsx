@@ -52,7 +52,7 @@ function FormMeta({ open, onClose, meta = null }) {
       nombre: nombre.trim(), emoji, descripcion: descripcion.trim() || null,
       monto_objetivo: Number(objetivo),
       fecha_objetivo: fechaObj || null,
-      persona, cuenta_id: cuentaId || null, color,
+      persona, cuenta_id: cuentaId || null,
     }
     try {
       if (isEdit) {
@@ -95,19 +95,18 @@ function FormMeta({ open, onClose, meta = null }) {
         </div>
       </div>
 
-      <Select label="Quién ahorra" value={persona} onChange={setPersona} options={PERSONA_OPTS} className="mt-3" />
-      <Select label="Cuenta vinculada" value={cuentaId} onChange={setCuentaId} options={cuentaOpts} />
+      <Select label="Cuenta predeterminada (opcional)" value={cuentaId} onChange={setCuentaId} options={cuentaOpts} />
+      <p className="text-[11px] text-gray-500 -mt-3 mb-3">Al aportar podrás elegir cualquier cuenta, esto solo es el predeterminado.</p>
 
-      {/* Color */}
-      <div className="mb-4">
-        <label className="label">Color</label>
-        <div className="flex gap-2">
-          {COLORES.map((c) => (
-            <button key={c} onClick={() => setColor(c)}
-              className={cn('w-8 h-8 rounded-full transition-all', color === c && 'ring-2 ring-white ring-offset-2 ring-offset-surface-800')}
-              style={{ backgroundColor: c }} />
-          ))}
-        </div>
+      <div className="flex gap-2 mb-4">
+        {['ambos','p1','p2'].map((v) => (
+          <button key={v} onClick={() => setPersona(v)}
+            className={cn('flex-1 py-2 rounded-xl text-xs font-medium border transition-all',
+              persona === v ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-white/10 text-gray-400'
+            )}>
+            {v === 'ambos' ? '👫 Pareja' : v === 'p1' ? nombres.p1 : nombres.p2}
+          </button>
+        ))}
       </div>
 
       <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold">

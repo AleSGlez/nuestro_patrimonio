@@ -123,8 +123,8 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
     if (!metodoValor) { toast.error('Selecciona de dónde sale o entra el dinero'); return }
 
     const [tipoMetodo, id] = metodoValor.split(':')
-    // tipoMetodo es 'cuenta' o 'tarjeta' — se mapea a metodo_pago de la BD
-    const metodoPagoDB = tipoMetodo === 'tarjeta' ? 'tarjeta' : 'cuenta'
+    // metodo_pago como "cuenta:UUID" o "tarjeta:UUID" para que revertirEfecto funcione
+    const metodoPagoDB = `${tipoMetodo}:${id}`
 
     const payload = {
       tipo, contexto, monto: Number(monto), categoria,

@@ -141,7 +141,9 @@ export default function PresupuestosPage() {
   const [editPresup, setEditPresup] = useState(null)
   const [tabActivo, setTabActivo]   = useState('todos')
 
-  const items = useMemo(() => presupuestos.map((p) => ({
+  const items = useMemo(() => presupuestos
+    .filter((p) => !p.contexto || p.contexto === 'personal')
+    .map((p) => ({
     ...p, ...calcularDisponible(p, transacciones),
   })), [presupuestos, transacciones])
 
