@@ -6,6 +6,7 @@ import AccountsPage from '@modules/accounts/AccountsPage'
 import CardsPage from '@modules/cards/CardsPage'
 import TransactionsPage from '@modules/transactions/TransactionsPage'
 import PresupuestosPage from '@modules/presupuestos/PresupuestosPage'
+import MetasPage from '@modules/metas/MetasPage'
 import SuscripcionesPage from '@modules/suscripciones/SuscripcionesPage'
 import RecurrentesPage from '@modules/recurrentes/RecurrentesPage'
 import PersonasHubPage from '@modules/personas-hub/PersonasHubPage'
@@ -18,6 +19,7 @@ const TABS = [
   { id: 'tarjetas',      label: 'Tarjetas',      emoji: '💳' },
   { id: 'movimientos',   label: 'Movimientos',   emoji: '↕️' },
   { id: 'presupuestos',  label: 'Presupuestos',  emoji: '🎯' },
+  { id: 'metas',         label: 'Metas',         emoji: '⭐' },
   { id: 'suscripciones', label: 'Suscripciones', emoji: '🔄' },
   { id: 'recurrentes',   label: 'Recurrentes',   emoji: '🔁' },
   { id: 'personas',      label: 'Personas',      emoji: '👥' },
@@ -35,6 +37,7 @@ export default function FinanzasPage({ subTab = 'resumen' }) {
       case 'tarjetas':      return <CardsPage />
       case 'movimientos':   return <TransactionsPage />
       case 'presupuestos':  return <PresupuestosPage />
+      case 'metas':         return <MetasPage />
       case 'suscripciones': return <SuscripcionesPage />
       case 'recurrentes':   return <RecurrentesPage />
       case 'personas':      return <PersonasHubPage />
