@@ -210,8 +210,8 @@ export default function InventarioPage() {
 
   // Resumen general
   const totalStock     = todosProductos.reduce((s, p) => s + Number(p.cantidad_stock), 0)
-  const totalInvertido = todosProductos.reduce((s, p) => s + calcularCostoReal(p) * p.cantidad_compra, 0)
-  const totalVendidas  = todosProductos.reduce((s, p) => s + (p.cantidad_compra - p.cantidad_stock), 0)
+  const totalInvertido = todosProductos.reduce((s, p) => s + calcularCostoReal(p) * Number(p.cantidad_compra || 0), 0)
+  const totalVendidas  = todosProductos.reduce((s, p) => s + (Number(p.cantidad_compra || 0) - Number(p.cantidad_stock || 0)), 0)
 
   if (loteActivo) {
     return <VistaLote
@@ -255,7 +255,7 @@ export default function InventarioPage() {
               const stockLote = productosLote.reduce((s, p) => s + Number(p.cantidad_stock), 0)
               const totalLote = productosLote.reduce((s, p) => s + Number(p.cantidad_compra), 0)
               const info = getEstadoInfo(lote.estado)
-              const costoExtra = Number(lote.costo_envio) + Number(lote.costo_aduanas) + Number(lote.costo_otros)
+              const costoExtra = Number(lote.costo_envio || 0) + Number(lote.costo_aduanas || lote.costo_aduana || 0) + Number(lote.costo_otros || 0)
 
               return (
                 <button key={lote.id} onClick={() => setLoteActivo(lote.id)}
