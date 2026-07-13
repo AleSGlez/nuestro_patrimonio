@@ -11,11 +11,20 @@ import ProveedoresPage from './components/ProveedoresPage'
 import { fmt, cn } from '@lib/utils'
 
 const ESTADO_INFO = {
-  pendiente:   { label: 'Pendiente',    color: 'text-gray-400', bg: 'bg-gray-400/10' },
-  en_transito: { label: 'En tránsito',  color: 'text-warn',     bg: 'bg-warn/10' },
-  recibido:    { label: 'Recibido',     color: 'text-ok',       bg: 'bg-ok/10' },
-  cancelado:   { label: 'Cancelado',    color: 'text-bad',      bg: 'bg-bad/10' },
+  pendiente:        { label: 'Pendiente',           color: 'text-gray-400', bg: 'bg-gray-400/10' },
+  en_transito:      { label: 'En tránsito',         color: 'text-warn',     bg: 'bg-warn/10' },
+  recibido:         { label: 'Recibido',             color: 'text-ok',       bg: 'bg-ok/10' },
+  cancelado:        { label: 'Cancelado',            color: 'text-bad',      bg: 'bg-bad/10' },
+  // Estados del módulo de Compras
+  pagado:           { label: 'Pagado',               color: 'text-warn',     bg: 'bg-warn/10' },
+  en_almacen_buyee: { label: 'En almacén Buyee',     color: 'text-[#7C6EFA]', bg: 'bg-[#7C6EFA]/10' },
+  enviado_mexico:   { label: 'Enviado a México',     color: 'text-blue-400', bg: 'bg-blue-400/10' },
+  en_aduana:        { label: 'En aduana',            color: 'text-orange-400', bg: 'bg-orange-400/10' },
 }
+
+// Fallback para estados desconocidos
+const getEstadoInfo = (estado) =>
+  ESTADO_INFO[estado] || { label: estado || 'Sin estado', color: 'text-gray-400', bg: 'bg-gray-400/10' }
 
 const COND_LABEL = { mint: '✨', near_mint: '👍', played: '⚠️', damaged: '❌' }
 
@@ -34,7 +43,7 @@ function VistaLote({ lote, onBack, onEditLote }) {
   const totalStock     = productos.reduce((s, p) => s + Number(p.cantidad_stock), 0)
   const totalVendidas  = productos.reduce((s, p) => s + (Number(p.cantidad_compra) - Number(p.cantidad_stock)), 0)
 
-  const info = ESTADO_INFO[lote.estado]
+  const info = getEstadoInfo(lote.estado)
 
   const handleVender = async (producto) => {
     if (producto.cantidad_stock <= 0) { toast.error('Sin stock disponible'); return }
@@ -245,7 +254,7 @@ export default function InventarioPage() {
               const productosLote = todosProductos.filter((p) => p.lote_id === lote.id)
               const stockLote = productosLote.reduce((s, p) => s + Number(p.cantidad_stock), 0)
               const totalLote = productosLote.reduce((s, p) => s + Number(p.cantidad_compra), 0)
-              const info = ESTADO_INFO[lote.estado]
+              const info = getEstadoInfo(lote.estado)
               const costoExtra = Number(lote.costo_envio) + Number(lote.costo_aduanas) + Number(lote.costo_otros)
 
               return (

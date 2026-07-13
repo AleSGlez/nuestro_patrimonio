@@ -1,7 +1,7 @@
 // src/modules/compras/ComprasPage.jsx
 import { useState, useMemo } from 'react'
 import { Plus, ChevronRight, Check, Package, ArrowRight } from 'lucide-react'
-import { useLotes, useProductosLote, useCrearLote, useAvanzarEstadoLote, useMarcarDisponible, useMarcarLoteDisponible, ESTADOS_LOTE } from './hooks/useCompras'
+import { useLotes, useProductosLote, useCrearLote, useAvanzarEstadoLote, useMarcarDisponible, useMarcarLoteDisponible, useEliminarLote, ESTADOS_LOTE } from './hooks/useCompras'
 import { useProveedores } from '@modules/inventario/hooks/useInventario'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
@@ -328,6 +328,7 @@ function DetalleLote({ lote, onClose }) {
   const avanzar         = useAvanzarEstadoLote()
   const marcarUna       = useMarcarDisponible()
   const marcarTodas     = useMarcarLoteDisponible()
+  const eliminar        = useEliminarLote()
 
   if (!lote) return null
 
@@ -339,6 +340,15 @@ function DetalleLote({ lote, onClose }) {
   const enTransito   = productos.filter((p) => p.estado === 'en_transito')
   const disponibles  = productos.filter((p) => p.estado === 'disponible')
   const todasDispon  = productos.length > 0 && enTransito.length === 0
+
+  const handleEliminar = async () => {
+    if (!confirm(`¿Eliminar la compra "${lote.nombre}"? Esto desactivará todas sus cartas.`)) return
+    try {
+      await eliminar.mutateAsync(lote.id)
+      toast.success('Compra eliminada')
+      onClose()
+    } catch (e) { toast.error(e.message) }
+  }
 
   const handleAvanzar = async () => {
     if (!siguienteEstado) return
@@ -485,6 +495,10 @@ function DetalleLote({ lote, onClose }) {
         )}
 
         <button onClick={onClose} className="btn-ghost w-full py-2.5 text-sm">Cerrar</button>
+        <button onClick={handleEliminar} disabled={eliminar.isPending}
+          className="w-full py-2.5 text-sm text-bad border border-bad/20 rounded-xl mt-2">
+          🗑 Eliminar esta compra
+        </button>
       </div>
     </div>
   )

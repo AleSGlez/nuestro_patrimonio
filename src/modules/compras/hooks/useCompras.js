@@ -221,3 +221,26 @@ export function useAvanzarEstadoLote() {
     },
   })
 }
+
+// Eliminar lote y sus productos
+export function useEliminarLote() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  return useMutation({
+    mutationFn: async (loteId) => {
+      // Primero eliminar productos del lote
+      const prods = await db.from('productos').query(`lote_id=eq.${loteId}`)
+      await Promise.all(prods.map((p) =>
+        db.from('productos').update({ activo: false }, { id: p.id })
+      ))
+      // Luego marcar el lote como cancelado
+      await db.from('lotes_compra').update({ estado: 'cancelado' }, { id: loteId })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lotes', parejaId] })
+      qc.invalidateQueries({ queryKey: ['productos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
+      qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+    },
+  })
+}
