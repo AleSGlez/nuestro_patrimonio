@@ -1,9 +1,10 @@
 // src/modules/compras/ComprasPage.jsx
 import { useState, useMemo } from 'react'
 import { Plus, ChevronRight, Check, Package, ArrowRight } from 'lucide-react'
-import { useLotes, useProductosLote, useCrearLote, useAvanzarEstadoLote, ESTADOS_LOTE, METODOS_PAGO_COMPRA } from './hooks/useCompras'
+import { useLotes, useProductosLote, useCrearLote, useAvanzarEstadoLote, ESTADOS_LOTE } from './hooks/useCompras'
 import { useProveedores } from '@modules/inventario/hooks/useInventario'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
+import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useToast } from '@ui/Toast'
 import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
 import Modal from '@ui/Modal'
@@ -11,10 +12,19 @@ import Spinner from '@ui/Spinner'
 import ImportarCartasLote from './components/ImportarCartasLote'
 import { fmt, cn, today, fmtDate } from '@lib/utils'
 
+const METODOS_PAGO_COMPRA = [
+  { value: 'transferencia',    label: '🏦 Transferencia bancaria' },
+  { value: 'efectivo',         label: '💵 Efectivo' },
+  { value: 'tarjeta_personal', label: '💳 Tarjeta de crédito personal' },
+  { value: 'paypal',           label: '🅿️ PayPal' },
+  { value: 'otro',             label: '📦 Otro' },
+]
+
 function FormLote({ open, onClose }) {
   const toast = useToast()
   const { data: proveedores = [] } = useProveedores()
   const { data: cuentas = [] }     = useCuentas()
+  const { data: tarjetas = [] }    = useTarjetas()
   const crear = useCrearLote()
 
   const [paso, setPaso]             = useState(1)
@@ -28,10 +38,13 @@ function FormLote({ open, onClose }) {
   const [costoEnvio, setCostoEnvio] = useState('')
   const [costoAduana, setCostoAduana] = useState('')
   const [cuentaId, setCuentaId]     = useState('')
+  const [tarjetaId, setTarjetaId]   = useState('')
   const [metodoPago, setMetodo]     = useState('transferencia')
   const [estado, setEstado]         = useState('pagado')
   const [notas, setNotas]           = useState('')
   const [productos, setProductos]   = useState([])
+
+  const usaTarjeta = metodoPago === 'tarjeta_personal'
 
   const provOpts = [
     { value: '', label: 'Sin proveedor específico' },
@@ -41,6 +54,10 @@ function FormLote({ open, onClose }) {
     { value: '', label: 'No registrar pago' },
     ...cuentas.map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` })),
   ]
+  const tarjetaOpts = [
+    { value: '', label: 'Selecciona la tarjeta' },
+    ...tarjetas.map((t) => ({ value: t.id, label: `${t.nombre} (disponible: ${fmt(Math.max(0, t.limite - t.saldo_total))})` })),
+  ]
 
   // Totales calculados
   const montoMXN  = (Number(montoJpy) || 0) * (Number(tipoCambio) || 1)
@@ -49,6 +66,7 @@ function FormLote({ open, onClose }) {
 
   const handleGuardar = async () => {
     if (!fecha) { toast.error('Selecciona la fecha'); return }
+    if (usaTarjeta && !tarjetaId) { toast.error('Selecciona la tarjeta'); return }
 
     try {
       await crear.mutateAsync({
@@ -60,12 +78,14 @@ function FormLote({ open, onClose }) {
           tipo_cambio: Number(tipoCambio) || 1,
           costo_envio: Number(costoEnvio) || 0,
           costo_aduana: Number(costoAduana) || 0,
-          cuenta_id: cuentaId || null,
+          cuenta_id: usaTarjeta ? null : (cuentaId || null),
+          tarjeta_id: usaTarjeta ? tarjetaId : null,
           metodo_pago: metodoPago,
           estado, notas: notas.trim() || null,
         },
         productos,
         cuentas,
+        tarjetas,
       })
       toast.success('Compra registrada ✅')
       onClose()
@@ -204,10 +224,16 @@ function FormLote({ open, onClose }) {
             </div>
           )}
 
-          <Select label="Método de pago" value={metodoPago} onChange={setMetodo}
+          <Select label="Método de pago" value={metodoPago} onChange={(v) => { setMetodo(v); setCuentaId(''); setTarjetaId('') }}
             options={METODOS_PAGO_COMPRA} className="mt-3" />
-          <Select label="Cuenta donde sale el dinero" value={cuentaId} onChange={setCuentaId}
-            options={cuentaOpts} />
+
+          {usaTarjeta ? (
+            <Select label="Tarjeta de crédito" value={tarjetaId} onChange={setTarjetaId}
+              options={tarjetaOpts} />
+          ) : (
+            <Select label="Cuenta donde sale el dinero" value={cuentaId} onChange={setCuentaId}
+              options={cuentaOpts} />
+          )}
 
           <div className="flex gap-2 mt-2">
             <button onClick={() => setPaso(2)} className="btn-ghost flex-1 py-3 text-sm">← Atrás</button>

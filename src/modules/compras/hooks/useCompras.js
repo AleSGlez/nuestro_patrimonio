@@ -43,16 +43,15 @@ export function useProductosLote(loteId) {
   })
 }
 
-// Crear lote + transacción de egreso + productos desde Excel
 export function useCrearLote() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ loteData, productos, cuentas }) => {
+    mutationFn: async ({ loteData, productos, cuentas, tarjetas = [] }) => {
       const {
         nombre, proveedor_id, fecha, monto_total_jpy, tipo_cambio,
-        costo_envio, costo_aduana, notas, cuenta_id, metodo_pago,
+        costo_envio, costo_aduana, notas, cuenta_id, tarjeta_id, metodo_pago,
         estado = 'pagado', fecha_estimada, tipo = 'buyee',
       } = loteData
 
@@ -81,36 +80,49 @@ export function useCrearLote() {
         tipo,
       })
 
-      // 2. Crear transacción de egreso si hay cuenta
-      if (cuenta_id && totalMXN > 0) {
-        const cuenta = cuentas.find((c) => c.id === cuenta_id)
+      // 2. Crear transacción de egreso + actualizar saldo/deuda
+      if (totalMXN > 0) {
+        const esTarjeta = metodo_pago === 'tarjeta_personal' && tarjeta_id
+
         const [tx] = await db.from('transacciones').insert({
           pareja_id: parejaId,
           tipo: 'gasto',
           monto: totalMXN,
           categoria: 'compra_producto',
-          descripcion: `Compra lote: ${nombre || `Lote ${fecha}`}`,
+          descripcion: `Compra: ${nombre || `Lote ${fecha}`}`,
           fecha,
           persona: 'ambos',
           contexto: 'negocio',
-          metodo_pago: `cuenta:${cuenta_id}`,
-          cuenta_id,
+          metodo_pago: esTarjeta ? `tarjeta:${tarjeta_id}` : (cuenta_id ? `cuenta:${cuenta_id}` : metodo_pago),
+          cuenta_id: esTarjeta ? null : (cuenta_id || null),
+          tarjeta_id: esTarjeta ? tarjeta_id : null,
         })
-        // Descontar de la cuenta
-        if (cuenta) {
-          await db.from('cuentas').update(
-            { saldo: Number(cuenta.saldo) - totalMXN },
-            { id: cuenta_id }
-          )
+
+        if (esTarjeta) {
+          // Sumar a la deuda de la tarjeta
+          const tarjeta = tarjetas.find((t) => t.id === tarjeta_id)
+          if (tarjeta) {
+            await db.from('tarjetas').update({
+              saldo_total: Number(tarjeta.saldo_total) + totalMXN,
+              gastos_periodo_actual: Number(tarjeta.gastos_periodo_actual) + totalMXN,
+            }, { id: tarjeta_id })
+          }
+        } else if (cuenta_id) {
+          // Descontar de la cuenta
+          const cuenta = cuentas.find((c) => c.id === cuenta_id)
+          if (cuenta) {
+            await db.from('cuentas').update(
+              { saldo: Number(cuenta.saldo) - totalMXN },
+              { id: cuenta_id }
+            )
+          }
         }
-        // Vincular tx al lote
+
         await db.from('lotes_compra').update({ transaccion_id: tx.id }, { id: lote.id })
       }
 
-      // 3. Crear productos con el costo prorrateado
-      // Estado = disponible si ya fue recibido, en_transito si no
+      // 3. Crear productos
       const estadoProducto = estado === 'recibido' ? 'disponible' : 'en_transito'
-
       if (productos.length > 0) {
         await Promise.all(productos.map((p) =>
           db.from('productos').insert({
@@ -136,11 +148,12 @@ export function useCrearLote() {
       return lote
     },
     onSuccess: () => {
-      const parejaId = useAuthStore.getState().pareja?.id
-      qc.invalidateQueries({ queryKey: ['lotes', parejaId] })
-      qc.invalidateQueries({ queryKey: ['productos', parejaId] })
-      qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
-      qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+      const pId = useAuthStore.getState().pareja?.id
+      qc.invalidateQueries({ queryKey: ['lotes', pId] })
+      qc.invalidateQueries({ queryKey: ['productos', pId] })
+      qc.invalidateQueries({ queryKey: ['transacciones', pId] })
+      qc.invalidateQueries({ queryKey: ['cuentas', pId] })
+      qc.invalidateQueries({ queryKey: ['tarjetas', pId] })
     },
   })
 }
