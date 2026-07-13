@@ -24,7 +24,7 @@ export function useLotes() {
   return useQuery({
     queryKey: ['lotes', parejaId],
     queryFn: () => db.from('lotes_compra').query(
-      `pareja_id=eq.${parejaId}&order=fecha.desc`
+      `pareja_id=eq.${parejaId}&estado=neq.cancelado&order=fecha_compra.desc`
     ),
     enabled: !!parejaId,
     staleTime: 1000 * 60 * 2,
