@@ -31,7 +31,9 @@ function FormMeta({ open, onClose, meta = null }) {
   const [objetivo, setObjetivo]   = useState(meta?.monto_objetivo ? String(meta.monto_objetivo) : '')
   const [fechaObj, setFechaObj]   = useState(meta?.fecha_objetivo || '')
   const [persona, setPersona]     = useState(meta?.persona || 'ambos')
-  const [cuentaId, setCuentaId]   = useState(meta?.cuenta_id || '')
+  const [cuentasIds, setCuentasIds] = useState(
+    meta?.cuenta_id ? [meta.cuenta_id] : []
+  )
   const [color, setColor]         = useState(meta?.color || '#7C6EFA')
 
   const PERSONA_OPTS = [
@@ -49,10 +51,11 @@ function FormMeta({ open, onClose, meta = null }) {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
     if (!objetivo || Number(objetivo) <= 0) { toast.error('Ingresa el monto objetivo'); return }
     const payload = {
-      nombre: nombre.trim(), emoji, descripcion: descripcion.trim() || null,
+      nombre: nombre.trim(), emoji,
+      descripcion: descripcion.trim() || null,
       monto_objetivo: Number(objetivo),
       fecha_objetivo: fechaObj || null,
-      persona, cuenta_id: cuentaId || null,
+      persona, cuenta_id: cuentasIds[0] || null,
     }
     try {
       if (isEdit) {
@@ -95,8 +98,40 @@ function FormMeta({ open, onClose, meta = null }) {
         </div>
       </div>
 
-      <Select label="Cuenta predeterminada (opcional)" value={cuentaId} onChange={setCuentaId} options={cuentaOpts} />
-      <p className="text-[11px] text-gray-500 -mt-3 mb-3">Al aportar podrás elegir cualquier cuenta, esto solo es el predeterminado.</p>
+      <div className="mb-4">
+        <label className="label">Cuentas de ahorro (hasta 5)</label>
+        <p className="text-[11px] text-gray-500 mb-2">Al aportar podrás elegir entre estas cuentas.</p>
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          {cuentas.map((c) => {
+            const selected = cuentasIds.includes(c.id)
+            return (
+              <button key={c.id} onClick={() => {
+                if (selected) {
+                  setCuentasIds((prev) => prev.filter((id) => id !== c.id))
+                } else if (cuentasIds.length < 5) {
+                  setCuentasIds((prev) => [...prev, c.id])
+                }
+              }}
+                className={cn('w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all',
+                  selected ? 'border-[var(--accent)] bg-[var(--accent-muted)]' : 'border-white/10'
+                )}>
+                <div className={cn('w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0',
+                  selected ? 'bg-[var(--accent)] border-[var(--accent)]' : 'border-white/20'
+                )}>
+                  {selected && <Check size={12} className="text-white" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-white">{c.nombre}</p>
+                  <p className="text-[10px] text-gray-500">{fmt(c.saldo)}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        {cuentasIds.length === 5 && (
+          <p className="text-[11px] text-warn mt-1">Máximo 5 cuentas</p>
+        )}
+      </div>
 
       <div className="flex gap-2 mb-4">
         {['ambos','p1','p2'].map((v) => (
@@ -129,7 +164,10 @@ function FormAportacion({ open, onClose, meta }) {
 
   const cuentaOpts = [
     { value: '', label: 'No descontar de ninguna cuenta' },
-    ...cuentas.map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` })),
+    ...(meta?.cuenta_id
+      ? cuentas.filter((c) => c.id === meta.cuenta_id || !meta.cuenta_id)
+      : cuentas
+    ).map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` })),
   ]
 
   const { faltante, aportacionMensual, aportacionQuincenal } = calcularMeta(meta || { monto_objetivo: 0, monto_actual: 0 })

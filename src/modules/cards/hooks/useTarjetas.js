@@ -112,24 +112,43 @@ export function useProcesarCorte() {
 export function calcularFechasCorte(diaCorte, diaLimitePago) {
   if (!diaCorte) return { corte: null, limite: null }
 
-  const hoy = new Date()
-  const año = hoy.getFullYear()
-  const mes = hoy.getMonth()
+  const hoy  = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const año  = hoy.getFullYear()
+  const mes  = hoy.getMonth()
 
-  // Próxima fecha de corte (este mes o el siguiente si ya pasó)
-  let corte = new Date(año, mes, diaCorte)
-  if (corte < hoy) corte = new Date(año, mes + 1, diaCorte)
+  // Próximo corte: este mes si no pasó, el siguiente si ya pasó
+  let corteProximo = new Date(año, mes, diaCorte)
+  if (corteProximo < hoy) corteProximo = new Date(año, mes + 1, diaCorte)
 
-  // Fecha límite de pago
+  // Límite de pago: siempre es después del ÚLTIMO corte (el que ya pasó)
+  // Si hoy es 8 jul y corte es día 7: último corte = 7 jul → límite = 27 jul
+  // Si hoy es 6 jul y corte es día 7: último corte = 7 jun → límite = 27 jun
   let limite = null
   if (diaLimitePago) {
-    limite = new Date(año, mes, diaLimitePago)
-    // El límite de pago normalmente es DESPUÉS del corte
-    if (limite <= corte) limite = new Date(año, mes + 1, diaLimitePago)
+    // Último corte (el que ya pasó o es hoy)
+    let ultimoCorte = new Date(año, mes, diaCorte)
+    if (ultimoCorte > hoy) ultimoCorte = new Date(año, mes - 1, diaCorte)
+
+    // Límite es diaLimitePago del mismo mes del último corte
+    // Si el día límite es menor al día de corte, cae en el mes siguiente
+    limite = new Date(ultimoCorte.getFullYear(), ultimoCorte.getMonth(), diaLimitePago)
+    if (diaLimitePago <= diaCorte) {
+      // límite cae en el mes siguiente al corte
+      limite = new Date(ultimoCorte.getFullYear(), ultimoCorte.getMonth() + 1, diaLimitePago)
+    }
+
+    // Si el límite ya pasó también, usamos el del próximo ciclo
+    if (limite < hoy) {
+      limite = new Date(corteProximo.getFullYear(), corteProximo.getMonth(), diaLimitePago)
+      if (diaLimitePago <= diaCorte) {
+        limite = new Date(corteProximo.getFullYear(), corteProximo.getMonth() + 1, diaLimitePago)
+      }
+    }
   }
 
   const toISO = (d) => d?.toISOString().split('T')[0] ?? null
-  return { corte: toISO(corte), limite: toISO(limite) }
+  return { corte: toISO(corteProximo), limite: toISO(limite) }
 }
 
 // ── Días restantes hasta una fecha ───────────────────────────
