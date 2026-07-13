@@ -80,7 +80,7 @@ export const CAT_INGRESO = [
 ]
 
 export const CAT_NEGOCIO_GASTO = [
-  { value: 'compra_producto', label: 'Compra de producto', emoji: '🛒' },
+  { value: 'inventario', label: 'Inventario', emoji: '🃏' },
   { value: 'packaging',    label: 'Packaging',    emoji: '📦' },
   { value: 'envios',       label: 'Envíos',       emoji: '🚚' },
   { value: 'publicidad',   label: 'Publicidad',   emoji: '📣' },

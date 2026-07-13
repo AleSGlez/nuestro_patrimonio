@@ -106,7 +106,12 @@ function PresupuestoNegocioCard({ presupuesto, transacciones, onEdit, onDelete }
   const txFiltradas = useMemo(() => {
     return transacciones.filter((t) => {
       if (t.tipo !== 'gasto' || t.contexto !== 'negocio') return false
-      if (presupuesto.categoria && t.categoria !== presupuesto.categoria) return false
+      if (presupuesto.categoria) {
+        const cats = presupuesto.categoria === 'inventario'
+          ? ['inventario', 'compra_producto']
+          : [presupuesto.categoria]
+        if (!cats.includes(t.categoria)) return false
+      }
       return t.fecha >= presupuesto.fecha_inicio
     })
   }, [transacciones, presupuesto])
@@ -217,7 +222,12 @@ export default function PresupuestoNegocioPage() {
   const items = useMemo(() => presupuestos.map((p) => {
     const txFiltradas = transacciones.filter((t) => {
       if (t.tipo !== 'gasto' || t.contexto !== 'negocio') return false
-      if (p.categoria && t.categoria !== p.categoria) return false
+      if (p.categoria) {
+        const cats = p.categoria === 'inventario'
+          ? ['inventario', 'compra_producto']
+          : [p.categoria]
+        if (!cats.includes(t.categoria)) return false
+      }
       return t.fecha >= p.fecha_inicio
     })
     return { ...p, ...calcularDisponible(p, txFiltradas) }

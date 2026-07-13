@@ -88,7 +88,7 @@ export function useCrearLote() {
           pareja_id: parejaId,
           tipo: 'gasto',
           monto: totalMXN,
-          categoria: 'compra_producto',
+          categoria: 'inventario',
           descripcion: `Compra: ${nombre || `Lote ${fecha}`}`,
           fecha,
           persona: 'ambos',
@@ -158,6 +158,45 @@ export function useCrearLote() {
   })
 }
 
+// Marcar una carta individual como disponible para venta
+export function useMarcarDisponible() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  return useMutation({
+    mutationFn: async ({ productoId, disponible }) => {
+      await db.from('productos').update(
+        { estado: disponible ? 'disponible' : 'en_transito' },
+        { id: productoId }
+      )
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['productos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['lotes', parejaId] })
+    },
+  })
+}
+
+// Marcar TODAS las cartas de un lote como disponibles
+export function useMarcarLoteDisponible() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  return useMutation({
+    mutationFn: async (loteId) => {
+      const productos = await db.from('productos').query(
+        `lote_id=eq.${loteId}&estado=eq.en_transito`
+      )
+      await Promise.all(
+        productos.map((p) => db.from('productos').update({ estado: 'disponible' }, { id: p.id }))
+      )
+      await db.from('lotes_compra').update({ estado: 'recibido' }, { id: loteId })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['productos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['lotes', parejaId] })
+    },
+  })
+}
+
 // Avanzar estado del lote → si llega a "recibido", marcar productos como disponibles
 export function useAvanzarEstadoLote() {
   const qc = useQueryClient()
@@ -168,7 +207,6 @@ export function useAvanzarEstadoLote() {
       await db.from('lotes_compra').update({ estado: nuevoEstado }, { id: loteId })
 
       if (nuevoEstado === 'recibido') {
-        // Marcar todos los productos en_transito de este lote como disponibles
         const productos = await db.from('productos').query(
           `lote_id=eq.${loteId}&estado=eq.en_transito`
         )

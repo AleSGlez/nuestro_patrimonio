@@ -1,7 +1,7 @@
 // src/modules/compras/ComprasPage.jsx
 import { useState, useMemo } from 'react'
 import { Plus, ChevronRight, Check, Package, ArrowRight } from 'lucide-react'
-import { useLotes, useProductosLote, useCrearLote, useAvanzarEstadoLote, ESTADOS_LOTE } from './hooks/useCompras'
+import { useLotes, useProductosLote, useCrearLote, useAvanzarEstadoLote, useMarcarDisponible, useMarcarLoteDisponible, ESTADOS_LOTE } from './hooks/useCompras'
 import { useProveedores } from '@modules/inventario/hooks/useInventario'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
@@ -278,7 +278,9 @@ function LoteCard({ lote, onClick }) {
 function DetalleLote({ lote, onClose }) {
   const toast = useToast()
   const { data: productos = [] } = useProductosLote(lote?.id)
-  const avanzar = useAvanzarEstadoLote()
+  const avanzar         = useAvanzarEstadoLote()
+  const marcarUna       = useMarcarDisponible()
+  const marcarTodas     = useMarcarLoteDisponible()
 
   if (!lote) return null
 
@@ -287,11 +289,31 @@ function DetalleLote({ lote, onClose }) {
   const totalMXN = (Number(lote.monto_total_jpy || 0) * Number(lote.tipo_cambio || 1))
     + Number(lote.costo_envio || 0) + Number(lote.costo_aduana || 0)
 
+  const enTransito   = productos.filter((p) => p.estado === 'en_transito')
+  const disponibles  = productos.filter((p) => p.estado === 'disponible')
+  const todasDispon  = productos.length > 0 && enTransito.length === 0
+
   const handleAvanzar = async () => {
     if (!siguienteEstado) return
     try {
       await avanzar.mutateAsync({ loteId: lote.id, nuevoEstado: siguienteEstado.value })
-      toast.success(`Estado actualizado: ${siguienteEstado.label}${siguienteEstado.value === 'recibido' ? ' — cartas disponibles en inventario ✅' : ''}`)
+      toast.success(`Estado: ${siguienteEstado.label}`)
+      onClose()
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const handleToggleCarta = async (p) => {
+    const nuevoDisponible = p.estado !== 'disponible'
+    try {
+      await marcarUna.mutateAsync({ productoId: p.id, disponible: nuevoDisponible })
+      toast.success(nuevoDisponible ? '✅ Carta disponible en inventario' : 'Carta de vuelta a tránsito')
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const handleMarcarTodas = async () => {
+    try {
+      await marcarTodas.mutateAsync(lote.id)
+      toast.success(`✅ ${productos.length} cartas disponibles en inventario`)
       onClose()
     } catch (e) { toast.error(e.message) }
   }
@@ -311,7 +333,7 @@ function DetalleLote({ lote, onClose }) {
             const completado = ESTADOS_LOTE.findIndex((s) => s.value === lote.estado) >= i
             return (
               <div key={e.value} className="flex items-center gap-1 flex-shrink-0">
-                <div className={cn('flex flex-col items-center gap-1')}>
+                <div className="flex flex-col items-center gap-1">
                   <div className={cn('w-7 h-7 rounded-full flex items-center justify-center text-sm',
                     completado ? 'text-white' : 'bg-surface-700 text-gray-500'
                   )} style={completado ? { backgroundColor: e.color } : {}}>
@@ -349,26 +371,59 @@ function DetalleLote({ lote, onClose }) {
           </div>
         </div>
 
-        {/* Cartas del lote */}
-        <p className="section-label mb-2">{productos.length} cartas en este lote</p>
-        <div className="space-y-1.5 mb-4 max-h-48 overflow-y-auto">
-          {productos.map((p) => (
-            <div key={p.id} className="flex items-center gap-2 p-2.5 bg-surface-700 rounded-xl">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-white truncate">{p.nombre_jp || p.nombre_en}</p>
-                <p className="text-[10px] text-gray-500">{p.serie} · x{p.cantidad_stock}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-xs font-mono text-gray-300">{fmt(p.precio_unitario_compra)}</p>
-                <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full',
-                  p.estado === 'disponible' ? 'bg-ok/10 text-ok' :
-                  p.estado === 'en_transito' ? 'bg-warn/10 text-warn' : 'bg-surface-600 text-gray-400'
-                )}>{p.estado}</span>
-              </div>
-            </div>
-          ))}
+        {/* Resumen disponibilidad */}
+        {productos.length > 0 && (
+          <div className="flex items-center justify-between mb-3">
+            <p className="section-label">
+              {disponibles.length}/{productos.length} cartas en inventario
+            </p>
+            {!todasDispon && (
+              <button onClick={handleMarcarTodas} disabled={marcarTodas.isPending}
+                className="text-xs text-[var(--accent)] font-medium flex items-center gap-1">
+                <Check size={12} /> Marcar todas disponibles
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Lista de cartas con toggle */}
+        <div className="space-y-1.5 mb-4 max-h-52 overflow-y-auto">
+          {productos.map((p) => {
+            const isDisponible = p.estado === 'disponible'
+            return (
+              <button key={p.id} onClick={() => handleToggleCarta(p)}
+                className={cn(
+                  'w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left',
+                  isDisponible
+                    ? 'bg-ok/5 border-ok/20'
+                    : 'bg-surface-700 border-white/5'
+                )}>
+                {/* Checkbox visual */}
+                <div className={cn(
+                  'w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all',
+                  isDisponible ? 'bg-ok border-ok' : 'border-white/20'
+                )}>
+                  {isDisponible && <Check size={12} className="text-white" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-white truncate">{p.nombre_jp || p.nombre_en || 'Sin nombre'}</p>
+                  <p className="text-[10px] text-gray-500">
+                    {p.serie} {p.numero_carta && `· #${p.numero_carta}`} · x{p.cantidad_stock}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs font-mono text-gray-300">{fmt(p.precio_unitario_compra)}</p>
+                  <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full',
+                    isDisponible ? 'bg-ok/10 text-ok' : 'bg-warn/10 text-warn'
+                  )}>
+                    {isDisponible ? '✅ En inventario' : '🚚 En tránsito'}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
           {productos.length === 0 && (
-            <p className="text-xs text-gray-500 text-center py-3">Sin cartas registradas en este lote</p>
+            <p className="text-xs text-gray-500 text-center py-3">Sin cartas en este lote</p>
           )}
         </div>
 
