@@ -6,7 +6,7 @@ import InventarioPage from '@modules/inventario/InventarioPage'
 import VentasPage from '@modules/ventas/VentasPage'
 import ClientesPage from '@modules/clientes/ClientesPage'
 import PresupuestoNegocioPage from './PresupuestoNegocioPage'
-import PlaceholderPage from '@shared/components/layout/PlaceholderPage'
+import ComprasPage from '@modules/compras/ComprasPage'
 
 const TABS = [
   { id: 'resumen',      label: 'Resumen',      emoji: '📊' },
@@ -27,7 +27,7 @@ export default function NegocioHubPage() {
       case 'inventario': return <InventarioPage />
       case 'clientes':   return <ClientesPage />
       case 'presupuesto': return <PresupuestoNegocioPage />
-      case 'compras':    return <PlaceholderPage emoji="🛒" title="Compras" fase="próxima" />
+      case 'compras':     return <ComprasPage />
       default:           return null
     }
   }
