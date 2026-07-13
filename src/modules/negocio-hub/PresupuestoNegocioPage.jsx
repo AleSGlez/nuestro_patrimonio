@@ -1,5 +1,5 @@
 // src/modules/negocio-hub/PresupuestoNegocioPage.jsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Check, AlertCircle, TrendingDown } from 'lucide-react'
 import { usePresupuestos, useCrearPresupuesto, useActualizarPresupuesto, useEliminarPresupuesto, calcularDisponible, calcularDesglose, labelPeriodo } from '@modules/presupuestos/hooks/usePresupuestos'
 import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
@@ -30,12 +30,24 @@ function FormPresupuestoNegocio({ open, onClose, presupuesto = null }) {
     ...CAT_NEGOCIO_GASTO.map((c) => ({ value: c.value, label: `${c.emoji} ${c.label}` })),
   ]
 
-  const [nombre, setNombre]         = useState(presupuesto?.nombre || '')
-  const [emoji, setEmoji]           = useState(presupuesto?.emoji || '📦')
-  const [tipo, setTipo]             = useState(presupuesto?.tipo || 'mensual')
-  const [montoBase, setMontoBase]   = useState(presupuesto?.monto_base ? String(presupuesto.monto_base) : '')
-  const [categoria, setCategoria]   = useState(presupuesto?.categoria || '')
-  const [fechaInicio, setFechaInicio] = useState(presupuesto?.fecha_inicio || today())
+  const [nombre, setNombre]           = useState('')
+  const [emoji, setEmoji]             = useState('📦')
+  const [tipo, setTipo]               = useState('mensual')
+  const [montoBase, setMontoBase]     = useState('')
+  const [categoria, setCategoria]     = useState('')
+  const [fechaInicio, setFechaInicio] = useState(today())
+
+  // Reiniciar form cuando abre o cambia el presupuesto a editar
+  useEffect(() => {
+    if (open) {
+      setNombre(presupuesto?.nombre || '')
+      setEmoji(presupuesto?.emoji || '📦')
+      setTipo(presupuesto?.tipo || 'mensual')
+      setMontoBase(presupuesto?.monto_base ? String(presupuesto.monto_base) : '')
+      setCategoria(presupuesto?.categoria || '')
+      setFechaInicio(presupuesto?.fecha_inicio || today())
+    }
+  }, [open, presupuesto])
 
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
