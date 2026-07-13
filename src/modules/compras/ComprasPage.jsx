@@ -5,6 +5,7 @@ import { useLotes, useProductosLote, useCrearLote, useAvanzarEstadoLote, useMarc
 import { useProveedores } from '@modules/inventario/hooks/useInventario'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
+import { usePresupuestos } from '@modules/presupuestos/hooks/usePresupuestos'
 import { useToast } from '@ui/Toast'
 import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
 import Modal from '@ui/Modal'
@@ -25,6 +26,7 @@ function FormLote({ open, onClose }) {
   const { data: proveedores = [] } = useProveedores()
   const { data: cuentas = [] }     = useCuentas()
   const { data: tarjetas = [] }    = useTarjetas()
+  const { data: presupuestos = [] } = usePresupuestos()
   const crear = useCrearLote()
 
   const [paso, setPaso]             = useState(1)
@@ -40,11 +42,18 @@ function FormLote({ open, onClose }) {
   const [cuentaId, setCuentaId]     = useState('')
   const [tarjetaId, setTarjetaId]   = useState('')
   const [metodoPago, setMetodo]     = useState('transferencia')
+  const [presupuestoId, setPresupuestoId] = useState('')
   const [estado, setEstado]         = useState('pagado')
   const [notas, setNotas]           = useState('')
   const [productos, setProductos]   = useState([])
 
   const usaTarjeta = metodoPago === 'tarjeta_personal'
+
+  // Solo presupuestos de negocio con categoría inventario o general
+  const presupuestosNegocio = presupuestos.filter((p) =>
+    p.contexto === 'negocio' &&
+    (!p.categoria || p.categoria === 'inventario' || p.categoria === 'compra_producto')
+  )
 
   const provOpts = [
     { value: '', label: 'Sin proveedor específico' },
@@ -82,6 +91,7 @@ function FormLote({ open, onClose }) {
           tarjeta_id: usaTarjeta ? tarjetaId : null,
           metodo_pago: metodoPago,
           estado, notas: notas.trim() || null,
+          presupuesto_id: presupuestoId || null,
         },
         productos,
         cuentas,
@@ -233,6 +243,43 @@ function FormLote({ open, onClose }) {
           ) : (
             <Select label="Cuenta donde sale el dinero" value={cuentaId} onChange={setCuentaId}
               options={cuentaOpts} />
+          )}
+
+          {/* Selector de presupuesto de inventario */}
+          {presupuestosNegocio.length > 0 && (
+            <div className="mb-4">
+              <label className="label">Cargar a presupuesto</label>
+              <div className="space-y-2">
+                <button onClick={() => setPresupuestoId('')}
+                  className={cn('w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left text-xs transition-all',
+                    !presupuestoId ? 'border-[var(--accent)] bg-[var(--accent-muted)] text-white' : 'border-white/10 text-gray-400'
+                  )}>
+                  <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0',
+                    !presupuestoId ? 'border-[var(--accent)] bg-[var(--accent)]' : 'border-white/20'
+                  )} />
+                  Sin presupuesto específico
+                </button>
+                {presupuestosNegocio.map((p) => {
+                  const selected = presupuestoId === p.id
+                  return (
+                    <button key={p.id} onClick={() => setPresupuestoId(p.id)}
+                      className={cn('w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all',
+                        selected ? 'border-[var(--accent)] bg-[var(--accent-muted)]' : 'border-white/10'
+                      )}>
+                      <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0',
+                        selected ? 'border-[var(--accent)] bg-[var(--accent)]' : 'border-white/20'
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('text-xs font-medium', selected ? 'text-white' : 'text-gray-300')}>
+                          {p.emoji} {p.nombre}
+                        </p>
+                        <p className="text-[10px] text-gray-500">{p.tipo} · límite {fmt(p.monto_base)}</p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           )}
 
           <div className="flex gap-2 mt-2">
