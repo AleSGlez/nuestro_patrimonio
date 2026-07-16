@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useAppStore } from '@store/appStore'
 import BottomNav from '@shared/components/layout/BottomNav'
+import Sidebar from '@shared/components/layout/Sidebar'
 import InicioPage       from '@modules/inicio/InicioPage'
 import FinanzasPage     from '@modules/finanzas/FinanzasPage'
 import PersonasHubPage  from '@modules/personas-hub/PersonasHubPage'
@@ -48,9 +49,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {renderTab()}
-      <BottomNav active={tab} onChange={setTab} onAccion={handleAccion} />
+    <div className="dashboard-shell">
+      <Sidebar active={tab} onChange={setTab} onAccion={handleAccion} />
+      <div className="dashboard-content">
+        {renderTab()}
+        <BottomNav active={tab} onChange={setTab} onAccion={handleAccion} />
+      </div>
       {formOpen && (
         <FormTransaccion open={formOpen} onClose={() => setFormOpen(false)} tipoInicial={formTipo} />
       )}

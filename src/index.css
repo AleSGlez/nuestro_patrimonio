@@ -151,6 +151,24 @@ body {
     padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px) + 8px);
   }
 
+  /* ── Dashboard shell (app autenticada) ──
+     Replica exactamente "flex-1 flex flex-col overflow-hidden" para que
+     el layout de móvil sea idéntico al de antes. El breakpoint desktop
+     (≥1024px, ver media query al final del archivo) es lo único que
+     cambia su comportamiento. */
+  .dashboard-shell {
+    flex: 1 1 0%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .dashboard-content {
+    flex: 1 1 0%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
   /* ── Bottom nav ── */
   .bottom-nav {
     position: fixed;
@@ -203,5 +221,46 @@ body {
   .tap-target {
     min-width: 44px;
     min-height: 44px;
+  }
+}
+
+/* ── Vista desktop (≥1024px) ────────────────────────────────────
+   Todo lo de abajo está gateado por min-width Y por :has(.dashboard-shell),
+   así que SOLO aplica una vez que hay sesión + pareja (DashboardPage
+   montado). Login/Setup/Loading conservan el "marco de teléfono" de
+   siempre en pantallas anchas. Nada de esto se aplica por debajo de
+   1024px, por lo que la vista de móvil queda intacta. */
+@media (min-width: 1024px) {
+  body:has(.dashboard-shell) #root {
+    max-width: none;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .dashboard-shell {
+    flex-direction: row;
+  }
+
+  .dashboard-content {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    min-width: 0;
+  }
+
+  .bottom-nav {
+    display: none;
+  }
+
+  .page {
+    padding-bottom: 32px;
+  }
+
+  .fab {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
   }
 }
