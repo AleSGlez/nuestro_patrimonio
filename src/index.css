@@ -263,4 +263,28 @@ body {
     right: 24px;
     bottom: 24px;
   }
+
+  /* Los tab-strips horizontales (SubNav, filtros de cuentas/presupuestos)
+     ocultan su scrollbar en móvil porque ahí el swipe es descubrible por
+     tacto. En desktop no hay ninguna pista de que haya tabs fuera de vista
+     (p.ej. Finanzas tiene 10), así que se reactiva el scrollbar — más
+     grueso y visible que el scrollbar global de página (3px/8%), porque
+     acá tiene que funcionar como señal de "hay más contenido", no solo
+     como control de scroll. */
+  .no-scrollbar {
+    -ms-overflow-style: auto;
+    scrollbar-width: thin;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+    height: 6px;
+  }
+  .no-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.22);
+    border-radius: 99px;
+  }
+  .no-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.35);
+  }
 }
