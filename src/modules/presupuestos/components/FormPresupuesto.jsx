@@ -121,7 +121,7 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
       <div className="mb-5">
         <label className="label">Fecha de inicio</label>
         <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="input" />
-        <p className="text-[11px] text-gray-500 mt-1">Los gastos desde esta fecha cuentan contra el presupuesto</p>
+        <p className="text-[11px] text-gray-400 mt-1">Los gastos desde esta fecha cuentan contra el presupuesto</p>
       </div>
 
       <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold">

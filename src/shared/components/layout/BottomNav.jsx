@@ -33,7 +33,7 @@ export default function BottomNav({ active, onChange, onAccion }) {
     <>
       {/* Overlay del menú */}
       {menuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in"
           onClick={() => setMenuOpen(false)} />
       )}
 
@@ -46,7 +46,7 @@ export default function BottomNav({ active, onChange, onAccion }) {
             width: 'calc(100% - 32px)', maxWidth: '398px',
           }}
         >
-          <div className="bg-surface-800 border border-white/10 rounded-2xl p-3 grid grid-cols-2 gap-2">
+          <div className="bg-surface-800 border border-white/10 rounded-2xl p-3 grid grid-cols-2 gap-2 animate-scale-in origin-bottom">
             {ACCIONES.map(({ id, label, icon: Icon, color }) => (
               <button key={id} onClick={() => handleAccion(id)}
                 className={cn('flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all active:scale-95', color)}
@@ -56,7 +56,7 @@ export default function BottomNav({ active, onChange, onAccion }) {
               </button>
             ))}
           </div>
-          <p className="text-center text-xs text-gray-500 mt-2">¿Qué quieres registrar?</p>
+          <p className="text-center text-xs text-gray-400 mt-2">¿Qué quieres registrar?</p>
         </div>
       )}
 
@@ -68,7 +68,7 @@ export default function BottomNav({ active, onChange, onAccion }) {
               className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full pt-2">
               <Icon size={21} strokeWidth={isActive ? 2.4 : 1.8}
                 className={isActive ? 'text-[var(--accent)]' : 'text-gray-500'} />
-              <span className={cn('text-[10px] font-medium', isActive ? 'text-[var(--accent)]' : 'text-gray-500')}>
+              <span className={cn('text-[10px] font-medium', isActive ? 'text-[var(--accent)]' : 'text-gray-400')}>
                 {label}
               </span>
             </button>
@@ -77,6 +77,7 @@ export default function BottomNav({ active, onChange, onAccion }) {
 
         {/* Botón + central */}
         <button onClick={() => setMenuOpen(!menuOpen)}
+          aria-label={menuOpen ? 'Cerrar menú de acciones' : 'Nuevo movimiento'}
           className="flex flex-col items-center justify-center flex-1 h-full pt-1">
           <div className={cn(
             'w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg',
@@ -93,7 +94,7 @@ export default function BottomNav({ active, onChange, onAccion }) {
               className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full pt-2">
               <Icon size={21} strokeWidth={isActive ? 2.4 : 1.8}
                 className={isActive ? 'text-[var(--accent)]' : 'text-gray-500'} />
-              <span className={cn('text-[10px] font-medium', isActive ? 'text-[var(--accent)]' : 'text-gray-500')}>
+              <span className={cn('text-[10px] font-medium', isActive ? 'text-[var(--accent)]' : 'text-gray-400')}>
                 {label}
               </span>
             </button>

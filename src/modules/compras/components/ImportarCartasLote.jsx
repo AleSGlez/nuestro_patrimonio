@@ -104,7 +104,7 @@ export default function ImportarCartasLote({ onProductos, productosActuales = []
       >
         <Upload size={20} className="mx-auto text-gray-400 mb-2" />
         <p className="text-sm text-gray-300 font-medium">Arrastra tu Excel aquí</p>
-        <p className="text-xs text-gray-500 mt-1">o toca para seleccionar</p>
+        <p className="text-xs text-gray-400 mt-1">o toca para seleccionar</p>
         <input ref={ref} type="file" accept=".xlsx,.xls,.csv" className="hidden"
           onChange={(e) => e.target.files[0] && procesarArchivo(e.target.files[0])} />
       </div>
@@ -130,13 +130,13 @@ export default function ImportarCartasLote({ onProductos, productosActuales = []
               <div key={i} className="flex items-center gap-2 p-2 bg-surface-700 rounded-xl">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-white truncate">{p.nombre_jp || p.nombre_en}</p>
-                  <p className="text-[10px] text-gray-500">{p.serie} {p.numero_carta && `· #${p.numero_carta}`} · x{p.cantidad_compra}</p>
+                  <p className="text-[10px] text-gray-400">{p.serie} {p.numero_carta && `· #${p.numero_carta}`} · x{p.cantidad_compra}</p>
                 </div>
                 <p className="text-[10px] text-gray-400 flex-shrink-0">{fmt(p.precio_unitario_compra)}</p>
               </div>
             ))}
             {productosActuales.length > 20 && (
-              <p className="text-[10px] text-gray-500 text-center">+{productosActuales.length - 20} más...</p>
+              <p className="text-[10px] text-gray-400 text-center">+{productosActuales.length - 20} más...</p>
             )}
           </div>
         </div>

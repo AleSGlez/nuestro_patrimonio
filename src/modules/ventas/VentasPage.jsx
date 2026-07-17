@@ -4,6 +4,7 @@ import { Plus, TrendingUp, Package, ChevronRight, X } from 'lucide-react'
 import { useVentas, useVentaItems, useCancelarVenta, METODOS_COBRO } from './hooks/useVentas'
 import { useClientes } from '@modules/clientes/hooks/useClientes'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormVenta from './components/FormVenta'
 import { fmt, cn, fmtDate } from '@lib/utils'
@@ -14,12 +15,13 @@ function DetalleVenta({ venta, clientes, onClose }) {
   const { data: items = [] } = useVentaItems(venta?.id)
   const cancelar = useCancelarVenta()
   const toast = useToast()
+  const confirmar = useConfirm()
 
   if (!venta) return null
   const cliente = clientes.find((c) => c.id === venta.cliente_id)
 
   const handleCancelar = async () => {
-    if (!confirm('¿Cancelar esta venta? No revierte el stock automáticamente.')) return
+    if (!(await confirmar({ message: '¿Cancelar esta venta? No revierte el stock automáticamente.' }))) return
     try { await cancelar.mutateAsync(venta.id); toast.success('Venta cancelada'); onClose() }
     catch (e) { toast.error(e.message) }
   }
@@ -35,7 +37,7 @@ function DetalleVenta({ venta, clientes, onClose }) {
             <p className="text-sm font-bold text-white">
               Venta — {fmtDate(venta.fecha)}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400">
               {cliente?.nombre || 'Sin cliente'} · {METODO_LABEL[venta.metodo_cobro]}
             </p>
           </div>
@@ -52,7 +54,7 @@ function DetalleVenta({ venta, clientes, onClose }) {
             <div key={item.id} className="flex items-center gap-2 p-2.5 bg-surface-700 rounded-xl">
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-white font-medium">Carta #{item.producto_id.slice(-6)}</p>
-                <p className="text-[10px] text-gray-500">
+                <p className="text-[10px] text-gray-400">
                   {item.cantidad}x · Costo: {fmt(item.costo_unitario)} c/u
                 </p>
               </div>
@@ -121,15 +123,15 @@ export default function VentasPage() {
       <div className="top-header flex-col items-stretch !h-auto pb-3">
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-surface-700 rounded-xl p-3 text-center">
-            <p className="text-[10px] text-gray-500 mb-1">Ventas</p>
+            <p className="text-[10px] text-gray-400 mb-1">Ventas</p>
             <p className="text-lg font-bold text-white">{stats.numVentas}</p>
           </div>
           <div className="bg-surface-700 rounded-xl p-3 text-center">
-            <p className="text-[10px] text-gray-500 mb-1">Ingresos</p>
+            <p className="text-[10px] text-gray-400 mb-1">Ingresos</p>
             <p className="text-sm font-bold font-mono text-white">{fmt(stats.totalVentas)}</p>
           </div>
           <div className="bg-ok/10 border border-ok/20 rounded-xl p-3 text-center">
-            <p className="text-[10px] text-gray-500 mb-1">Ganancia</p>
+            <p className="text-[10px] text-gray-400 mb-1">Ganancia</p>
             <p className="text-sm font-bold font-mono text-ok">{fmt(stats.totalGanancia)}</p>
           </div>
         </div>
@@ -160,7 +162,7 @@ export default function VentasPage() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] text-gray-500">
+                    <p className="text-[11px] text-gray-400">
                       {fmtDate(v.fecha)} · {METODO_LABEL[v.metodo_cobro]}
                     </p>
                     <p className="text-xs font-mono text-gray-300">{fmt(v.total_venta)}</p>

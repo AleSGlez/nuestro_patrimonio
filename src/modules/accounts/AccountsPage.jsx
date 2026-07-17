@@ -5,6 +5,7 @@ import { useCuentas, useEliminarCuenta } from './hooks/useCuentas'
 import { useTodosLosApartados } from './hooks/useApartados'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import Modal from '@ui/Modal'
 import CuentaCard from './components/CuentaCard'
@@ -20,6 +21,7 @@ export default function AccountsPage() {
   const { data: todosApartados = [] } = useTodosLosApartados()
   const { nombres } = useAppStore()
   const toast = useToast()
+  const confirmar = useConfirm()
   const eliminar = useEliminarCuenta()
 
   const [filtroPersona, setFiltroPersona] = useState('todas')
@@ -61,7 +63,7 @@ export default function AccountsPage() {
   const totalMostrado = cuentasFiltradas.reduce((s, c) => s + Number(c.saldo), 0)
 
   const handleDelete = async (cuenta) => {
-    if (!confirm(`¿Eliminar la cuenta "${cuenta.nombre}"?`)) return
+    if (!(await confirmar({ message: `¿Eliminar la cuenta "${cuenta.nombre}"?` }))) return
     try {
       await eliminar.mutateAsync(cuenta.id)
       toast.success('Cuenta eliminada')
@@ -139,7 +141,7 @@ export default function AccountsPage() {
                     <p className="section-label mb-2 flex items-center gap-1.5">
                       📌 Apartados de negocio en cuentas personales
                     </p>
-                    <p className="text-[11px] text-gray-500 mb-3">
+                    <p className="text-[11px] text-gray-400 mb-3">
                       Este dinero está guardado en cuentas personales pero es del negocio
                     </p>
                     <div className="grid grid-cols-2 gap-3">

@@ -33,7 +33,7 @@ export default function UltimosMovimientos({ transacciones, onVerTodos }) {
             <span className="text-base flex-shrink-0">{cat.emoji}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white truncate">{tx.descripcion || cat.label}</p>
-              <p className="text-[11px] text-gray-500">{fmtDate(tx.fecha)}</p>
+              <p className="text-[11px] text-gray-400">{fmtDate(tx.fecha)}</p>
             </div>
             <p className={cn('text-sm font-semibold font-mono flex-shrink-0', isIngreso ? 'text-ok' : 'text-white')}>
               {isIngreso ? '+' : '-'}{fmt(tx.monto)}

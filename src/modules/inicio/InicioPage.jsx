@@ -1,5 +1,5 @@
 // src/modules/inicio/InicioPage.jsx
-import { LogOut, TrendingUp, TrendingDown, AlertCircle, ArrowRight } from 'lucide-react'
+import { LogOut, Settings, TrendingUp, TrendingDown, AlertCircle, ArrowRight } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
@@ -22,7 +22,7 @@ function EspacioCard({ emoji, titulo, subtitulo, valor, estado, onClick, badge }
         </div>
       </div>
       <p className="text-sm font-semibold text-white mb-0.5">{titulo}</p>
-      <p className="text-[11px] text-gray-500 mb-2">{subtitulo}</p>
+      <p className="text-[11px] text-gray-400 mb-2">{subtitulo}</p>
       {valor && (
         <p className={cn('text-base font-bold font-mono',
           estado === 'ok' ? 'text-ok' : estado === 'warn' ? 'text-warn' : 'text-white')}>
@@ -97,16 +97,21 @@ export default function InicioPage({ onNavegar }) {
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs text-gray-500">{saludo},</p>
+            <p className="text-xs text-gray-400">{saludo},</p>
             <h1 className="text-xl font-bold text-white">{miNombre} 👋</h1>
           </div>
-          <button onClick={logout} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
-            <LogOut size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => onNavegar('mas')} aria-label="Configuración" className="icon-btn text-gray-500 hover:text-white">
+              <Settings size={18} />
+            </button>
+            <button onClick={logout} aria-label="Cerrar sesión" className="icon-btn text-gray-500 hover:text-white">
+              <LogOut size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="bg-surface-700 rounded-2xl p-4">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Patrimonio total</p>
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Patrimonio total</p>
           <p className={cn('text-3xl font-bold font-mono', patrimonio >= 0 ? 'text-white' : 'text-bad')}>
             {fmt(patrimonio)}
           </p>
@@ -174,7 +179,7 @@ export default function InicioPage({ onNavegar }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-white truncate">{tx.descripcion || tx.categoria}</p>
-                    <p className="text-[10px] text-gray-500">
+                    <p className="text-[10px] text-gray-400">
                       {tx.fecha} · {tx.persona === 'p1' ? nombres.p1 : tx.persona === 'p2' ? nombres.p2 : 'Ambos'}
                     </p>
                   </div>

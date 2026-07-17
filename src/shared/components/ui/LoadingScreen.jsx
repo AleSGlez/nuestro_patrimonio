@@ -14,7 +14,7 @@ export default function LoadingScreen({ msg = 'Cargando…' }) {
           />
         ))}
       </div>
-      <p className="text-xs text-gray-500">{msg}</p>
+      <p className="text-xs text-gray-400">{msg}</p>
     </div>
   )
 }

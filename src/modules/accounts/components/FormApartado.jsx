@@ -128,7 +128,7 @@ export default function FormApartado({ open, onClose, cuenta, apartado = null })
         label="Monto a apartar" value={monto} onChange={setMonto}
         placeholder="0.00"
       />
-      <p className="text-xs text-gray-500 -mt-3 mb-4">
+      <p className="text-xs text-gray-400 -mt-3 mb-4">
         Disponible para apartar: <span className="text-white font-medium">{fmt(disponibleParaEsteApartado)}</span>
       </p>
 

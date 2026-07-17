@@ -32,7 +32,7 @@ export default function TransferRow({ transferencia, cuentasMap, tarjetasMap, on
         <p className="text-sm text-white font-medium truncate">
           {transferencia.descripcion || info.label}
         </p>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
+        <div className="flex items-center gap-1 text-xs text-gray-400">
           <span className="truncate">{origenNombre}</span>
           <ArrowRight size={10} className="flex-shrink-0" />
           <span className="truncate">{destinoNombre}</span>
@@ -47,7 +47,8 @@ export default function TransferRow({ transferencia, cuentasMap, tarjetasMap, on
       </div>
       <button
         onClick={() => onDelete(transferencia)}
-        className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad flex-shrink-0"
+        aria-label="Eliminar transferencia"
+        className="icon-btn text-gray-500 hover:text-bad flex-shrink-0"
       >
         <Trash2 size={13} />
       </button>

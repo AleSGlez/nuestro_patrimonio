@@ -40,11 +40,11 @@ function ListaPersonasFiltrada({ filtro }) {
       {filtro === 'todas' && (totalMeDeben > 0 || totalDebo > 0) && (
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="card p-3 text-center">
-            <p className="text-[10px] text-gray-500 mb-1">Por cobrar</p>
+            <p className="text-[10px] text-gray-400 mb-1">Por cobrar</p>
             <p className="text-base font-bold font-mono text-ok">{fmt(totalMeDeben)}</p>
           </div>
           <div className="card p-3 text-center">
-            <p className="text-[10px] text-gray-500 mb-1">Por pagar</p>
+            <p className="text-[10px] text-gray-400 mb-1">Por pagar</p>
             <p className="text-base font-bold font-mono text-bad">{fmt(totalDebo)}</p>
           </div>
         </div>
@@ -61,10 +61,10 @@ function ListaPersonasFiltrada({ filtro }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white">{p.nombre}</p>
-                <p className="text-xs text-gray-500">{p.telefono || 'Sin teléfono'}</p>
+                <p className="text-xs text-gray-400">{p.telefono || 'Sin teléfono'}</p>
               </div>
               <p className={cn('text-sm font-bold font-mono flex-shrink-0',
-                saldo === 0 ? 'text-gray-500' : saldo > 0 ? 'text-ok' : 'text-bad'
+                saldo === 0 ? 'text-gray-400' : saldo > 0 ? 'text-ok' : 'text-bad'
               )}>
                 {saldo === 0 ? 'Al día' : saldo > 0 ? `+${fmt(saldo)}` : `-${fmt(Math.abs(saldo))}`}
               </p>

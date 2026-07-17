@@ -7,6 +7,7 @@ import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { usePresupuestos } from '@modules/presupuestos/hooks/usePresupuestos'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
@@ -181,7 +182,7 @@ function FormLote({ open, onClose }) {
             </div>
           )}
 
-          <p className="text-[11px] text-gray-500 mt-2 mb-3">
+          <p className="text-[11px] text-gray-400 mt-2 mb-3">
             {productos.length === 0 ? 'Puedes continuar sin cartas y agregarlas después desde Inventario.' : `Las ${productos.length} cartas quedarán en estado "${estado === 'recibido' ? 'disponible' : 'en tránsito'}" en el inventario.`}
           </p>
 
@@ -220,15 +221,15 @@ function FormLote({ open, onClose }) {
           {totalMXN > 0 && (
             <div className="mt-3 p-3 bg-surface-700 rounded-xl grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className="text-[10px] text-gray-500">Cartas</p>
+                <p className="text-[10px] text-gray-400">Cartas</p>
                 <p className="text-sm font-bold font-mono text-white">{fmt(montoMXN)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-500">Envío+Aduana</p>
+                <p className="text-[10px] text-gray-400">Envío+Aduana</p>
                 <p className="text-sm font-bold font-mono text-bad">{fmt((Number(costoEnvio)||0)+(Number(costoAduana)||0))}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-500">Total</p>
+                <p className="text-[10px] text-gray-400">Total</p>
                 <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(totalMXN)}</p>
               </div>
             </div>
@@ -273,7 +274,7 @@ function FormLote({ open, onClose }) {
                         <p className={cn('text-xs font-medium', selected ? 'text-white' : 'text-gray-300')}>
                           {p.emoji} {p.nombre}
                         </p>
-                        <p className="text-[10px] text-gray-500">{p.tipo} · límite {fmt(p.monto_base)}</p>
+                        <p className="text-[10px] text-gray-400">{p.tipo} · límite {fmt(p.monto_base)}</p>
                       </div>
                     </button>
                   )
@@ -306,7 +307,7 @@ function LoteCard({ lote, onClick }) {
       <div className="flex items-start justify-between mb-2">
         <div>
           <p className="text-sm font-semibold text-white">{lote.nombre}</p>
-          <p className="text-[11px] text-gray-500">{fmtDate(lote.fecha)}</p>
+          <p className="text-[11px] text-gray-400">{fmtDate(lote.fecha)}</p>
         </div>
         <span className="text-[11px] px-2 py-1 rounded-full font-medium flex-shrink-0"
           style={{ backgroundColor: `${estadoInfo.color}20`, color: estadoInfo.color }}>
@@ -324,6 +325,7 @@ function LoteCard({ lote, onClick }) {
 // ── Detalle del lote ─────────────────────────────────────────
 function DetalleLote({ lote, onClose }) {
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: productos = [] } = useProductosLote(lote?.id)
   const avanzar         = useAvanzarEstadoLote()
   const marcarUna       = useMarcarDisponible()
@@ -342,7 +344,7 @@ function DetalleLote({ lote, onClose }) {
   const todasDispon  = productos.length > 0 && enTransito.length === 0
 
   const handleEliminar = async () => {
-    if (!confirm(`¿Eliminar la compra "${lote.nombre}"? Esto desactivará todas sus cartas.`)) return
+    if (!(await confirmar({ message: `¿Eliminar la compra "${lote.nombre}"? Esto desactivará todas sus cartas.` }))) return
     try {
       await eliminar.mutateAsync(lote.id)
       toast.success('Compra eliminada')
@@ -382,7 +384,7 @@ function DetalleLote({ lote, onClose }) {
         <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
 
         <p className="text-base font-bold text-white mb-1">{lote.nombre}</p>
-        <p className="text-xs text-gray-500 mb-4">{fmtDate(lote.fecha)}</p>
+        <p className="text-xs text-gray-400 mb-4">{fmtDate(lote.fecha)}</p>
 
         {/* Timeline de estados */}
         <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1">
@@ -392,11 +394,11 @@ function DetalleLote({ lote, onClose }) {
               <div key={e.value} className="flex items-center gap-1 flex-shrink-0">
                 <div className="flex flex-col items-center gap-1">
                   <div className={cn('w-7 h-7 rounded-full flex items-center justify-center text-sm',
-                    completado ? 'text-white' : 'bg-surface-700 text-gray-500'
+                    completado ? 'text-white' : 'bg-surface-700 text-gray-400'
                   )} style={completado ? { backgroundColor: e.color } : {}}>
                     {e.emoji}
                   </div>
-                  <p className={cn('text-[9px] text-center w-12', completado ? 'text-white' : 'text-gray-500')}>
+                  <p className={cn('text-[9px] text-center w-12', completado ? 'text-white' : 'text-gray-400')}>
                     {e.label.split(' ')[0]}
                   </p>
                 </div>
@@ -411,19 +413,19 @@ function DetalleLote({ lote, onClose }) {
         {/* Costos */}
         <div className="bg-surface-700 rounded-xl p-3 mb-4 grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-[10px] text-gray-500">Cartas</p>
+            <p className="text-[10px] text-gray-400">Cartas</p>
             <p className="text-sm font-bold font-mono text-white">
               {fmt(Number(lote.monto_total_jpy || 0) * Number(lote.tipo_cambio || 1))}
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-gray-500">Envío+Aduana</p>
+            <p className="text-[10px] text-gray-400">Envío+Aduana</p>
             <p className="text-sm font-bold font-mono text-bad">
               {fmt(Number(lote.costo_envio || 0) + Number(lote.costo_aduana || 0))}
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-gray-500">Total</p>
+            <p className="text-[10px] text-gray-400">Total</p>
             <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(totalMXN)}</p>
           </div>
         </div>
@@ -464,7 +466,7 @@ function DetalleLote({ lote, onClose }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-white truncate">{p.nombre_jp || p.nombre_en || 'Sin nombre'}</p>
-                  <p className="text-[10px] text-gray-500">
+                  <p className="text-[10px] text-gray-400">
                     {p.serie} {p.numero_carta && `· #${p.numero_carta}`} · x{p.cantidad_stock}
                   </p>
                 </div>
@@ -480,7 +482,7 @@ function DetalleLote({ lote, onClose }) {
             )
           })}
           {productos.length === 0 && (
-            <p className="text-xs text-gray-500 text-center py-3">Sin cartas en este lote</p>
+            <p className="text-xs text-gray-400 text-center py-3">Sin cartas en este lote</p>
           )}
         </div>
 

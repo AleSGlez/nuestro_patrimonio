@@ -29,7 +29,7 @@ export default function StepNombres({ data, onChange }) {
             placeholder="¿Cómo se llama?"
             className="input"
           />
-          <p className="text-xs text-gray-500 mt-1.5">
+          <p className="text-xs text-gray-400 mt-1.5">
             Ella podrá cambiar su propio nombre cuando se una con su código
           </p>
         </div>

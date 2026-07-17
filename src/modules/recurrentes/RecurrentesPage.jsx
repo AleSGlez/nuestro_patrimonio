@@ -5,6 +5,7 @@ import { useRecurrentes, useCrearRecurrente, useActualizarRecurrente, useElimina
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
@@ -158,17 +159,17 @@ function RecurrenteCard({ rec, cuentas, onEdit, onDelete, onRegistrar }) {
           </div>
           <div>
             <p className="text-sm font-semibold text-white">{rec.nombre}</p>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               {FRECUENCIA_LABEL[rec.frecuencia]} · {rec.persona === 'ambos' ? 'Pareja' : rec.persona}
               {cuenta && ` · ${cuenta.nombre}`}
             </p>
           </div>
         </div>
         <div className="flex gap-1">
-          <button onClick={() => onEdit(rec)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+          <button onClick={() => onEdit(rec)} aria-label="Editar recurrente" className="icon-btn text-gray-500 hover:text-white">
             <Pencil size={13} />
           </button>
-          <button onClick={() => onDelete(rec)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+          <button onClick={() => onDelete(rec)} aria-label="Eliminar recurrente" className="icon-btn text-gray-500 hover:text-bad">
             <Trash2 size={13} />
           </button>
         </div>
@@ -183,7 +184,7 @@ function RecurrenteCard({ rec, cuentas, onEdit, onDelete, onRegistrar }) {
         </div>
         <div className="flex items-center gap-2">
           <div className="text-right">
-            <p className="text-[10px] text-gray-500">Próxima</p>
+            <p className="text-[10px] text-gray-400">Próxima</p>
             <p className={cn('text-xs', vencida ? 'text-warn font-medium' : 'text-gray-300')}>
               {vencida && dias < 0 ? `Venció hace ${Math.abs(dias)}d` : dias === 0 ? 'Hoy' :
                 format(new Date(rec.proxima_fecha + 'T12:00:00'), "d 'de' MMM", { locale: es })}
@@ -203,6 +204,7 @@ function RecurrenteCard({ rec, cuentas, onEdit, onDelete, onRegistrar }) {
 
 export default function RecurrentesPage() {
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: recurrentes = [], isPending } = useRecurrentes()
   const { data: cuentas = [] } = useCuentas()
   const eliminar = useEliminarRecurrente()
@@ -213,13 +215,13 @@ export default function RecurrentesPage() {
   const vencidas = recurrentes.filter((r) => diasHasta(r.proxima_fecha) <= 0)
 
   const handleDelete = async (rec) => {
-    if (!confirm(`¿Desactivar "${rec.nombre}"?`)) return
+    if (!(await confirmar({ message: `¿Desactivar "${rec.nombre}"?` }))) return
     try { await eliminar.mutateAsync(rec.id); toast.success('Eliminado') }
     catch (e) { toast.error(e.message) }
   }
 
   const handleRegistrar = async (rec) => {
-    if (!confirm(`¿Registrar ${rec.tipo === 'ingreso' ? 'ingreso' : 'gasto'} de ${fmt(rec.monto)} — ${rec.nombre}?`)) return
+    if (!(await confirmar({ message: `¿Registrar ${rec.tipo === 'ingreso' ? 'ingreso' : 'gasto'} de ${fmt(rec.monto)} — ${rec.nombre}?` }))) return
     try {
       await registrar.mutateAsync({ recurrente: rec, cuentas })
       toast.success('Registrado ✅')

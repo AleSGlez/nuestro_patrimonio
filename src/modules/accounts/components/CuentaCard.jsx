@@ -4,12 +4,14 @@ import { Pencil, Trash2, ChevronDown, ChevronUp, Plus, TrendingUp, Store } from 
 import { useApartados, calcularRendimiento, useEliminarApartado } from '../hooks/useApartados'
 import { fmt, cn } from '@lib/utils'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 
 const TIPO_EMOJI  = { debito: '💳', ahorro: '🏦', efectivo: '💵', inversion: '📈', transporte: '🚇' }
 const TIPO_LABEL  = { debito: 'Débito', ahorro: 'Ahorro', efectivo: 'Efectivo', inversion: 'Inversión', transporte: 'Transporte' }
 
 function ApartadoRow({ apartado, onEdit, cuenta }) {
   const toast = useToast()
+  const confirmar = useConfirm()
   const eliminar = useEliminarApartado()
   const rendimiento = calcularRendimiento(apartado)
 
@@ -19,7 +21,7 @@ function ApartadoRow({ apartado, onEdit, cuenta }) {
 
   const handleDelete = async (e) => {
     e.stopPropagation()
-    if (!confirm(`¿Eliminar el apartado "${apartado.nombre}"? El dinero regresará a tu saldo disponible.`)) return
+    if (!(await confirmar({ message: `¿Eliminar el apartado "${apartado.nombre}"? El dinero regresará a tu saldo disponible.` }))) return
     try {
       await eliminar.mutateAsync({
         id: apartado.id,
@@ -49,7 +51,7 @@ function ApartadoRow({ apartado, onEdit, cuenta }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <p className="text-xs text-gray-500">{fmt(apartado.monto)}</p>
+          <p className="text-xs text-gray-400">{fmt(apartado.monto)}</p>
           {apartado.tasa_anual > 0 && (
             <span className="flex items-center gap-0.5 text-xs text-ok">
               <TrendingUp size={10} />+{fmt(rendimiento)}
@@ -65,7 +67,7 @@ function ApartadoRow({ apartado, onEdit, cuenta }) {
       {apartado.tasa_anual > 0 && (
         <span className="badge-ok text-[10px] flex-shrink-0">{apartado.tasa_anual}%</span>
       )}
-      <button onClick={handleDelete} className="text-gray-500 hover:text-bad flex-shrink-0 p-1">
+      <button onClick={handleDelete} aria-label="Eliminar apartado" className="icon-btn text-gray-500 hover:text-bad flex-shrink-0">
         <Trash2 size={13} />
       </button>
     </div>
@@ -98,14 +100,14 @@ export default function CuentaCard({ cuenta, onEdit, onDelete, onAddApartado, on
               <span className="text-xl">{TIPO_EMOJI[cuenta.tipo]}</span>
               <div>
                 <p className="text-sm font-semibold text-white">{cuenta.nombre}</p>
-                <p className="text-xs text-gray-500">{cuenta.banco || TIPO_LABEL[cuenta.tipo]} · {personaLabel}</p>
+                <p className="text-xs text-gray-400">{cuenta.banco || TIPO_LABEL[cuenta.tipo]} · {personaLabel}</p>
               </div>
             </div>
             <div className="flex gap-1">
-              <button onClick={() => onEdit(cuenta)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+              <button onClick={() => onEdit(cuenta)} aria-label="Editar cuenta" className="icon-btn text-gray-500 hover:text-white">
                 <Pencil size={13} />
               </button>
-              <button onClick={() => onDelete(cuenta)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+              <button onClick={() => onDelete(cuenta)} aria-label="Eliminar cuenta" className="icon-btn text-gray-500 hover:text-bad">
                 <Trash2 size={13} />
               </button>
             </div>
@@ -114,11 +116,11 @@ export default function CuentaCard({ cuenta, onEdit, onDelete, onAddApartado, on
           {totalApartado > 0 ? (
             <div className="flex items-end gap-3 mb-2">
               <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Disponible</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Disponible</p>
                 <p className="text-2xl font-bold font-mono text-white">{fmt(cuenta.saldo)}</p>
               </div>
               <div className="pb-0.5">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Apartado</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Apartado</p>
                 <p className="text-sm font-semibold font-mono text-[var(--accent)]">{fmt(totalApartado)}</p>
               </div>
             </div>
@@ -127,7 +129,7 @@ export default function CuentaCard({ cuenta, onEdit, onDelete, onAddApartado, on
           )}
 
           {totalApartadoNegocio > 0 && (
-            <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-1">
+            <p className="text-[11px] text-gray-400 mb-2 flex items-center gap-1">
               <Store size={10} className="text-[var(--accent)]" />
               {fmt(totalApartadoNegocio)} es dinero del negocio
             </p>
@@ -155,7 +157,7 @@ export default function CuentaCard({ cuenta, onEdit, onDelete, onAddApartado, on
           {/* Apartados de negocio — separados visualmente */}
           {apartados.filter((a) => a.es_negocio).length > 0 && (
             <div className="pt-1 border-t border-white/[0.04]">
-              <p className="text-[10px] text-gray-500 mb-1.5 flex items-center gap-1">
+              <p className="text-[10px] text-gray-400 mb-1.5 flex items-center gap-1">
                 <Store size={9} /> Apartados del negocio (no cuentan en tu saldo personal)
               </p>
               {apartados.filter((a) => a.es_negocio).map((a) => (

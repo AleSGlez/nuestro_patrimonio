@@ -5,6 +5,7 @@ import { useMetas, useCrearMeta, useActualizarMeta, useEliminarMeta, useAportar,
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
@@ -100,7 +101,7 @@ function FormMeta({ open, onClose, meta = null }) {
 
       <div className="mb-4">
         <label className="label">Cuentas de ahorro (hasta 5)</label>
-        <p className="text-[11px] text-gray-500 mb-2">Al aportar podrás elegir entre estas cuentas.</p>
+        <p className="text-[11px] text-gray-400 mb-2">Al aportar podrás elegir entre estas cuentas.</p>
         <div className="space-y-2 max-h-40 overflow-y-auto">
           {cuentas.map((c) => {
             const selected = cuentasIds.includes(c.id)
@@ -122,7 +123,7 @@ function FormMeta({ open, onClose, meta = null }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-white">{c.nombre}</p>
-                  <p className="text-[10px] text-gray-500">{fmt(c.saldo)}</p>
+                  <p className="text-[10px] text-gray-400">{fmt(c.saldo)}</p>
                 </div>
               </button>
             )
@@ -248,17 +249,17 @@ function MetaCard({ meta, onEdit, onDelete, onAportar, onDetalle }) {
               <p className="text-sm font-semibold text-white">{meta.nombre}</p>
               {completada && <span className="text-[10px] bg-ok/10 text-ok px-1.5 py-0.5 rounded-full">✅ Completada</span>}
             </div>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               {meta.persona === 'ambos' ? 'Pareja' : meta.persona}
               {meta.fecha_objetivo && ` · ${format(parseISO(meta.fecha_objetivo), "d MMM yyyy", { locale: es })}`}
             </p>
           </div>
         </button>
         <div className="flex gap-1">
-          <button onClick={() => onEdit(meta)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+          <button onClick={() => onEdit(meta)} aria-label="Editar meta" className="icon-btn text-gray-500 hover:text-white">
             <Pencil size={13} />
           </button>
-          <button onClick={() => onDelete(meta)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+          <button onClick={() => onDelete(meta)} aria-label="Eliminar meta" className="icon-btn text-gray-500 hover:text-bad">
             <Trash2 size={13} />
           </button>
         </div>
@@ -268,11 +269,11 @@ function MetaCard({ meta, onEdit, onDelete, onAportar, onDetalle }) {
       <div className="flex items-end justify-between mb-2">
         <div>
           <p className="text-2xl font-bold font-mono text-white">{fmt(actual)}</p>
-          <p className="text-[11px] text-gray-500">de {fmt(objetivo)}</p>
+          <p className="text-[11px] text-gray-400">de {fmt(objetivo)}</p>
         </div>
         <div className="text-right">
           <p className={cn('text-2xl font-bold', completada ? 'text-ok' : 'text-[var(--accent)]')}>{pct}%</p>
-          {!completada && <p className="text-[11px] text-gray-500">Falta {fmt(faltante)}</p>}
+          {!completada && <p className="text-[11px] text-gray-400">Falta {fmt(faltante)}</p>}
         </div>
       </div>
 
@@ -286,14 +287,14 @@ function MetaCard({ meta, onEdit, onDelete, onAportar, onDetalle }) {
       {!completada && meta.fecha_objetivo && (
         <div className="flex gap-2 mb-3">
           <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-            <p className="text-[10px] text-gray-500">Días restantes</p>
+            <p className="text-[10px] text-gray-400">Días restantes</p>
             <p className={cn('text-sm font-bold', diasRestantes < 30 ? 'text-warn' : 'text-white')}>
               {diasRestantes > 0 ? diasRestantes : '¡Ya venció!'}
             </p>
           </div>
           {aportacionMensual && (
             <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-              <p className="text-[10px] text-gray-500">Ahorrar/mes</p>
+              <p className="text-[10px] text-gray-400">Ahorrar/mes</p>
               <p className="text-sm font-bold text-[var(--accent)]">{fmt(aportacionMensual)}</p>
             </div>
           )}
@@ -326,20 +327,20 @@ function DetalleMetaModal({ meta, onClose }) {
           <span className="text-3xl">{meta.emoji}</span>
           <div>
             <p className="text-base font-bold text-white">{meta.nombre}</p>
-            <p className="text-xs text-gray-500">{pct}% completado · {fmt(Number(meta.monto_actual))} de {fmt(Number(meta.monto_objetivo))}</p>
+            <p className="text-xs text-gray-400">{pct}% completado · {fmt(Number(meta.monto_actual))} de {fmt(Number(meta.monto_objetivo))}</p>
           </div>
         </div>
 
         <p className="section-label mb-2">Historial de aportaciones</p>
         {aportaciones.length === 0 ? (
-          <p className="text-xs text-gray-500 text-center py-4">Sin aportaciones registradas</p>
+          <p className="text-xs text-gray-400 text-center py-4">Sin aportaciones registradas</p>
         ) : (
           <div className="space-y-2">
             {aportaciones.map((a) => (
               <div key={a.id} className="flex items-center justify-between p-2.5 bg-surface-700 rounded-xl">
                 <div>
                   <p className="text-xs text-white font-medium">{fmt(a.monto)}</p>
-                  <p className="text-[10px] text-gray-500">{a.fecha}{a.nota && ` · ${a.nota}`}</p>
+                  <p className="text-[10px] text-gray-400">{a.fecha}{a.nota && ` · ${a.nota}`}</p>
                 </div>
                 <p className="text-ok text-xs font-mono">+{fmt(a.monto)}</p>
               </div>
@@ -355,6 +356,7 @@ function DetalleMetaModal({ meta, onClose }) {
 // ── Página principal ──────────────────────────────────────────
 export default function MetasPage() {
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: metas = [], isPending } = useMetas()
   const { data: cuentas = [] }          = useCuentas()
   const eliminar = useEliminarMeta()
@@ -372,7 +374,7 @@ export default function MetasPage() {
   const pctGeneral    = totalObjetivo > 0 ? Math.round((totalActual / totalObjetivo) * 100) : 0
 
   const handleDelete = async (m) => {
-    if (!confirm(`¿Eliminar la meta "${m.nombre}"?`)) return
+    if (!(await confirmar({ message: `¿Eliminar la meta "${m.nombre}"?` }))) return
     try { await eliminar.mutateAsync(m.id); toast.success('Meta eliminada') }
     catch (e) { toast.error(e.message) }
   }
@@ -384,22 +386,22 @@ export default function MetasPage() {
           <>
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div className="bg-surface-700 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-gray-500">Metas activas</p>
+                <p className="text-[10px] text-gray-400">Metas activas</p>
                 <p className="text-lg font-bold text-white">{activas.length}</p>
               </div>
               <div className="bg-surface-700 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-gray-500">Ahorrado</p>
+                <p className="text-[10px] text-gray-400">Ahorrado</p>
                 <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(totalActual)}</p>
               </div>
               <div className="bg-surface-700 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-gray-500">Objetivo</p>
+                <p className="text-[10px] text-gray-400">Objetivo</p>
                 <p className="text-sm font-bold font-mono text-white">{fmt(totalObjetivo)}</p>
               </div>
             </div>
             <div className="h-2 bg-surface-500 rounded-full overflow-hidden">
               <div className="h-full bg-[var(--accent)] rounded-full transition-all" style={{ width: `${pctGeneral}%` }} />
             </div>
-            <p className="text-[10px] text-gray-500 text-right mt-1">{pctGeneral}% del total</p>
+            <p className="text-[10px] text-gray-400 text-right mt-1">{pctGeneral}% del total</p>
           </>
         )}
       </div>

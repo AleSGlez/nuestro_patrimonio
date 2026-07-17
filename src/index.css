@@ -131,7 +131,7 @@ body {
 
   /* ── Sección ── */
   .section-label {
-    @apply text-[10px] font-semibold text-gray-500 uppercase tracking-[0.12em];
+    @apply text-[10px] font-semibold text-gray-400 uppercase tracking-[0.12em];
   }
 
   /* ── Glass ── */
@@ -190,6 +190,13 @@ body {
     padding-top: var(--sat);
     @apply flex-shrink-0 bg-surface-900 border-b border-white/[0.06] px-4 flex items-end pb-3;
     z-index: 30;
+  }
+
+  /* ── Icon button (44px hit area, WCAG/Apple touch target minimum) ── */
+  .icon-btn {
+    @apply inline-flex items-center justify-center rounded-xl transition-all duration-150 active:scale-95;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* ── FAB ── */
@@ -286,5 +293,18 @@ body {
   }
   .no-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255,255,255,0.35);
+  }
+}
+
+/* ── Reduced motion (app-wide, todos los tamaños) ────────────────
+   fadeIn/slideUp/scaleIn se usan para entradas de Modal/Toast/menús.
+   Con esta preferencia se mantiene un fade corto (más gentil, no cero)
+   y se descarta el movimiento/escala. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-scale-in {
+    animation-name: fadeIn;
+    animation-duration: 150ms;
   }
 }

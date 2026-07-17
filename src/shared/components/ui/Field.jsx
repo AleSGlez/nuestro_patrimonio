@@ -30,7 +30,8 @@ export function PasswordInput({ label, error, className, ...props }) {
         <button
           type="button"
           onClick={() => setShow(!show)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+          aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          className="icon-btn absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
         >
           {show ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>

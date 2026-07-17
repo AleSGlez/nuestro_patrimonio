@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronRight, Check, Phone, Instagram } from 'lucide-react'
 import { useClientes, useCrearCliente, useActualizarCliente, useEliminarCliente, useVentasCliente } from './hooks/useClientes'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState, Input } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
@@ -109,11 +110,11 @@ function DetalleCliente({ cliente, onClose, onEdit }) {
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-surface-700 rounded-xl p-3 text-center">
-            <p className="text-[10px] text-gray-500">Compras</p>
+            <p className="text-[10px] text-gray-400">Compras</p>
             <p className="text-lg font-bold text-white">{ventas.length}</p>
           </div>
           <div className="bg-surface-700 rounded-xl p-3 text-center">
-            <p className="text-[10px] text-gray-500">Total gastado</p>
+            <p className="text-[10px] text-gray-400">Total gastado</p>
             <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(totalComprado)}</p>
           </div>
         </div>
@@ -129,14 +130,14 @@ function DetalleCliente({ cliente, onClose, onEdit }) {
         {/* Historial de compras */}
         <p className="section-label mb-2">Historial de compras</p>
         {ventas.length === 0 ? (
-          <p className="text-xs text-gray-500 text-center py-3">Sin compras registradas</p>
+          <p className="text-xs text-gray-400 text-center py-3">Sin compras registradas</p>
         ) : (
           <div className="space-y-2">
             {ventas.map((v) => (
               <div key={v.id} className="flex items-center justify-between p-2.5 bg-surface-700 rounded-xl">
                 <div>
                   <p className="text-xs text-white">{fmtDate(v.fecha)}</p>
-                  <p className="text-[10px] text-gray-500">{v.metodo_cobro}</p>
+                  <p className="text-[10px] text-gray-400">{v.metodo_cobro}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-mono text-white">{fmt(v.total_venta)}</p>
@@ -155,6 +156,7 @@ function DetalleCliente({ cliente, onClose, onEdit }) {
 
 export default function ClientesPage() {
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: clientes = [], isPending } = useClientes()
   const eliminar = useEliminarCliente()
   const [formOpen, setFormOpen]       = useState(false)
@@ -162,7 +164,7 @@ export default function ClientesPage() {
   const [detalle, setDetalle]         = useState(null)
 
   const handleDelete = async (c) => {
-    if (!confirm(`¿Eliminar a "${c.nombre}"?`)) return
+    if (!(await confirmar({ message: `¿Eliminar a "${c.nombre}"?` }))) return
     try { await eliminar.mutateAsync(c.id); toast.success('Cliente eliminado') }
     catch (e) { toast.error(e.message) }
   }
@@ -189,17 +191,17 @@ export default function ClientesPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white">{c.nombre}</p>
-                  <p className="text-[11px] text-gray-500">
+                  <p className="text-[11px] text-gray-400">
                     {c.telefono || c.instagram || c.email || 'Sin contacto'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={(e) => { e.stopPropagation(); setEditCliente(c); setFormOpen(true) }}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+                    aria-label="Editar cliente" className="icon-btn text-gray-500 hover:text-white">
                     <Pencil size={13} />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); handleDelete(c) }}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+                    aria-label="Eliminar cliente" className="icon-btn text-gray-500 hover:text-bad">
                     <Trash2 size={13} />
                   </button>
                   <ChevronRight size={14} className="text-gray-600" />

@@ -114,7 +114,7 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
         <AmountInput label="Límite de crédito" value={limite} onChange={setLimite} placeholder="0.00" className="mb-0" />
         <AmountInput label="Deuda actual" value={saldoAnterior} onChange={setSaldoAnterior} placeholder="0.00" className="mb-0" />
       </div>
-      <p className="text-xs text-gray-500 -mt-2 mb-3">
+      <p className="text-xs text-gray-400 -mt-2 mb-3">
         La deuda actual es el total que debes en la tarjeta ahora mismo
       </p>
 
@@ -125,7 +125,7 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
         onChange={setPagoSinIntereses}
         placeholder="0.00"
       />
-      <p className="text-xs text-gray-500 -mt-3 mb-4">
+      <p className="text-xs text-gray-400 -mt-3 mb-4">
         Lo que debes pagar antes del límite para no generar intereses. Ajústalo si el valor automático no es correcto.
       </p>
 

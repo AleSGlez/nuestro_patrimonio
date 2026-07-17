@@ -26,7 +26,7 @@ export default function CuentaCardCompact({ cuenta, onTap }) {
         </div>
         <p className="text-base font-bold font-mono text-white leading-tight truncate">{fmt(cuenta.saldo)}</p>
         {totalApartado > 0 && (
-          <p className="text-[10px] text-gray-500 mt-0.5">+{fmt(totalApartado)} apartado</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">+{fmt(totalApartado)} apartado</p>
         )}
       </div>
     </button>

@@ -23,7 +23,7 @@ export default function ApartadoNegocioRef({ apartado, cuenta, onTap }) {
         </p>
         <div className="flex items-center gap-1 mt-1">
           <ArrowUpRight size={9} className="text-gray-500 flex-shrink-0" />
-          <p className="text-[10px] text-gray-500 truncate">en {cuenta?.nombre || 'cuenta personal'}</p>
+          <p className="text-[10px] text-gray-400 truncate">en {cuenta?.nombre || 'cuenta personal'}</p>
         </div>
       </div>
     </button>

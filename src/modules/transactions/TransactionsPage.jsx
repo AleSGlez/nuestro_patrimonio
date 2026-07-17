@@ -8,6 +8,7 @@ import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormTransaccion from './components/FormTransaccion'
 import TransferRow from './components/TransferRow'
@@ -35,16 +36,16 @@ function TxRow({ tx, nombres, onEdit, onDelete }) {
           <p className="text-sm text-white font-medium truncate">{tx.descripcion || cat.label}</p>
           {tx.contexto === 'negocio' && <span className="text-xs flex-shrink-0">🏪</span>}
         </div>
-        <p className="text-xs text-gray-500">{fmtDate(tx.fecha)} · {personaLabel}</p>
+        <p className="text-xs text-gray-400">{fmtDate(tx.fecha)} · {personaLabel}</p>
       </div>
       <p className={cn('text-sm font-semibold font-mono flex-shrink-0', isIngreso ? 'text-ok' : 'text-white')}>
         {isIngreso ? '+' : '-'}{fmt(tx.monto)}
       </p>
       <div className="flex items-center gap-1 flex-shrink-0">
-        <button onClick={() => onEdit(tx)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+        <button onClick={() => onEdit(tx)} aria-label="Editar movimiento" className="icon-btn text-gray-500 hover:text-white">
           <Pencil size={13} />
         </button>
-        <button onClick={() => onDelete(tx)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+        <button onClick={() => onDelete(tx)} aria-label="Eliminar movimiento" className="icon-btn text-gray-500 hover:text-bad">
           <Trash2 size={13} />
         </button>
       </div>
@@ -70,6 +71,7 @@ function MonthPicker({ value, onChange }) {
 export default function TransactionsPage() {
   const { nombres } = useAppStore()
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: cuentas = [] } = useCuentas()
   const { data: tarjetas = [] } = useTarjetas()
   const eliminar = useEliminarTransaccion()
@@ -139,7 +141,7 @@ export default function TransactionsPage() {
   )
 
   const handleDelete = async (tx) => {
-    if (!confirm(`¿Eliminar este movimiento de ${fmt(tx.monto)}?`)) return
+    if (!(await confirmar({ message: `¿Eliminar este movimiento de ${fmt(tx.monto)}?` }))) return
     try {
       await eliminar.mutateAsync({ tx, cuentas, tarjetas })
       toast.success('Movimiento eliminado')
@@ -149,7 +151,7 @@ export default function TransactionsPage() {
   }
 
   const handleDeleteTransfer = async (transferencia) => {
-    if (!confirm('¿Ah, te equivocaste? Solo confirma y la eliminamos.')) return
+    if (!(await confirmar({ message: '¿Ah, te equivocaste? Solo confirma y la eliminamos.' }))) return
     try {
       await eliminarTransf.mutateAsync({ transferencia, cuentas, tarjetas })
       toast.success('Transferencia eliminada')

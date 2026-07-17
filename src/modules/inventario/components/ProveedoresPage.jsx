@@ -9,6 +9,7 @@ import Modal from '@ui/Modal'
 import { Input } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import { cn } from '@lib/utils'
 
@@ -75,6 +76,7 @@ function FormProveedor({ open, onClose, proveedor = null }) {
 
 export default function ProveedoresPage({ onBack }) {
   const toast = useToast()
+  const confirmar = useConfirm()
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
   const { data: proveedores = [], isPending } = useProveedores()
@@ -82,7 +84,7 @@ export default function ProveedoresPage({ onBack }) {
   const [editProveedor, setEdit] = useState(null)
 
   const handleDelete = async (p) => {
-    if (!confirm('¿Eliminar a "' + p.nombre + '"?')) return
+    if (!(await confirmar({ message: '¿Eliminar a "' + p.nombre + '"?' }))) return
     try {
       await db.from('proveedores').update({ activo: false }, { id: p.id })
       qc.invalidateQueries({ queryKey: ['proveedores', parejaId] })
@@ -119,22 +121,23 @@ export default function ProveedoresPage({ onBack }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white">{p.nombre}</p>
-                  <p className="text-xs text-gray-500">{p.plataforma}</p>
+                  <p className="text-xs text-gray-400">{p.plataforma}</p>
                   {p.nota && <p className="text-[11px] text-gray-600 truncate">{p.nota}</p>}
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   {p.url && (
                     <a href={p.url} target="_blank" rel="noreferrer"
-                      className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-[var(--accent)]">
+                      aria-label="Abrir sitio del proveedor"
+                      className="icon-btn text-gray-500 hover:text-[var(--accent)]">
                       <ExternalLink size={13} />
                     </a>
                   )}
                   <button onClick={() => { setEdit(p); setFormOpen(true) }}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+                    aria-label="Editar proveedor" className="icon-btn text-gray-500 hover:text-white">
                     <Pencil size={13} />
                   </button>
                   <button onClick={() => handleDelete(p)}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+                    aria-label="Eliminar proveedor" className="icon-btn text-gray-500 hover:text-bad">
                     <Trash2 size={13} />
                   </button>
                 </div>

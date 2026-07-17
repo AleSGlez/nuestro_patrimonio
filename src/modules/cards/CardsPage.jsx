@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { useTarjetas, useEliminarTarjeta } from './hooks/useTarjetas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import TarjetaCard from './components/TarjetaCard'
 import FormTarjeta from './components/FormTarjeta'
@@ -14,6 +15,7 @@ export default function CardsPage() {
   const { data: tarjetas = [], isPending } = useTarjetas()
   const { nombres } = useAppStore()
   const toast = useToast()
+  const confirmar = useConfirm()
   const eliminar = useEliminarTarjeta()
 
   const [formOpen, setFormOpen]     = useState(false)
@@ -25,7 +27,7 @@ export default function CardsPage() {
   const totalLimite = tarjetas.reduce((s, t) => s + Number(t.limite), 0)
 
   const handleDelete = async (t) => {
-    if (!confirm(`¿Eliminar la tarjeta "${t.nombre}"?`)) return
+    if (!(await confirmar({ message: `¿Eliminar la tarjeta "${t.nombre}"?` }))) return
     try {
       await eliminar.mutateAsync(t.id)
       toast.success('Tarjeta eliminada')
@@ -41,7 +43,7 @@ export default function CardsPage() {
           <p className="section-label">Deuda total en tarjetas</p>
           <p className="text-xl font-bold font-mono text-bad">{fmt(totalDeuda)}</p>
           {totalLimite > 0 && (
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               Disponible: {fmt(totalLimite - totalDeuda)}
             </p>
           )}

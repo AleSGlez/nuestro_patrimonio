@@ -18,7 +18,7 @@ function MetricaCard({ label, valor, positivo, sparkData, sufijo }) {
   return (
     <div className="card p-3.5 flex flex-col">
       <div className="flex items-start justify-between mb-1">
-        <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
+        <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
         <div className={cn('flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
           isPos ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
         )}>
@@ -46,7 +46,7 @@ function IngresosGastosCard({ ingresos, gastos }) {
     <div className="card p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-semibold text-white">Ingresos vs Gastos</p>
-        <p className="text-[11px] text-gray-500 capitalize">{mes}</p>
+        <p className="text-[11px] text-gray-400 capitalize">{mes}</p>
       </div>
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
@@ -70,7 +70,7 @@ function IngresosGastosCard({ ingresos, gastos }) {
             <div className="bg-ok rounded-l-full" style={{ width: `${Math.max(0, 100 - pctGastos)}%` }} />
             <div className="bg-bad rounded-r-full" style={{ width: `${Math.min(pctGastos, 100)}%` }} />
           </div>
-          <p className="text-[10px] text-gray-500 text-right">
+          <p className="text-[10px] text-gray-400 text-right">
             {Math.round(pctGastos)}% de ingresos gastado
           </p>
         </>
@@ -100,7 +100,7 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas }) {
       </div>
       {txHist.length > 0
         ? <GraficaFlujo transacciones={txHist} />
-        : <div className="card p-4 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
+        : <div className="card p-4 flex items-center justify-center h-20"><p className="text-xs text-gray-400">Sin movimientos para graficar</p></div>
       }
       <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
       <PresupuestosWidget transacciones={txMesData} />
@@ -164,7 +164,7 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
 
       {txHist.length > 0
         ? <GraficaFlujo transacciones={txHist} />
-        : <div className="card p-4 flex items-center justify-center h-20"><p className="text-xs text-gray-500">Sin movimientos para graficar</p></div>
+        : <div className="card p-4 flex items-center justify-center h-20"><p className="text-xs text-gray-400">Sin movimientos para graficar</p></div>
       }
       <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
       <PresupuestosWidget transacciones={txMesData} persona={persona} />
@@ -197,7 +197,7 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
               'flex-1 py-1.5 rounded-xl text-xs font-medium transition-all border',
               subVista === t.id
                 ? 'bg-surface-600 border-white/20 text-white'
-                : 'border-transparent text-gray-500'
+                : 'border-transparent text-gray-400'
             )}
           >
             {t.label}

@@ -130,7 +130,7 @@ export default function FormLote({ open, onClose, lote = null }) {
         <AmountInput label="Otros" value={costoOtros} onChange={setCostoOtros} placeholder="0.00" className="mb-0" />
       </div>
       {totalCostos > 0 && (
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-400 mt-2">
           Total costos extra: <span className="text-white font-medium">${totalCostos.toLocaleString('es-MX')}</span>
           {' '}— se prorrateará entre las cartas del lote
         </p>

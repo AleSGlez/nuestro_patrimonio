@@ -18,7 +18,7 @@ function Logo() {
       </div>
       <div className="text-center">
         <h1 className="text-2xl font-bold text-white tracking-tight">Nuestro Patrimonio</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Finanzas en pareja</p>
+        <p className="text-sm text-gray-400 mt-0.5">Finanzas en pareja</p>
       </div>
     </div>
   )
@@ -87,7 +87,7 @@ function LoginForm({ onForgot }) {
       </button>
       <button
         onClick={onForgot}
-        className="w-full text-sm text-gray-500 hover:text-gray-300 transition-colors py-2"
+        className="w-full text-sm text-gray-400 hover:text-gray-300 transition-colors py-2"
       >
         ¿Olvidaste tu contraseña?
       </button>
@@ -156,7 +156,7 @@ function RegisterForm() {
       >
         {loading ? <Spinner size="sm" /> : <><span>Crear cuenta</span><ArrowRight size={15} /></>}
       </button>
-      <p className="text-xs text-gray-500 text-center mt-3">
+      <p className="text-xs text-gray-400 text-center mt-3">
         Después invitarás a tu pareja desde ajustes
       </p>
     </div>

@@ -5,6 +5,7 @@ import { usePresupuestos, useEliminarPresupuesto, calcularDisponible, calcularDe
 import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormPresupuesto from './components/FormPresupuesto'
 import { fmt, cn } from '@lib/utils'
@@ -45,16 +46,16 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               {TIPO_LABEL[presupuesto.tipo]} · {personaLabel} · {labelPeriodo(presupuesto.tipo)}
             </p>
           </div>
         </div>
         <div className="flex gap-1">
-          <button onClick={() => onEdit(presupuesto)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+          <button onClick={() => onEdit(presupuesto)} aria-label="Editar presupuesto" className="icon-btn text-gray-500 hover:text-white">
             <Pencil size={13} />
           </button>
-          <button onClick={() => onDelete(presupuesto)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+          <button onClick={() => onDelete(presupuesto)} aria-label="Eliminar presupuesto" className="icon-btn text-gray-500 hover:text-bad">
             <Trash2 size={13} />
           </button>
         </div>
@@ -63,7 +64,7 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
       {/* Disponible */}
       <div className="flex items-end justify-between mb-3">
         <div>
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
             {excedido ? 'Excedido' : 'Disponible acumulado'}
           </p>
           <div className="flex items-center gap-2">
@@ -79,9 +80,9 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] text-gray-500">Gastado</p>
+          <p className="text-[10px] text-gray-400">Gastado</p>
           <p className="text-sm font-mono text-white font-medium">{fmt(gastado)}</p>
-          <p className="text-[10px] text-gray-500">de {fmt(presupuestoAcumulado)}</p>
+          <p className="text-[10px] text-gray-400">de {fmt(presupuestoAcumulado)}</p>
         </div>
       </div>
 
@@ -90,10 +91,10 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
         <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${Math.min(pctUsado, 100)}%` }} />
       </div>
       <div className="flex justify-between mb-2">
-        <p className={cn('text-[11px] font-medium', pctUsado >= 100 ? 'text-bad' : pctUsado >= 80 ? 'text-warn' : 'text-gray-500')}>
+        <p className={cn('text-[11px] font-medium', pctUsado >= 100 ? 'text-bad' : pctUsado >= 80 ? 'text-warn' : 'text-gray-400')}>
           {pctUsado}% usado
         </p>
-        <p className="text-[10px] text-gray-500">
+        <p className="text-[10px] text-gray-400">
           {excedido
             ? 'Se descuenta del siguiente período'
             : `Sobrante acumulado: ${fmt(disponible)}`}
@@ -103,16 +104,16 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
       {/* Desglose semanal/diario */}
       {desglose && (
         <div className="flex gap-2 mt-2 pt-2 border-t border-white/[0.06]">
-          <p className="text-[10px] text-gray-500 self-center mr-1">Equivale a:</p>
+          <p className="text-[10px] text-gray-400 self-center mr-1">Equivale a:</p>
           {desglose.porSemana && (
             <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-              <p className="text-[10px] text-gray-500 mb-0.5">Por semana</p>
+              <p className="text-[10px] text-gray-400 mb-0.5">Por semana</p>
               <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(desglose.porSemana)}</p>
             </div>
           )}
           {desglose.porDia && (
             <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-              <p className="text-[10px] text-gray-500 mb-0.5">Por día</p>
+              <p className="text-[10px] text-gray-400 mb-0.5">Por día</p>
               <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(desglose.porDia)}</p>
             </div>
           )}
@@ -133,6 +134,7 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
 export default function PresupuestosPage() {
   const { nombres } = useAppStore()
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: presupuestos = [], isPending } = usePresupuestos()
   const { data: transacciones = [] } = useTransacciones()
   const eliminar = useEliminarPresupuesto()
@@ -155,7 +157,7 @@ export default function PresupuestosPage() {
     : items.filter((i) => i.tipo === tabActivo)
 
   const handleDelete = async (p) => {
-    if (!confirm(`¿Eliminar el presupuesto "${p.nombre}"?`)) return
+    if (!(await confirmar({ message: `¿Eliminar el presupuesto "${p.nombre}"?` }))) return
     try {
       await eliminar.mutateAsync(p.id)
       toast.success('Presupuesto eliminado')

@@ -104,7 +104,7 @@ function VistaMensual({ fecha, eventos, onDiaClick }) {
       {/* Header días semana */}
       <div className="grid grid-cols-7 mb-1">
         {DIAS_SEMANA.map((d, i) => (
-          <div key={i} className="text-center text-[10px] text-gray-500 py-1 font-medium">{d}</div>
+          <div key={i} className="text-center text-[10px] text-gray-400 py-1 font-medium">{d}</div>
         ))}
       </div>
 
@@ -142,7 +142,7 @@ function VistaMensual({ fecha, eventos, onDiaClick }) {
                   />
                 ))}
                 {eventosDelDia.length > 2 && (
-                  <p className="text-[9px] text-gray-500 text-center">+{eventosDelDia.length - 2}</p>
+                  <p className="text-[9px] text-gray-400 text-center">+{eventosDelDia.length - 2}</p>
                 )}
               </div>
             </button>
@@ -196,7 +196,7 @@ function VistaSemanal({ fecha, eventos }) {
                         <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ backgroundColor: e.color }} />
                         <div className="min-w-0">
                           <p className="text-xs text-white font-medium">{e.titulo}</p>
-                          {e.subtitulo && <p className="text-[10px] text-gray-500">{e.subtitulo}</p>}
+                          {e.subtitulo && <p className="text-[10px] text-gray-400">{e.subtitulo}</p>}
                         </div>
                       </div>
                     ))}
@@ -289,11 +289,11 @@ export default function CalendarioPage() {
 
         {/* Navegación */}
         <div className="flex items-center justify-between">
-          <button onClick={navAnterior} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white">
+          <button onClick={navAnterior} aria-label="Mes anterior" className="icon-btn text-gray-400 hover:text-white">
             <ChevronLeft size={20} />
           </button>
           <p className="text-sm font-semibold text-white capitalize">{tituloNav}</p>
-          <button onClick={navSiguiente} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white">
+          <button onClick={navSiguiente} aria-label="Mes siguiente" className="icon-btn text-gray-400 hover:text-white">
             <ChevronRight size={20} />
           </button>
         </div>
@@ -335,12 +335,12 @@ export default function CalendarioPage() {
                   <div className="w-2 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-white">{t.nombre}</p>
-                    <p className="text-[10px] text-gray-500">
+                    <p className="text-[10px] text-gray-400">
                       Período: {periodo.inicio} → {periodo.fin}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] text-gray-500">Sin intereses</p>
+                    <p className="text-[10px] text-gray-400">Sin intereses</p>
                     <p className="text-xs font-mono text-[var(--accent)]">{fmt(t.pago_sin_intereses)}</p>
                   </div>
                 </div>

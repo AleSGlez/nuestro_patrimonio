@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { Plus, Package, Pencil, Trash2, ChevronRight, FileSpreadsheet, Minus, Users } from 'lucide-react'
 import { useLotes, useProductos, useEliminarProducto, useVenderProducto, calcularCostoReal, calcularMargen } from './hooks/useInventario'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormLote from './components/FormLote'
 import FormProducto from './components/FormProducto'
@@ -31,6 +32,7 @@ const COND_LABEL = { mint: '✨', near_mint: '👍', played: '⚠️', damaged: 
 // ── Vista de productos de un lote ─────────────────────────────
 function VistaLote({ lote, onBack, onEditLote }) {
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: productos = [], isPending } = useProductos({ loteId: lote.id })
   const eliminar = useEliminarProducto()
   const vender   = useVenderProducto()
@@ -47,7 +49,7 @@ function VistaLote({ lote, onBack, onEditLote }) {
 
   const handleVender = async (producto) => {
     if (producto.cantidad_stock <= 0) { toast.error('Sin stock disponible'); return }
-    if (!confirm(`¿Registrar venta de 1 "${producto.nombre_jp || producto.nombre_en}"?`)) return
+    if (!(await confirmar({ message: `¿Registrar venta de 1 "${producto.nombre_jp || producto.nombre_en}"?` }))) return
     try {
       await vender.mutateAsync({ producto, cantidad: 1 })
       toast.success('Venta registrada — stock actualizado')
@@ -55,7 +57,7 @@ function VistaLote({ lote, onBack, onEditLote }) {
   }
 
   const handleEliminar = async (p) => {
-    if (!confirm(`¿Eliminar "${p.nombre_jp || p.nombre_en}"?`)) return
+    if (!(await confirmar({ message: `¿Eliminar "${p.nombre_jp || p.nombre_en}"?` }))) return
     try { await eliminar.mutateAsync(p.id); toast.success('Carta eliminada') }
     catch (e) { toast.error(e.message) }
   }
@@ -79,15 +81,15 @@ function VistaLote({ lote, onBack, onEditLote }) {
         </div>
         <div className="grid grid-cols-3 gap-2 mt-3">
           <div className="bg-surface-700 rounded-xl p-2.5 text-center">
-            <p className="text-[10px] text-gray-500">Invertido</p>
+            <p className="text-[10px] text-gray-400">Invertido</p>
             <p className="text-sm font-bold font-mono text-white">{fmt(totalInvertido)}</p>
           </div>
           <div className="bg-surface-700 rounded-xl p-2.5 text-center">
-            <p className="text-[10px] text-gray-500">En stock</p>
+            <p className="text-[10px] text-gray-400">En stock</p>
             <p className="text-sm font-bold text-ok">{totalStock}</p>
           </div>
           <div className="bg-surface-700 rounded-xl p-2.5 text-center">
-            <p className="text-[10px] text-gray-500">Vendidas</p>
+            <p className="text-[10px] text-gray-400">Vendidas</p>
             <p className="text-sm font-bold text-[var(--accent)]">{totalVendidas}</p>
           </div>
         </div>
@@ -124,21 +126,21 @@ function VistaLote({ lote, onBack, onEditLote }) {
                         </p>
                         <span className="text-[10px] flex-shrink-0">{COND_LABEL[p.condicion]}</span>
                         {p.idioma !== 'ambos' && (
-                          <span className="text-[10px] text-gray-500 flex-shrink-0">{p.idioma}</span>
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">{p.idioma}</span>
                         )}
                       </div>
                       {p.nombre_jp && p.nombre_en && (
-                        <p className="text-[11px] text-gray-500 truncate">{p.nombre_en}</p>
+                        <p className="text-[11px] text-gray-400 truncate">{p.nombre_en}</p>
                       )}
-                      <p className="text-[10px] text-gray-500">{p.serie} {p.numero_carta && `· #${p.numero_carta}`}</p>
+                      <p className="text-[10px] text-gray-400">{p.serie} {p.numero_carta && `· #${p.numero_carta}`}</p>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => { setEditProducto(p); setFormProductoOpen(true) }}
-                        className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+                        aria-label="Editar producto" className="icon-btn text-gray-500 hover:text-white">
                         <Pencil size={12} />
                       </button>
                       <button onClick={() => handleEliminar(p)}
-                        className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+                        aria-label="Eliminar producto" className="icon-btn text-gray-500 hover:text-bad">
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -147,15 +149,15 @@ function VistaLote({ lote, onBack, onEditLote }) {
                   <div className="flex items-center gap-3 mt-2.5">
                     <div className="flex-1 grid grid-cols-3 gap-1 text-center">
                       <div>
-                        <p className="text-[9px] text-gray-500">Costo</p>
+                        <p className="text-[9px] text-gray-400">Costo</p>
                         <p className="text-xs font-mono text-gray-300">{fmt(costoReal)}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-gray-500">Venta</p>
+                        <p className="text-[9px] text-gray-400">Venta</p>
                         <p className="text-xs font-mono text-white">{p.precio_venta ? fmt(p.precio_venta) : '—'}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-gray-500">Margen</p>
+                        <p className="text-[9px] text-gray-400">Margen</p>
                         <p className={cn('text-xs font-mono font-medium', margen ? (margen.margen >= 0 ? 'text-ok' : 'text-bad') : 'text-gray-600')}>
                           {margen ? `${Math.round(margen.pct)}%` : '—'}
                         </p>
@@ -164,7 +166,7 @@ function VistaLote({ lote, onBack, onEditLote }) {
 
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="text-center">
-                        <p className="text-[9px] text-gray-500">Stock</p>
+                        <p className="text-[9px] text-gray-400">Stock</p>
                         <p className={cn('text-sm font-bold', sinStock ? 'text-bad' : 'text-ok')}>
                           {p.cantidad_stock}/{p.cantidad_compra}
                         </p>
@@ -263,7 +265,7 @@ export default function InventarioPage() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{lote.nombre}</p>
-                      <p className="text-[11px] text-gray-500">{lote.fecha_compra}</p>
+                      <p className="text-[11px] text-gray-400">{lote.fecha_compra}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-medium', info.color, info.bg)}>
@@ -274,15 +276,15 @@ export default function InventarioPage() {
                   </div>
                   <div className="flex gap-4 text-center">
                     <div>
-                      <p className="text-[10px] text-gray-500">Cartas</p>
+                      <p className="text-[10px] text-gray-400">Cartas</p>
                       <p className="text-sm font-bold text-white">{totalLote}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-500">Stock</p>
+                      <p className="text-[10px] text-gray-400">Stock</p>
                       <p className="text-sm font-bold text-ok">{stockLote}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-500">Envío+Aduanas</p>
+                      <p className="text-[10px] text-gray-400">Envío+Aduanas</p>
                       <p className="text-sm font-mono text-gray-300">{fmt(costoExtra)}</p>
                     </div>
                   </div>

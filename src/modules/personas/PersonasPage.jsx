@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import { usePersonas, useEliminarPersona, usePersonaMovimientos, useEliminarMovimiento } from './hooks/usePersonas'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import Modal from '@ui/Modal'
 import FormPersona from './components/FormPersona'
@@ -19,6 +20,7 @@ const TIPO_INFO = {
 
 function DetallPersona({ persona, onClose, onEdit }) {
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: movimientos = [], isPending } = usePersonaMovimientos(persona?.id)
   const { data: cuentas = [] } = useCuentas()
   const eliminarMov = useEliminarMovimiento()
@@ -27,7 +29,7 @@ function DetallPersona({ persona, onClose, onEdit }) {
   const saldoPositivo = saldo >= 0
 
   const handleDeleteMov = async (mov) => {
-    if (!confirm('¿Ah, te equivocaste? Solo confirma y lo eliminamos.')) return
+    if (!(await confirmar({ message: '¿Ah, te equivocaste? Solo confirma y lo eliminamos.' }))) return
     try {
       await eliminarMov.mutateAsync({ movimiento: mov, persona, cuentas })
       toast.success('Movimiento eliminado')
@@ -55,10 +57,10 @@ function DetallPersona({ persona, onClose, onEdit }) {
           </div>
 
           {persona.telefono && (
-            <p className="text-xs text-gray-500 mb-3 text-center">📱 {persona.telefono}</p>
+            <p className="text-xs text-gray-400 mb-3 text-center">📱 {persona.telefono}</p>
           )}
           {persona.nota && (
-            <p className="text-xs text-gray-500 mb-4 text-center italic">{persona.nota}</p>
+            <p className="text-xs text-gray-400 mb-4 text-center italic">{persona.nota}</p>
           )}
 
           <p className="section-label mb-2">Historial</p>
@@ -67,7 +69,7 @@ function DetallPersona({ persona, onClose, onEdit }) {
               {[1,2,3].map((i) => <div key={i} className="skeleton h-12" />)}
             </div>
           ) : movimientos.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">Sin movimientos registrados</p>
+            <p className="text-sm text-gray-400 text-center py-4">Sin movimientos registrados</p>
           ) : (
             <div className="space-y-2">
               {movimientos.map((m) => {
@@ -77,7 +79,7 @@ function DetallPersona({ persona, onClose, onEdit }) {
                     <span className="text-lg flex-shrink-0">{info.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-medium truncate">{m.descripcion || info.label}</p>
-                      <p className="text-xs text-gray-500">{fmtDate(m.fecha)}</p>
+                      <p className="text-xs text-gray-400">{fmtDate(m.fecha)}</p>
                     </div>
                     <p className={cn('text-sm font-semibold font-mono flex-shrink-0',
                       info.signo === '+' ? 'text-ok' : 'text-bad'
@@ -119,7 +121,7 @@ function PersonaCard({ persona, onTap, onEdit, onDelete, onMovimiento }) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white truncate">{persona.nombre}</p>
             {saldo === 0 ? (
-              <p className="text-xs text-gray-500">Sin saldo pendiente</p>
+              <p className="text-xs text-gray-400">Sin saldo pendiente</p>
             ) : (
               <p className={cn('text-sm font-mono font-bold', saldoPositivo ? 'text-ok' : 'text-bad')}>
                 {saldoPositivo ? '+' : '-'}{fmt(Math.abs(saldo))}
@@ -129,10 +131,10 @@ function PersonaCard({ persona, onTap, onEdit, onDelete, onMovimiento }) {
           <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />
         </button>
         <div className="flex gap-1 flex-shrink-0">
-          <button onClick={() => onEdit(persona)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+          <button onClick={() => onEdit(persona)} aria-label="Editar persona" className="icon-btn text-gray-500 hover:text-white">
             <Pencil size={13} />
           </button>
-          <button onClick={() => onDelete(persona)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+          <button onClick={() => onDelete(persona)} aria-label="Eliminar persona" className="icon-btn text-gray-500 hover:text-bad">
             <Trash2 size={13} />
           </button>
         </div>
@@ -151,6 +153,7 @@ export default function PersonasPage() {
   const { data: personas = [], isPending } = usePersonas()
   const eliminar = useEliminarPersona()
   const toast = useToast()
+  const confirmar = useConfirm()
 
   const [formOpen, setFormOpen]       = useState(false)
   const [editPersona, setEditPersona] = useState(null)
@@ -161,7 +164,7 @@ export default function PersonasPage() {
   const totalPorPagar  = personas.filter((p) => p.saldo < 0).reduce((s, p) => s + Math.abs(Number(p.saldo)), 0)
 
   const handleDelete = async (persona) => {
-    if (!confirm(`¿Eliminar a ${persona.nombre} y todo su historial?`)) return
+    if (!(await confirmar({ message: `¿Eliminar a ${persona.nombre} y todo su historial?` }))) return
     try {
       await eliminar.mutateAsync(persona.id)
       toast.success('Persona eliminada')

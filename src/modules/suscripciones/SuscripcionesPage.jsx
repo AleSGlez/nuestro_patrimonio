@@ -10,6 +10,7 @@ import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
+import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
@@ -168,7 +169,7 @@ function SuscripcionCard({ sus, cuentas, onEdit, onDelete, onRegistrar }) {
               <p className="text-sm font-semibold text-white">{sus.nombre}</p>
               {alerta && <Bell size={11} className="text-warn" />}
             </div>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               {FRECUENCIA_LABEL[sus.frecuencia]} · {sus.persona === 'ambos' ? 'Pareja' : sus.persona}
               {metodoPago && ` · ${metodoPago}`}
             </p>
@@ -178,10 +179,10 @@ function SuscripcionCard({ sus, cuentas, onEdit, onDelete, onRegistrar }) {
           <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', badgeColor)}>
             {badgeLabel}
           </span>
-          <button onClick={() => onEdit(sus)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+          <button onClick={() => onEdit(sus)} aria-label="Editar suscripción" className="icon-btn text-gray-500 hover:text-white">
             <Pencil size={13} />
           </button>
-          <button onClick={() => onDelete(sus)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+          <button onClick={() => onDelete(sus)} aria-label="Eliminar suscripción" className="icon-btn text-gray-500 hover:text-bad">
             <Trash2 size={13} />
           </button>
         </div>
@@ -190,11 +191,11 @@ function SuscripcionCard({ sus, cuentas, onEdit, onDelete, onRegistrar }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-lg font-bold font-mono text-white">{fmt(sus.monto)}</p>
-          <p className="text-[10px] text-gray-500">~{fmt(gastoAnual(sus))} al año</p>
+          <p className="text-[10px] text-gray-400">~{fmt(gastoAnual(sus))} al año</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="text-right">
-            <p className="text-[10px] text-gray-500">Próximo cobro</p>
+            <p className="text-[10px] text-gray-400">Próximo cobro</p>
             <p className="text-xs text-gray-300 capitalize">
               {format(new Date(sus.proxima_fecha + 'T12:00:00'), "d 'de' MMM", { locale: es })}
             </p>
@@ -217,6 +218,7 @@ export function FormSuscripcionGlobal({ open, onClose }) {
 
 export default function SuscripcionesPage() {
   const toast = useToast()
+  const confirmar = useConfirm()
   const { data: suscripciones = [], isPending } = useSuscripciones()
   const { data: cuentas = [] } = useCuentas()
   const eliminar = useEliminarSuscripcion()
@@ -232,13 +234,13 @@ export default function SuscripcionesPage() {
   const alertas = suscripciones.filter((s) => diasHasta(s.proxima_fecha) <= 3)
 
   const handleDelete = async (sus) => {
-    if (!confirm(`¿Desactivar "${sus.nombre}"?`)) return
+    if (!(await confirmar({ message: `¿Desactivar "${sus.nombre}"?` }))) return
     try { await eliminar.mutateAsync(sus.id); toast.success('Suscripción desactivada') }
     catch (e) { toast.error(e.message) }
   }
 
   const handleRegistrar = async (sus) => {
-    if (!confirm(`¿Registrar el cargo de ${fmt(sus.monto)} de ${sus.nombre}?`)) return
+    if (!(await confirmar({ message: `¿Registrar el cargo de ${fmt(sus.monto)} de ${sus.nombre}?` }))) return
     try {
       await registrar.mutateAsync({ suscripcion: sus, cuentas })
       toast.success('Cargo registrado ✅')
@@ -250,11 +252,11 @@ export default function SuscripcionesPage() {
       <div className="top-header flex-col items-stretch !h-auto pb-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-surface-700 rounded-xl p-3">
-            <p className="text-[10px] text-gray-500 mb-1">Gasto mensual</p>
+            <p className="text-[10px] text-gray-400 mb-1">Gasto mensual</p>
             <p className="text-lg font-bold font-mono text-white">{fmt(totalMensual)}</p>
           </div>
           <div className={cn('rounded-xl p-3', alertas.length > 0 ? 'bg-warn/10 border border-warn/20' : 'bg-surface-700')}>
-            <p className="text-[10px] text-gray-500 mb-1">Próximos 3 días</p>
+            <p className="text-[10px] text-gray-400 mb-1">Próximos 3 días</p>
             <p className={cn('text-lg font-bold', alertas.length > 0 ? 'text-warn' : 'text-white')}>
               {alertas.length} cobros
             </p>

@@ -17,7 +17,7 @@ function MetricaNegocio({ label, valor, positivo, sparkData, sufijo }) {
   return (
     <div className="card p-3.5 flex flex-col">
       <div className="flex items-start justify-between mb-1">
-        <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
+        <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
         {sufijo && (
           <div className={cn('flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
             isPos ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
@@ -103,7 +103,7 @@ export default function DashboardNegocio() {
       <div className="card p-4 mt-3">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-white">Ingresos vs Gastos</p>
-          <p className="text-[11px] text-gray-500 capitalize">{mes}</p>
+          <p className="text-[11px] text-gray-400 capitalize">{mes}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
@@ -127,7 +127,7 @@ export default function DashboardNegocio() {
               <div className="bg-ok rounded-l-full" style={{ width: `${Math.max(0, 100 - pctGastos)}%` }} />
               <div className="bg-bad rounded-r-full" style={{ width: `${Math.min(pctGastos, 100)}%` }} />
             </div>
-            <p className="text-[10px] text-gray-500 text-right">
+            <p className="text-[10px] text-gray-400 text-right">
               {Math.round(pctGastos)}% de ingresos en gastos
             </p>
           </>
@@ -150,7 +150,7 @@ export default function DashboardNegocio() {
               <div key={a.id} className="flex justify-between items-center py-2 border-b border-white/[0.05] last:border-0">
                 <div>
                   <p className="text-sm text-gray-300">{a.emoji} {a.nombre}</p>
-                  <p className="text-[10px] text-gray-500">en {cuenta?.nombre || 'cuenta personal'}</p>
+                  <p className="text-[10px] text-gray-400">en {cuenta?.nombre || 'cuenta personal'}</p>
                 </div>
                 <p className="text-sm font-mono font-medium text-[var(--accent)]">{fmt(a.monto)}</p>
               </div>
@@ -170,7 +170,7 @@ export default function DashboardNegocio() {
         </div>
       ) : (
         <div className="card p-4 mt-3 flex items-center justify-center h-20">
-          <p className="text-xs text-gray-500">Sin movimientos de negocio para graficar</p>
+          <p className="text-xs text-gray-400">Sin movimientos de negocio para graficar</p>
         </div>
       )}
 
@@ -192,7 +192,7 @@ export default function DashboardNegocio() {
         <div className="card p-6 text-center">
           <p className="text-2xl mb-2">🏪</p>
           <p className="text-sm text-white font-medium mb-1">Sin movimientos de negocio este mes</p>
-          <p className="text-xs text-gray-500">Registra un gasto o ingreso con contexto "Negocio" para verlos aquí</p>
+          <p className="text-xs text-gray-400">Registra un gasto o ingreso con contexto "Negocio" para verlos aquí</p>
         </div>
       )}
     </div>

@@ -99,7 +99,7 @@ export default function PresupuestosWidget({ transacciones, persona = null }) {
                 onClick={() => setVista(v.id)}
                 className={cn(
                   'px-2 py-1 rounded-md text-[10px] font-medium transition-all',
-                  vista === v.id ? 'bg-[var(--accent)] text-white' : 'text-gray-500'
+                  vista === v.id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
                 )}
               >
                 {v.label}

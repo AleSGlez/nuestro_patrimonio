@@ -53,8 +53,8 @@ export default function Sidebar({ active, onChange, onAccion }) {
 
         {menuOpen && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-            <div className="absolute left-3 right-3 top-[52px] z-50 bg-surface-800 border border-white/10 rounded-2xl p-2 space-y-1 shadow-xl">
+            <div className="fixed inset-0 z-40 animate-fade-in" onClick={() => setMenuOpen(false)} />
+            <div className="absolute left-3 right-3 top-[52px] z-50 bg-surface-800 border border-white/10 rounded-2xl p-2 space-y-1 shadow-xl animate-scale-in origin-top">
               {ACCIONES.map(({ id, label, icon: Icon, color }) => (
                 <button
                   key={id}

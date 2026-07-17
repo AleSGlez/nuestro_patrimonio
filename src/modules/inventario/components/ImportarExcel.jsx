@@ -137,7 +137,7 @@ export default function ImportarExcel({ open, onClose, loteId }) {
         <p className="text-sm text-gray-300 font-medium">
           {fileName || 'Toca para seleccionar tu archivo Excel'}
         </p>
-        <p className="text-xs text-gray-500 mt-1">.xlsx o .xls</p>
+        <p className="text-xs text-gray-400 mt-1">.xlsx o .xls</p>
         <input ref={inputRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
       </div>
 
@@ -152,12 +152,12 @@ export default function ImportarExcel({ open, onClose, loteId }) {
                 <span className="text-xs text-gray-400 flex-shrink-0 w-5">{i+1}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-white truncate">{f.nombre_jp || f.nombre_en}</p>
-                  <p className="text-[10px] text-gray-500">{f.serie} {f.numero_carta} · {f.cantidad_compra}x · ${f.precio_unitario_compra}</p>
+                  <p className="text-[10px] text-gray-400">{f.serie} {f.numero_carta} · {f.cantidad_compra}x · ${f.precio_unitario_compra}</p>
                 </div>
               </div>
             ))}
             {filas.length > 5 && (
-              <p className="text-xs text-gray-500 text-center">+{filas.length - 5} más...</p>
+              <p className="text-xs text-gray-400 text-center">+{filas.length - 5} más...</p>
             )}
           </div>
         </div>

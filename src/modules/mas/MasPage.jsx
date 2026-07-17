@@ -41,7 +41,7 @@ export default function MasPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-white">{miNombre}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
+              <p className="text-xs text-gray-400">{user?.email}</p>
             </div>
           </div>
           <button onClick={logout}
@@ -70,7 +70,7 @@ export default function MasPage() {
         {/* Info */}
         <div className="card p-4">
           <p className="section-label mb-3">Acerca de</p>
-          <div className="flex items-center gap-2 text-gray-500">
+          <div className="flex items-center gap-2 text-gray-400">
             <Info size={14} />
             <p className="text-xs">Nuestro Patrimonio v3.0</p>
           </div>

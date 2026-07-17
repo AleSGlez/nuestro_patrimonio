@@ -133,13 +133,13 @@ export default function FormVenta({ open, onClose }) {
           {busqueda.length > 0 && (
             <div className="bg-surface-700 rounded-xl mb-3 max-h-48 overflow-y-auto">
               {productosFiltrados.length === 0 ? (
-                <p className="text-xs text-gray-500 p-3 text-center">Sin resultados</p>
+                <p className="text-xs text-gray-400 p-3 text-center">Sin resultados</p>
               ) : productosFiltrados.map((p) => (
                 <button key={p.id} onClick={() => agregarProducto(p)}
                   className="w-full flex items-center gap-2.5 p-2.5 hover:bg-surface-600 text-left border-b border-white/[0.05] last:border-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-white truncate">{p.nombre_jp || p.nombre_en}</p>
-                    <p className="text-[10px] text-gray-500">{p.serie} {p.numero_carta && `· #${p.numero_carta}`} · Stock: {p.cantidad_stock}</p>
+                    <p className="text-[10px] text-gray-400">{p.serie} {p.numero_carta && `· #${p.numero_carta}`} · Stock: {p.cantidad_stock}</p>
                   </div>
                   <p className="text-xs text-gray-400 flex-shrink-0">{fmt(calcularCostoReal(p))} costo</p>
                   <Plus size={14} className="text-[var(--accent)] flex-shrink-0" />
@@ -150,7 +150,7 @@ export default function FormVenta({ open, onClose }) {
 
           {/* Items agregados */}
           {items.length === 0 ? (
-            <div className="text-center py-6 text-gray-500 text-sm">
+            <div className="text-center py-6 text-gray-400 text-sm">
               Busca y agrega las cartas que se vendieron
             </div>
           ) : (
@@ -165,7 +165,7 @@ export default function FormVenta({ open, onClose }) {
                         <p className="text-xs font-semibold text-white truncate">
                           {item.producto.nombre_jp || item.producto.nombre_en}
                         </p>
-                        <p className="text-[10px] text-gray-500">Costo: {fmt(costo)}</p>
+                        <p className="text-[10px] text-gray-400">Costo: {fmt(costo)}</p>
                       </div>
                       <button onClick={() => quitarItem(item.producto.id)}
                         className="text-gray-500 hover:text-bad flex-shrink-0">
@@ -174,14 +174,14 @@ export default function FormVenta({ open, onClose }) {
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-[10px] text-gray-500 block mb-1">Cant.</label>
+                        <label className="text-[10px] text-gray-400 block mb-1">Cant.</label>
                         <input type="number" min="1" max={item.producto.cantidad_stock}
                           value={item.cantidad}
                           onChange={(e) => actualizarItem(item.producto.id, 'cantidad', Number(e.target.value))}
                           className="input text-center text-sm py-1.5" />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] text-gray-500 block mb-1">Precio venta c/u</label>
+                        <label className="text-[10px] text-gray-400 block mb-1">Precio venta c/u</label>
                         <input type="number" placeholder="0.00"
                           value={item.precioVenta}
                           onChange={(e) => actualizarItem(item.producto.id, 'precioVenta', e.target.value)}
@@ -203,15 +203,15 @@ export default function FormVenta({ open, onClose }) {
           {items.length > 0 && (
             <div className="bg-surface-700 rounded-xl p-3 mb-3 grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className="text-[10px] text-gray-500">Total venta</p>
+                <p className="text-[10px] text-gray-400">Total venta</p>
                 <p className="text-sm font-bold font-mono text-white">{fmt(totales.totalVenta)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-500">Costo</p>
+                <p className="text-[10px] text-gray-400">Costo</p>
                 <p className="text-sm font-bold font-mono text-bad">{fmt(totales.totalCosto)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-500">Ganancia</p>
+                <p className="text-[10px] text-gray-400">Ganancia</p>
                 <p className={cn('text-sm font-bold font-mono', totales.ganancia >= 0 ? 'text-ok' : 'text-bad')}>
                   {fmt(totales.ganancia)}
                 </p>
@@ -233,11 +233,11 @@ export default function FormVenta({ open, onClose }) {
             <p className="text-xs text-gray-400 mb-2">{items.length} carta{items.length > 1 ? 's' : ''}</p>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-[10px] text-gray-500">Total venta</p>
+                <p className="text-[10px] text-gray-400">Total venta</p>
                 <p className="text-base font-bold font-mono text-white">{fmt(totales.totalVenta)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-500">Ganancia bruta</p>
+                <p className="text-[10px] text-gray-400">Ganancia bruta</p>
                 <p className={cn('text-base font-bold font-mono', totales.ganancia >= 0 ? 'text-ok' : 'text-bad')}>
                   {fmt(totales.ganancia)}
                 </p>

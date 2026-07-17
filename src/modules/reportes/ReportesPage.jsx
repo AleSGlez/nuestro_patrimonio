@@ -134,7 +134,7 @@ function ReportePersonal({ transacciones, cuentas, tarjetas }) {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
         <div className="card p-4">
-          <p className="text-[10px] text-gray-500 mb-1">Ingresos</p>
+          <p className="text-[10px] text-gray-400 mb-1">Ingresos</p>
           <p className="text-xl font-bold font-mono text-ok">{fmt(ingresos)}</p>
           {ingresosAnt > 0 && (
             <p className={cn('text-[11px] mt-1', diffIngresos >= 0 ? 'text-ok' : 'text-bad')}>
@@ -143,7 +143,7 @@ function ReportePersonal({ transacciones, cuentas, tarjetas }) {
           )}
         </div>
         <div className="card p-4">
-          <p className="text-[10px] text-gray-500 mb-1">Gastos</p>
+          <p className="text-[10px] text-gray-400 mb-1">Gastos</p>
           <p className="text-xl font-bold font-mono text-bad">{fmt(gastos)}</p>
           {gastosAnt > 0 && (
             <p className={cn('text-[11px] mt-1', diffGastos <= 0 ? 'text-ok' : 'text-bad')}>
@@ -152,13 +152,13 @@ function ReportePersonal({ transacciones, cuentas, tarjetas }) {
           )}
         </div>
         <div className={cn('card p-4', balance >= 0 ? 'border-ok/20' : 'border-bad/20')}>
-          <p className="text-[10px] text-gray-500 mb-1">Balance del mes</p>
+          <p className="text-[10px] text-gray-400 mb-1">Balance del mes</p>
           <p className={cn('text-xl font-bold font-mono', balance >= 0 ? 'text-ok' : 'text-bad')}>
             {balance >= 0 ? '+' : ''}{fmt(balance)}
           </p>
         </div>
         <div className="card p-4">
-          <p className="text-[10px] text-gray-500 mb-1">Patrimonio total</p>
+          <p className="text-[10px] text-gray-400 mb-1">Patrimonio total</p>
           <p className="text-xl font-bold font-mono text-white">{fmt(patrimonio)}</p>
         </div>
       </div>
@@ -188,7 +188,7 @@ function ReportePersonal({ transacciones, cuentas, tarjetas }) {
                 <div key={cat.name}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-300">{cat.name}</span>
-                    <span className="font-mono text-white">{fmt(cat.value)} <span className="text-gray-500">({Math.round(pct)}%)</span></span>
+                    <span className="font-mono text-white">{fmt(cat.value)} <span className="text-gray-400">({Math.round(pct)}%)</span></span>
                   </div>
                   <div className="h-1.5 bg-surface-500 rounded-full">
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
@@ -202,7 +202,7 @@ function ReportePersonal({ transacciones, cuentas, tarjetas }) {
 
       {txMes.length === 0 && (
         <div className="card p-6 text-center">
-          <p className="text-gray-500 text-sm">Sin transacciones en este período</p>
+          <p className="text-gray-400 text-sm">Sin transacciones en este período</p>
         </div>
       )}
     </div>
@@ -283,19 +283,19 @@ function ReporteNegocio({ transacciones, ventas, productos }) {
       {/* KPIs ventas */}
       <div className="grid grid-cols-2 gap-3">
         <div className="card p-4">
-          <p className="text-[10px] text-gray-500 mb-1">Ventas ({ventasMes.length})</p>
+          <p className="text-[10px] text-gray-400 mb-1">Ventas ({ventasMes.length})</p>
           <p className="text-xl font-bold font-mono text-white">{fmt(totalVentas)}</p>
         </div>
         <div className="card p-4 border-ok/20">
-          <p className="text-[10px] text-gray-500 mb-1">Ganancia neta</p>
+          <p className="text-[10px] text-gray-400 mb-1">Ganancia neta</p>
           <p className="text-xl font-bold font-mono text-ok">{fmt(totalGanancia)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-[10px] text-gray-500 mb-1">Costo de ventas</p>
+          <p className="text-[10px] text-gray-400 mb-1">Costo de ventas</p>
           <p className="text-xl font-bold font-mono text-bad">{fmt(totalCosto)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-[10px] text-gray-500 mb-1">Margen promedio</p>
+          <p className="text-[10px] text-gray-400 mb-1">Margen promedio</p>
           <p className="text-xl font-bold font-mono text-[var(--accent)]">{Math.round(margenProm)}%</p>
         </div>
       </div>
@@ -319,15 +319,15 @@ function ReporteNegocio({ transacciones, ventas, productos }) {
         <p className="text-sm font-semibold text-white mb-3">📦 Estado del inventario</p>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-[10px] text-gray-500">Cartas en stock</p>
+            <p className="text-[10px] text-gray-400">Cartas en stock</p>
             <p className="text-lg font-bold text-white">{totalStock}</p>
           </div>
           <div>
-            <p className="text-[10px] text-gray-500">Valor invertido</p>
+            <p className="text-[10px] text-gray-400">Valor invertido</p>
             <p className="text-sm font-bold font-mono text-bad">{fmt(valorStock)}</p>
           </div>
           <div>
-            <p className="text-[10px] text-gray-500">Valor de venta</p>
+            <p className="text-[10px] text-gray-400">Valor de venta</p>
             <p className="text-sm font-bold font-mono text-ok">{fmt(valorPotencial)}</p>
           </div>
         </div>
@@ -342,7 +342,7 @@ function ReporteNegocio({ transacciones, ventas, productos }) {
 
       {ventasMes.length === 0 && (
         <div className="card p-6 text-center">
-          <p className="text-gray-500 text-sm">Sin ventas registradas en este período</p>
+          <p className="text-gray-400 text-sm">Sin ventas registradas en este período</p>
         </div>
       )}
     </div>

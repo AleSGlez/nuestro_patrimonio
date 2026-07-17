@@ -20,14 +20,14 @@ export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, nombre
             <CreditCard size={18} style={{ color: tarjeta.color }} />
             <div>
               <p className="text-sm font-semibold text-white">{tarjeta.nombre}</p>
-              <p className="text-xs text-gray-500">{tarjeta.banco} · {personaLabel}</p>
+              <p className="text-xs text-gray-400">{tarjeta.banco} · {personaLabel}</p>
             </div>
           </div>
           <div className="flex gap-1">
-            <button onClick={() => onEdit(tarjeta)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white">
+            <button onClick={() => onEdit(tarjeta)} aria-label="Editar tarjeta" className="icon-btn text-gray-500 hover:text-white">
               <Pencil size={13} />
             </button>
-            <button onClick={() => onDelete(tarjeta)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-bad">
+            <button onClick={() => onDelete(tarjeta)} aria-label="Eliminar tarjeta" className="icon-btn text-gray-500 hover:text-bad">
               <Trash2 size={13} />
             </button>
           </div>
@@ -35,17 +35,17 @@ export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, nombre
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <p className="text-xs text-gray-500">Deuda total</p>
+            <p className="text-xs text-gray-400">Deuda total</p>
             <p className="text-lg font-bold font-mono text-bad">{fmt(tarjeta.saldo_total)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Disponible</p>
+            <p className="text-xs text-gray-400">Disponible</p>
             <p className="text-lg font-bold font-mono text-ok">{fmt(disponible)}</p>
           </div>
         </div>
 
         <div className="mb-3">
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <div className="flex justify-between text-xs text-gray-400 mb-1">
             <span>Uso del crédito</span>
             <span>{Math.round(uso)}% de {fmt(tarjeta.limite)}</span>
           </div>
