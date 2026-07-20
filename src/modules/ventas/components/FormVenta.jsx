@@ -1,5 +1,5 @@
 // src/modules/ventas/components/FormVenta.jsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Trash2, Check, Search, ChevronDown } from 'lucide-react'
 import Modal from '@ui/Modal'
 import { AmountInput, Select, Input } from '@ui/Field'
@@ -24,6 +24,7 @@ export default function FormVenta({ open, onClose }) {
   const [fecha, setFecha]           = useState(today())
   const [metodoCobro, setMetodo]    = useState('efectivo')
   const [cuentaId, setCuentaId]     = useState('')
+  const [montoRecibido, setMontoRecibido] = useState('')
   const [nota, setNota]             = useState('')
   const [paso, setPaso]             = useState(1)        // 1=cartas, 2=pago
 
@@ -79,17 +80,30 @@ export default function FormVenta({ open, onClose }) {
     }
   }, [items, metodoCobro])
 
+  // Al entrar al paso de pago, sugerir el monto recibido = total (pago completo)
+  useEffect(() => {
+    if (paso === 2) setMontoRecibido(String(totales.totalVenta))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paso])
+
+  const recibido  = cuentaId ? Math.min(Number(montoRecibido) || 0, totales.totalVenta) : 0
+  const pendiente = Math.max(0, totales.totalVenta - recibido)
+
   const handleGuardar = async () => {
     if (items.length === 0) { toast.error('Agrega al menos una carta'); return }
     const sinPrecio = items.find((i) => !i.precioVenta || Number(i.precioVenta) <= 0)
     if (sinPrecio) { toast.error(`Falta el precio de venta de "${sinPrecio.producto.nombre_jp || sinPrecio.producto.nombre_en}"`); return }
+    if (cuentaId && pendiente > 0 && !clienteId) {
+      toast.error('Selecciona un cliente para registrar el saldo pendiente como adeudo')
+      return
+    }
 
     try {
       await registrar.mutateAsync({
-        items, clienteId, fecha, metodoCobro, cuentaId, nota, cuentas,
+        items, clienteId, clientes, fecha, metodoCobro, cuentaId, montoRecibido, nota, cuentas,
       })
-      toast.success('Venta registrada ✅')
-      setItems([]); setClienteId(''); setCuentaId(''); setNota(''); setPaso(1)
+      toast.success(pendiente > 0 ? 'Venta registrada — con saldo pendiente ✅' : 'Venta registrada ✅')
+      setItems([]); setClienteId(''); setCuentaId(''); setMontoRecibido(''); setNota(''); setPaso(1)
       onClose()
     } catch (e) { toast.error(e.message) }
   }
@@ -277,6 +291,26 @@ export default function FormVenta({ open, onClose }) {
           </div>
 
           <Select label="Cuenta donde llega el dinero" value={cuentaId} onChange={setCuentaId} options={cuentaOpts} />
+
+          {cuentaId && (
+            <>
+              <AmountInput
+                label="Monto recibido ahora" value={montoRecibido} onChange={setMontoRecibido}
+                placeholder="0.00"
+              />
+              <p className="text-[11px] text-gray-400 -mt-3 mb-4">
+                Déjalo igual al total para pago completo, o bájalo si el cliente pagó solo una parte.
+              </p>
+              {pendiente > 0 && (
+                <p className={cn('text-[11px] mb-4 -mt-2', clienteId ? 'text-warn' : 'text-bad')}>
+                  {clienteId
+                    ? `Pendiente: ${fmt(pendiente)} — se registrará como adeudo en Cobros`
+                    : `Pendiente: ${fmt(pendiente)} — selecciona un cliente arriba para poder rastrear este saldo`}
+                </p>
+              )}
+            </>
+          )}
+
           <Input label="Nota (opcional)" value={nota} onChange={(e) => setNota(e.target.value)}
             placeholder="Referencia, tracking, etc." />
 

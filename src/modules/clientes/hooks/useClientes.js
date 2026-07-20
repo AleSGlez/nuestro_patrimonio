@@ -86,43 +86,51 @@ export function useClienteMovimientos(clienteId) {
 // (donde un pago_recibido solo toca el saldo de la cuenta), aquí también se crea
 // una transacción de ingreso vía aplicarEfecto, para que aparezca en Movimientos/
 // Reportes/Presupuesto de negocio sin lógica adicional.
+//
+// Exportada como función plana (no-hook) — la reusa useVentas.js al registrar una
+// venta con pago parcial, para crear el cargo del saldo pendiente con exactamente
+// la misma lógica que usa Cobros, sin duplicarla.
+export async function aplicarMovimientoCliente({ parejaId, cliente, tipo, monto, descripcion, fecha, ventaId, cuentaId, cuentas = [] }) {
+  const m = Number(monto)
+  const saldoAnterior = Number(cliente.saldo_pendiente)
+
+  let transaccionId = null
+  if (tipo === 'pago') {
+    const [creada] = await db.from('transacciones').insert({
+      pareja_id: parejaId,
+      tipo: 'ingreso', contexto: 'negocio', persona: 'ambos',
+      categoria: 'ventas',
+      descripcion: descripcion || `Pago de ${cliente.nombre}`,
+      fecha, metodo_pago: `cuenta:${cuentaId}`, cuenta_id: cuentaId, tarjeta_id: null,
+    })
+    await aplicarEfecto(creada, { cuentas, tarjetas: [] })
+    transaccionId = creada.id
+  }
+
+  await db.from('clientes_movimientos').insert({
+    pareja_id: parejaId, cliente_id: cliente.id, tipo, monto: m,
+    descripcion: descripcion || null, fecha: fecha || today(),
+    venta_id: ventaId || null,
+    cuenta_id: tipo === 'pago' ? cuentaId : null,
+    transaccion_id: transaccionId,
+  })
+
+  const nuevoSaldo = tipo === 'cargo' ? saldoAnterior + m : Math.max(0, saldoAnterior - m)
+  const payload = { saldo_pendiente: nuevoSaldo }
+  if (tipo === 'cargo' && saldoAnterior === 0) payload.adeudo_desde = fecha || today()
+  if (nuevoSaldo === 0) payload.adeudo_desde = null
+
+  await db.from('clientes').update(payload, { id: cliente.id })
+
+  return { transaccionId, nuevoSaldo }
+}
+
 export function useRegistrarMovimientoCliente() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ cliente, tipo, monto, descripcion, fecha, ventaId, cuentaId, cuentas = [] }) => {
-      const m = Number(monto)
-      const saldoAnterior = Number(cliente.saldo_pendiente)
-
-      let transaccionId = null
-      if (tipo === 'pago') {
-        const [creada] = await db.from('transacciones').insert({
-          pareja_id: parejaId,
-          tipo: 'ingreso', contexto: 'negocio', persona: 'ambos',
-          categoria: 'ventas',
-          descripcion: descripcion || `Pago de ${cliente.nombre}`,
-          fecha, metodo_pago: `cuenta:${cuentaId}`, cuenta_id: cuentaId, tarjeta_id: null,
-        })
-        await aplicarEfecto(creada, { cuentas, tarjetas: [] })
-        transaccionId = creada.id
-      }
-
-      await db.from('clientes_movimientos').insert({
-        pareja_id: parejaId, cliente_id: cliente.id, tipo, monto: m,
-        descripcion: descripcion || null, fecha: fecha || today(),
-        venta_id: ventaId || null,
-        cuenta_id: tipo === 'pago' ? cuentaId : null,
-        transaccion_id: transaccionId,
-      })
-
-      const nuevoSaldo = tipo === 'cargo' ? saldoAnterior + m : Math.max(0, saldoAnterior - m)
-      const payload = { saldo_pendiente: nuevoSaldo }
-      if (tipo === 'cargo' && saldoAnterior === 0) payload.adeudo_desde = fecha || today()
-      if (nuevoSaldo === 0) payload.adeudo_desde = null
-
-      await db.from('clientes').update(payload, { id: cliente.id })
-    },
+    mutationFn: (vars) => aplicarMovimientoCliente({ parejaId, ...vars }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['clientes', parejaId] })
       qc.invalidateQueries({ queryKey: ['clientes-adeudo', parejaId] })
@@ -135,36 +143,39 @@ export function useRegistrarMovimientoCliente() {
   })
 }
 
-// Elimina un movimiento y revierte su efecto — si era un 'pago' con transacción
+// Revierte un movimiento (cargo o pago) — si era un 'pago' con transacción
 // vinculada, revierte también el saldo de la cuenta y borra esa transacción
-// (mismo patrón que useEliminarLote en useCompras.js).
+// (mismo patrón que useEliminarLote en useCompras.js). Exportada como función
+// plana — la reusa useVentas.js al cancelar una venta que dejó un cargo abierto.
+export async function revertirMovimientoCliente({ movimiento, cliente, cuentas = [] }) {
+  const m = Number(movimiento.monto)
+  const saldoActual = Number(cliente.saldo_pendiente)
+
+  const nuevoSaldo = movimiento.tipo === 'cargo'
+    ? Math.max(0, saldoActual - m)
+    : saldoActual + m
+
+  const payload = { saldo_pendiente: nuevoSaldo }
+  if (nuevoSaldo === 0) payload.adeudo_desde = null
+  await db.from('clientes').update(payload, { id: cliente.id })
+
+  if (movimiento.tipo === 'pago' && movimiento.transaccion_id) {
+    const [tx] = await db.from('transacciones').query(`id=eq.${movimiento.transaccion_id}`)
+    if (tx) {
+      await revertirEfecto(tx, { cuentas, tarjetas: [] })
+      await db.from('transacciones').delete({ id: tx.id })
+    }
+  }
+
+  await db.from('clientes_movimientos').delete({ id: movimiento.id })
+}
+
 export function useEliminarMovimientoCliente() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ movimiento, cliente, cuentas = [] }) => {
-      const m = Number(movimiento.monto)
-      const saldoActual = Number(cliente.saldo_pendiente)
-
-      const nuevoSaldo = movimiento.tipo === 'cargo'
-        ? Math.max(0, saldoActual - m)
-        : saldoActual + m
-
-      const payload = { saldo_pendiente: nuevoSaldo }
-      if (nuevoSaldo === 0) payload.adeudo_desde = null
-      await db.from('clientes').update(payload, { id: cliente.id })
-
-      if (movimiento.tipo === 'pago' && movimiento.transaccion_id) {
-        const [tx] = await db.from('transacciones').query(`id=eq.${movimiento.transaccion_id}`)
-        if (tx) {
-          await revertirEfecto(tx, { cuentas, tarjetas: [] })
-          await db.from('transacciones').delete({ id: tx.id })
-        }
-      }
-
-      await db.from('clientes_movimientos').delete({ id: movimiento.id })
-    },
+    mutationFn: revertirMovimientoCliente,
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['clientes', parejaId] })
       qc.invalidateQueries({ queryKey: ['clientes-adeudo', parejaId] })

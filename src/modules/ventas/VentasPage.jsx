@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { Plus, TrendingUp, Package, ChevronRight, X } from 'lucide-react'
 import { useVentas, useVentaItems, useCancelarVenta, METODOS_COBRO } from './hooks/useVentas'
 import { useClientes } from '@modules/clientes/hooks/useClientes'
+import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
@@ -14,6 +15,7 @@ const METODO_LABEL = Object.fromEntries(METODOS_COBRO.map((m) => [m.value, m.lab
 
 function DetalleVenta({ venta, clientes, onClose }) {
   const { data: items = [] } = useVentaItems(venta?.id)
+  const { data: cuentas = [] } = useCuentas()
   const cancelar = useCancelarVenta()
   const toast = useToast()
   const confirmar = useConfirm()
@@ -22,9 +24,12 @@ function DetalleVenta({ venta, clientes, onClose }) {
   const cliente = clientes.find((c) => c.id === venta.cliente_id)
 
   const handleCancelar = async () => {
-    if (!(await confirmar({ message: '¿Cancelar esta venta? No revierte el stock automáticamente.' }))) return
-    try { await cancelar.mutateAsync(venta.id); toast.success('Venta cancelada'); onClose() }
-    catch (e) { toast.error(e.message) }
+    if (!(await confirmar({ message: '¿Cancelar esta venta? Se devuelve el stock, se revierte el cobro (si hubo) y el adeudo pendiente (si quedó alguno).' }))) return
+    try {
+      await cancelar.mutateAsync({ ventaId: venta.id, cuentas })
+      toast.success('Venta cancelada')
+      onClose()
+    } catch (e) { toast.error(e.message) }
   }
 
   return (
