@@ -12,7 +12,7 @@ import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormTransaccion from './components/FormTransaccion'
 import TransferRow from './components/TransferRow'
-import { fmt, fmtDate, currentMonth, cn, CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO } from '@lib/utils'
+import { fmt, fmtDate, currentMonth, cn, CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, TIPO_EMOJI_CUENTA } from '@lib/utils'
 import { format, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -84,6 +84,7 @@ export default function TransactionsPage() {
   const [filterTipo, setFilterTipo]         = useState('')
   const [filterContexto, setFilterContexto] = useState('')
   const [filterPersona, setFilterPersona]   = useState('')
+  const [filterCuenta, setFilterCuenta]     = useState('') // "cuenta:UUID" | "tarjeta:UUID"
   const [filterMes, setFilterMes] = useState(currentMonth())
   const [showFilters, setShowFilters] = useState(false)
 
@@ -93,18 +94,28 @@ export default function TransactionsPage() {
   const cuentasMap = useMemo(() => Object.fromEntries(cuentas.map((c) => [c.id, c])), [cuentas])
   const tarjetasMap = useMemo(() => Object.fromEntries(tarjetas.map((t) => [t.id, t])), [tarjetas])
 
+  // Selector unificado de cuenta/tarjeta para el filtro — mismo patrón que el
+  // dropdown de método de pago en FormTransaccion (@lib/utils.js TIPO_EMOJI_CUENTA)
+  const cuentaTarjetaOpts = useMemo(() => [
+    ...cuentas.map((c) => ({ value: `cuenta:${c.id}`, label: `${TIPO_EMOJI_CUENTA[c.tipo] || '💳'} ${c.nombre}` })),
+    ...tarjetas.map((t) => ({ value: `tarjeta:${t.id}`, label: `💳 ${t.nombre} (crédito)` })),
+  ], [cuentas, tarjetas])
+
   const filtered = useMemo(() => {
+    const [filtroTipoCuenta, filtroCuentaId] = filterCuenta ? filterCuenta.split(':') : []
     return transacciones.filter((t) => {
       if (filterTipo && t.tipo !== filterTipo) return false
       if (filterContexto && t.contexto !== filterContexto) return false
       if (filterPersona && t.persona !== filterPersona) return false
+      if (filtroTipoCuenta === 'cuenta' && t.cuenta_id !== filtroCuentaId) return false
+      if (filtroTipoCuenta === 'tarjeta' && t.tarjeta_id !== filtroCuentaId) return false
       if (search) {
         const q = search.toLowerCase()
         if (!t.descripcion?.toLowerCase().includes(q) && !t.categoria.toLowerCase().includes(q)) return false
       }
       return true
     })
-  }, [transacciones, filterTipo, filterContexto, filterPersona, search])
+  }, [transacciones, filterTipo, filterContexto, filterPersona, filterCuenta, search])
 
   const filteredTransfers = useMemo(() => {
     if (!search) return transferencias
@@ -160,7 +171,7 @@ export default function TransactionsPage() {
     }
   }
 
-  const activeFilters = [filterTipo, filterContexto, filterPersona].filter(Boolean).length
+  const activeFilters = [filterTipo, filterContexto, filterPersona, filterCuenta].filter(Boolean).length
 
   return (
     <>
@@ -242,6 +253,12 @@ export default function TransactionsPage() {
                 <option value="ambos">Ambos</option>
               </select>
             </div>
+            <select value={filterCuenta} onChange={(e) => setFilterCuenta(e.target.value)} className="input-sm">
+              <option value="">Todas las cuentas</option>
+              {cuentaTarjetaOpts.map((o) => (
+                <option key={o.value} value={o.value} className="bg-surface-800">{o.label}</option>
+              ))}
+            </select>
           </div>
         )}
 
