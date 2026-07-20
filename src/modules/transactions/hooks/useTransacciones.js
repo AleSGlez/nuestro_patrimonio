@@ -83,8 +83,7 @@ export async function aplicarEfecto(tx, ctx) {
     const tarjeta = ctx.tarjetas.find((t) => t.id === metodo.id)
     if (tarjeta) {
       await db.from('tarjetas').update({
-        saldo_total:           Number(tarjeta.saldo_total) + m,
-        gastos_periodo_actual: Number(tarjeta.gastos_periodo_actual) + m,
+        saldo_total: Number(tarjeta.saldo_total) + m,
       }, { id: tarjeta.id })
     }
   }
@@ -113,8 +112,7 @@ export async function revertirEfecto(tx, ctx) {
     const tarjeta = ctx.tarjetas.find((t) => t.id === metodo.id)
     if (tarjeta) {
       await db.from('tarjetas').update({
-        saldo_total:           Math.max(0, Number(tarjeta.saldo_total) - m),
-        gastos_periodo_actual: Math.max(0, Number(tarjeta.gastos_periodo_actual) - m),
+        saldo_total: Math.max(0, Number(tarjeta.saldo_total) - m),
       }, { id: tarjeta.id })
     }
   }

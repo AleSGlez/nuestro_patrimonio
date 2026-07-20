@@ -96,7 +96,6 @@ export default function FormTransferencia({ open, onClose }) {
           cuentaId: origenId, cuentaSaldo: cuenta.saldo,
           tarjetaId: destinoId,
           tarjetaSaldoTotal: tarjeta.saldo_total,
-          tarjetaSaldoAnterior: tarjeta.saldo_periodo_anterior,
           monto, descripcion, fecha,
         })
       } else if (tipo === 'disposicion_efectivo') {
@@ -105,7 +104,6 @@ export default function FormTransferencia({ open, onClose }) {
         await disposicion.mutateAsync({
           tarjetaId: origenId,
           tarjetaSaldoTotal: tarjeta.saldo_total,
-          tarjetaGastosPeriodo: tarjeta.gastos_periodo_actual,
           cuentaId: destinoId, cuentaSaldo: cuenta.saldo,
           monto, comision, descripcion, fecha,
         })

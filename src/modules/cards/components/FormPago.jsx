@@ -69,7 +69,6 @@ export default function FormPago({ open, onClose, tarjeta }) {
           cuentaId: cuentaOrigenId, cuentaSaldo: cuentaOrigen.saldo,
           tarjetaId: tarjeta.id,
           tarjetaSaldoTotal: tarjeta.saldo_total,
-          tarjetaSaldoAnterior: tarjeta.saldo_periodo_anterior,
           monto, fecha,
         })
       } else {
@@ -78,7 +77,6 @@ export default function FormPago({ open, onClose, tarjeta }) {
           cuentaId, cuentaSaldo: cuenta.saldo,
           tarjetaId: tarjeta.id,
           tarjetaSaldoTotal: tarjeta.saldo_total,
-          tarjetaSaldoAnterior: tarjeta.saldo_periodo_anterior,
           monto, fecha,
         })
       }

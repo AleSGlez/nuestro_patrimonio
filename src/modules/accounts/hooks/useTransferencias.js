@@ -35,7 +35,7 @@ export function usePagarTarjeta() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ cuentaId, cuentaSaldo, tarjetaId, tarjetaSaldoTotal, tarjetaSaldoAnterior, tarjetaPagoSinIntereses, monto, descripcion, fecha }) => {
+    mutationFn: async ({ cuentaId, cuentaSaldo, tarjetaId, tarjetaSaldoTotal, monto, descripcion, fecha }) => {
       const m = Number(monto)
 
       await db.from('transferencias').insert({
@@ -51,15 +51,10 @@ export function usePagarTarjeta() {
       // Descontar de la cuenta origen
       await db.from('cuentas').update({ saldo: Number(cuentaSaldo) - m }, { id: cuentaId })
 
-      // El pago reduce la deuda total y el saldo del período anterior exigible
-      // pago_sin_intereses es lo que el usuario definió manualmente — NO se toca aquí
-      const nuevoTotal    = Math.max(0, Number(tarjetaSaldoTotal) - m)
-      const nuevoAnterior = Math.max(0, Number(tarjetaSaldoAnterior) - m)
-
+      // El pago reduce la deuda total. pago_sin_intereses es lo que el usuario
+      // definió manualmente — NO se toca aquí (regla de negocio §11).
       await db.from('tarjetas').update({
-        saldo_total: nuevoTotal,
-        saldo_periodo_anterior: nuevoAnterior,
-        // pago_sin_intereses NO se modifica — es el campo manual del usuario
+        saldo_total: Math.max(0, Number(tarjetaSaldoTotal) - m),
       }, { id: tarjetaId })
     },
     onSuccess: () => {
@@ -77,7 +72,7 @@ export function useDisposicionEfectivo() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ tarjetaId, tarjetaSaldoTotal, tarjetaGastosPeriodo, cuentaId, cuentaSaldo, monto, comision, descripcion, fecha }) => {
+    mutationFn: async ({ tarjetaId, tarjetaSaldoTotal, cuentaId, cuentaSaldo, monto, comision, descripcion, fecha }) => {
       const m = Number(monto)
       const com = Number(comision) || 0
       const totalDeuda = m + com
@@ -100,7 +95,6 @@ export function useDisposicionEfectivo() {
       // La deuda de la tarjeta sube por el monto retirado MÁS la comisión
       await db.from('tarjetas').update({
         saldo_total: Number(tarjetaSaldoTotal) + totalDeuda,
-        gastos_periodo_actual: Number(tarjetaGastosPeriodo) + totalDeuda,
       }, { id: tarjetaId })
     },
     onSuccess: () => {
@@ -157,11 +151,12 @@ export function useEliminarTransferencia() {
         const cuenta  = cuentas.find((c) => c.id === t.origen_cuenta_id)
         const tarjeta = tarjetas.find((tj) => tj.id === t.destino_tarjeta_id)
         if (cuenta)  await db.from('cuentas').update({ saldo: Number(cuenta.saldo) + m }, { id: cuenta.id })
+        // pago_sin_intereses NO se toca — es manual (regla de negocio §11), igual
+        // que en usePagarTarjeta al aplicar el pago. Antes se sumaba aquí y no allá,
+        // una asimetría que dejaba ese campo mal cada vez que se revertía un pago.
         if (tarjeta) {
           await db.from('tarjetas').update({
             saldo_total: Number(tarjeta.saldo_total) + m,
-            saldo_periodo_anterior: Number(tarjeta.saldo_periodo_anterior) + m,
-            pago_sin_intereses: Number(tarjeta.pago_sin_intereses) + m,
           }, { id: tarjeta.id })
         }
       }
@@ -175,7 +170,6 @@ export function useEliminarTransferencia() {
         if (tarjeta) {
           await db.from('tarjetas').update({
             saldo_total: Math.max(0, Number(tarjeta.saldo_total) - totalDeuda),
-            gastos_periodo_actual: Math.max(0, Number(tarjeta.gastos_periodo_actual) - totalDeuda),
           }, { id: tarjeta.id })
         }
       }

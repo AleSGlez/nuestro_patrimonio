@@ -24,17 +24,12 @@ export function useCrearTarjeta() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: (data) => {
-      const fechas = calcularFechasCorte(data.dia_corte, data.dia_limite_pago)
-      return db.from('tarjetas').insert({
-        ...data,
-        pareja_id: parejaId,
-        saldo_total: data.saldo_periodo_anterior || 0,
-        pago_sin_intereses: data.saldo_periodo_anterior || 0,
-        fecha_corte_proxima: fechas.corte,
-        fecha_limite_proxima: fechas.limite,
-      })
-    },
+    mutationFn: (data) => db.from('tarjetas').insert({
+      ...data,
+      pareja_id: parejaId,
+      saldo_total: data.saldo_periodo_anterior || 0,
+      pago_sin_intereses: data.saldo_periodo_anterior || 0,
+    }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] }),
   })
 }
@@ -44,16 +39,7 @@ export function useActualizarTarjeta() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: ({ id, data }) => {
-      // Si cambiaron las fechas de corte, recalcular próximas fechas
-      const payload = { ...data }
-      if (data.dia_corte || data.dia_limite_pago) {
-        const fechas = calcularFechasCorte(data.dia_corte, data.dia_limite_pago)
-        payload.fecha_corte_proxima  = fechas.corte
-        payload.fecha_limite_proxima = fechas.limite
-      }
-      return db.from('tarjetas').update(payload, { id })
-    },
+    mutationFn: ({ id, data }) => db.from('tarjetas').update(data, { id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] }),
   })
 }
@@ -68,11 +54,18 @@ export function useEliminarTarjeta() {
   })
 }
 
-// ── Desglose del próximo corte por responsable (P1/P2/Negocio) ──────
-// Se calcula EN VIVO desde transacciones/transferencias del período vigente
-// (periodoTarjeta), no desde `gastos_periodo_actual` — ese contador nunca se
-// resetea automáticamente en la app hoy (no hay caller de useProcesarCorte), así
-// que no es confiable como fuente de este cálculo.
+// ── Estado de cuenta en vivo: corte actual + próximo corte por responsable ──
+// Todo se deriva de datos siempre frescos, nunca de columnas guardadas que
+// puedan quedar viejas (fecha_corte_proxima/fecha_limite_proxima/
+// gastos_periodo_actual/saldo_periodo_anterior ya no se mantienen — ver
+// migration notes / CLAUDE.md §21 auditoría de tarjetas):
+//   - fechas de corte/límite → calcularFechasCorte(), calculada al vuelo.
+//   - "próximo corte" (aún no facturado) → periodoTarjeta() sobre
+//     transacciones/transferencias del período vigente.
+//   - "corte actual" (ya facturado, por vencer) → saldo_total − próximo corte.
+//     No se desglosa por responsable: los pagos de tarjeta no se atribuyen a
+//     P1/P2/Negocio en este modelo, así que no hay forma exacta de dividir un
+//     saldo que ya pudo haberse pagado parcialmente.
 // `enabled` permite activarlo solo cuando el usuario abre el detalle del corte,
 // para no disparar una consulta extra por cada tarjeta de la lista.
 export function useDesgloseCorteTarjeta(tarjeta, enabled = true) {
@@ -113,53 +106,20 @@ export function useDesgloseCorteTarjeta(tarjeta, enabled = true) {
         (s, t) => s + Number(t.monto) + Number(t.comision || 0), 0
       )
 
-      const total = negocio + p1 + p2 + disposicionEfectivo
+      const proximoCorteTotal = negocio + p1 + p2 + disposicionEfectivo
+      const corteActual = Math.max(0, Number(tarjeta.saldo_total) - proximoCorteTotal)
+      const { corte: fechaCorteProxima, limite: fechaLimiteProxima } =
+        calcularFechasCorte(tarjeta.dia_corte, tarjeta.dia_limite_pago)
 
-      return { inicio, fin, p1, p2, negocio, disposicionEfectivo, total }
+      return {
+        inicio, fin, p1, p2, negocio, disposicionEfectivo,
+        total: proximoCorteTotal,
+        corteActual,
+        fechaCorteProxima, fechaLimiteProxima,
+      }
     },
     enabled: enabled && !!parejaId && !!tarjeta?.id && !!diaCorte,
     staleTime: 1000 * 60,
-  })
-}
-
-// ── Registrar un gasto con tarjeta ───────────────────────────
-// Suma al saldo_total y a gastos_periodo_actual (se cobra hasta el siguiente corte)
-export function useRegistrarGastoTarjeta() {
-  const qc = useQueryClient()
-  const parejaId = useAuthStore((s) => s.pareja?.id)
-
-  return useMutation({
-    mutationFn: async ({ tarjetaId, saldoTotal, gastosPeriodoActual, monto }) => {
-      const m = Number(monto)
-      await db.from('tarjetas').update({
-        saldo_total: Number(saldoTotal) + m,
-        gastos_periodo_actual: Number(gastosPeriodoActual) + m,
-      }, { id: tarjetaId })
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] }),
-  })
-}
-
-// ── Procesar corte de tarjeta ─────────────────────────────────
-// Cuando llega la fecha de corte: lo que estaba en "gastos_periodo_actual"
-// se convierte en "saldo_periodo_anterior" (ahora exigible para pago sin intereses)
-// y se recalculan las próximas fechas.
-export function useProcesarCorte() {
-  const qc = useQueryClient()
-  const parejaId = useAuthStore((s) => s.pareja?.id)
-
-  return useMutation({
-    mutationFn: async ({ tarjetaId, gastosPeriodoActual, diaCorte, diaLimitePago }) => {
-      const fechas = calcularFechasCorte(diaCorte, diaLimitePago)
-      await db.from('tarjetas').update({
-        saldo_periodo_anterior: Number(gastosPeriodoActual),
-        pago_sin_intereses: Number(gastosPeriodoActual),
-        gastos_periodo_actual: 0,
-        fecha_corte_proxima: fechas.corte,
-        fecha_limite_proxima: fechas.limite,
-      }, { id: tarjetaId })
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] }),
   })
 }
 

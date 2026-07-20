@@ -3,7 +3,7 @@ import { LogOut, Settings, TrendingUp, TrendingDown, AlertCircle, ArrowRight } f
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
-import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
+import { useTarjetas, calcularFechasCorte, diasHasta } from '@modules/cards/hooks/useTarjetas'
 import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { usePersonas } from '@modules/personas/hooks/usePersonas'
 import { useDashboardData } from '@modules/dashboard/hooks/useDashboard'
@@ -80,11 +80,10 @@ export default function InicioPage({ onNavegar }) {
   // Solo alertas de tarjetas — personas ya aparece en el grid
   const alertas = []
   tarjetas.forEach((t) => {
-    if (t.dia_limite_pago) {
-      const hoy = new Date()
-      const limite = new Date(hoy.getFullYear(), hoy.getMonth(), t.dia_limite_pago)
-      const dias = Math.ceil((limite - hoy) / 86400000)
-      if (dias >= 0 && dias <= 5) {
+    if (t.dia_corte && t.dia_limite_pago) {
+      const { limite } = calcularFechasCorte(t.dia_corte, t.dia_limite_pago)
+      const dias = diasHasta(limite)
+      if (dias != null && dias >= 0 && dias <= 5) {
         alertas.push({ msg: `Pago ${t.nombre} vence ${dias === 0 ? 'hoy' : `en ${dias} días`}`, tipo: 'warn' })
       }
     }

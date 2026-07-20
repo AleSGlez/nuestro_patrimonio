@@ -1,15 +1,18 @@
 // src/modules/cards/components/TarjetaCard.jsx
 import { CreditCard, Pencil, Trash2, PieChart } from 'lucide-react'
 import { fmt, cn } from '@lib/utils'
-import { diasHasta } from '../hooks/useTarjetas'
+import { diasHasta, calcularFechasCorte } from '../hooks/useTarjetas'
 
 export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerDesglose, nombres }) {
   const uso = tarjeta.limite > 0 ? Math.min(100, (tarjeta.saldo_total / tarjeta.limite) * 100) : 0
   const disponible = Math.max(0, tarjeta.limite - tarjeta.saldo_total)
   const personaLabel = { p1: nombres.p1, p2: nombres.p2, ambos: 'Compartida' }[tarjeta.persona]
 
-  const diasCorte  = diasHasta(tarjeta.fecha_corte_proxima)
-  const diasLimite = diasHasta(tarjeta.fecha_limite_proxima)
+  // Fechas siempre en vivo — nunca se guardan ni pueden quedar viejas
+  const { corte: fechaCorteProxima, limite: fechaLimiteProxima } =
+    calcularFechasCorte(tarjeta.dia_corte, tarjeta.dia_limite_pago)
+  const diasCorte  = diasHasta(fechaCorteProxima)
+  const diasLimite = diasHasta(fechaLimiteProxima)
 
   return (
     <div className="card p-4 relative overflow-hidden">
@@ -67,12 +70,12 @@ export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerD
         )}
 
         {/* Fechas */}
-        {(tarjeta.fecha_corte_proxima || tarjeta.fecha_limite_proxima) && (
+        {(fechaCorteProxima || fechaLimiteProxima) && (
           <div className="flex gap-4 mb-3 text-xs text-gray-400">
-            {tarjeta.fecha_corte_proxima && (
+            {fechaCorteProxima && (
               <span>✂️ Corte en {diasCorte} {diasCorte === 1 ? 'día' : 'días'}</span>
             )}
-            {tarjeta.fecha_limite_proxima && (
+            {fechaLimiteProxima && (
               <span className={diasLimite <= 3 ? 'text-warn font-medium' : ''}>
                 📅 Límite en {diasLimite} {diasLimite === 1 ? 'día' : 'días'}
               </span>

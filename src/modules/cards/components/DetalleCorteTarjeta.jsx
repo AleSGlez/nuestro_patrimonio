@@ -20,7 +20,8 @@ export default function DetalleCorteTarjeta({ open, onClose, tarjeta, nombres })
     )
   }
 
-  const dias = diasHasta(tarjeta.fecha_corte_proxima)
+  const diasLimite = diasHasta(data?.fechaLimiteProxima)
+  const diasCorte  = diasHasta(data?.fechaCorteProxima)
 
   const lineas = data ? [
     { key: 'p1',      label: nombres.p1, emoji: '👤', valor: data.p1 },
@@ -39,18 +40,29 @@ export default function DetalleCorteTarjeta({ open, onClose, tarjeta, nombres })
         </div>
       ) : (
         <>
+          {/* Corte actual — ya facturado, por vencer */}
+          <div className="card p-4 mb-3">
+            <p className="text-xs text-gray-400 mb-1">
+              {data?.fechaLimiteProxima && `Vence el ${fmtDate(data.fechaLimiteProxima, 'medium')}`}
+              {diasLimite != null && ` · en ${diasLimite} ${diasLimite === 1 ? 'día' : 'días'}`}
+            </p>
+            <p className="text-2xl font-bold font-mono text-bad">{fmt(data?.corteActual || 0)}</p>
+            <p className="text-xs text-gray-400">Corte actual — ya facturado</p>
+          </div>
+
+          {/* Próximo corte — aún se está acumulando, con desglose por responsable */}
           <div className="card p-4 mb-4">
             <p className="text-xs text-gray-400 mb-1">
-              {tarjeta.fecha_corte_proxima && `Corte el ${fmtDate(tarjeta.fecha_corte_proxima, 'medium')}`}
-              {dias != null && ` · en ${dias} ${dias === 1 ? 'día' : 'días'}`}
+              {data?.fechaCorteProxima && `Se cierra el ${fmtDate(data.fechaCorteProxima, 'medium')}`}
+              {diasCorte != null && ` · en ${diasCorte} ${diasCorte === 1 ? 'día' : 'días'}`}
             </p>
             {data && (
               <p className="text-[11px] text-gray-500 mb-2">
                 Período: {fmtDate(data.inicio)} – {fmtDate(data.fin)}
               </p>
             )}
-            <p className="text-3xl font-bold font-mono text-bad">{fmt(data?.total || 0)}</p>
-            <p className="text-xs text-gray-400">Total del próximo corte</p>
+            <p className="text-2xl font-bold font-mono text-white">{fmt(data?.total || 0)}</p>
+            <p className="text-xs text-gray-400">Próximo corte — aún se está acumulando</p>
           </div>
 
           {data?.total > 0 ? (
