@@ -9,7 +9,7 @@ import { useProductos } from '@modules/inventario/hooks/useInventario'
 import { useClientes } from '@modules/clientes/hooks/useClientes'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useRegistrarVenta, METODOS_COBRO, calcularCostoReal } from '../hooks/useVentas'
-import { fmt, cn, today } from '@lib/utils'
+import { fmt, cn, today, getNivelCliente } from '@lib/utils'
 
 export default function FormVenta({ open, onClose }) {
   const toast = useToast()
@@ -96,7 +96,10 @@ export default function FormVenta({ open, onClose }) {
 
   const clienteOpts = [
     { value: '', label: 'Sin cliente específico' },
-    ...clientes.map((c) => ({ value: c.id, label: `${c.nombre}${c.telefono ? ` · ${c.telefono}` : ''}` })),
+    ...clientes.map((c) => ({
+      value: c.id,
+      label: `${getNivelCliente(c.nivel).emoji} ${c.nombre}${c.telefono ? ` · ${c.telefono}` : ''}`,
+    })),
   ]
 
   const cuentaOpts = [

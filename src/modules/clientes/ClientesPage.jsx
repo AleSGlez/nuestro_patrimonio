@@ -1,13 +1,14 @@
 // src/modules/clientes/ClientesPage.jsx
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, ChevronRight, Check, Phone, Instagram } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronRight, ChevronDown, Check, Phone, Instagram, Truck, MapPin } from 'lucide-react'
 import { useClientes, useCrearCliente, useActualizarCliente, useEliminarCliente, useVentasCliente } from './hooks/useClientes'
 import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState, Input } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
-import { fmt, cn, fmtDate } from '@lib/utils'
+import NivelBadge from './components/NivelBadge'
+import { fmt, cn, fmtDate, NIVEL_CLIENTE } from '@lib/utils'
 
 function FormCliente({ open, onClose, cliente = null }) {
   const toast = useToast()
@@ -20,8 +21,20 @@ function FormCliente({ open, onClose, cliente = null }) {
   const [telefono, setTelefono]   = useState(cliente?.telefono || '')
   const [email, setEmail]         = useState(cliente?.email || '')
   const [instagram, setInstagram] = useState(cliente?.instagram || '')
+  const [nivel, setNivel]         = useState(cliente?.nivel || 'nuevo')
   const [wishlist, setWishlist]   = useState(cliente?.wishlist || '')
   const [nota, setNota]           = useState(cliente?.nota || '')
+
+  // Información adicional — colapsada por default para no saturar el form
+  const [showMas, setShowMas]         = useState(false)
+  const [haceEnvios, setHaceEnvios]   = useState(cliente?.hace_envios || false)
+  const [calle, setCalle]             = useState(cliente?.direccion_calle || '')
+  const [numero, setNumero]           = useState(cliente?.direccion_numero || '')
+  const [colonia, setColonia]         = useState(cliente?.direccion_colonia || '')
+  const [ciudad, setCiudad]           = useState(cliente?.direccion_ciudad || '')
+  const [estadoDir, setEstadoDir]     = useState(cliente?.direccion_estado || '')
+  const [cp, setCp]                   = useState(cliente?.direccion_cp || '')
+  const [pais, setPais]               = useState(cliente?.direccion_pais || 'México')
 
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
@@ -30,8 +43,17 @@ function FormCliente({ open, onClose, cliente = null }) {
       telefono: telefono.trim() || null,
       email: email.trim() || null,
       instagram: instagram.trim() || null,
+      nivel,
       wishlist: wishlist.trim() || null,
       nota: nota.trim() || null,
+      hace_envios: haceEnvios,
+      direccion_calle: calle.trim() || null,
+      direccion_numero: numero.trim() || null,
+      direccion_colonia: colonia.trim() || null,
+      direccion_ciudad: ciudad.trim() || null,
+      direccion_estado: estadoDir.trim() || null,
+      direccion_cp: cp.trim() || null,
+      direccion_pais: pais.trim() || null,
     }
     try {
       if (isEdit) {
@@ -55,6 +77,25 @@ function FormCliente({ open, onClose, cliente = null }) {
         placeholder="correo@ejemplo.com" />
       <Input label="Instagram" value={instagram} onChange={(e) => setInstagram(e.target.value)}
         placeholder="@usuario" />
+
+      <div className="mb-4">
+        <label className="label">Nivel de cliente</label>
+        <div className="grid grid-cols-3 gap-2">
+          {NIVEL_CLIENTE.map((n) => (
+            <button
+              key={n.value} type="button" onClick={() => setNivel(n.value)}
+              className={cn(
+                'py-2 rounded-xl border text-xs font-medium transition-all',
+                nivel === n.value ? 'border-current' : 'border-white/10 text-gray-400'
+              )}
+              style={nivel === n.value ? { color: n.color, backgroundColor: `${n.color}18` } : undefined}
+            >
+              {n.emoji} {n.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-4">
         <label className="label">Wishlist / Cartas que busca</label>
         <textarea
@@ -67,6 +108,54 @@ function FormCliente({ open, onClose, cliente = null }) {
       </div>
       <Input label="Nota" value={nota} onChange={(e) => setNota(e.target.value)}
         placeholder="Comentarios adicionales" />
+
+      {/* Información adicional — colapsable */}
+      <button
+        type="button" onClick={() => setShowMas((v) => !v)}
+        className="flex items-center justify-between w-full py-3 border-t border-white/[0.06] mb-3 text-sm text-gray-300"
+      >
+        <span className="font-medium">Información adicional</span>
+        <ChevronDown size={16} className={cn('transition-transform', showMas && 'rotate-180')} />
+      </button>
+
+      {showMas && (
+        <div className="animate-slide-up">
+          <div className="flex items-center justify-between py-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Truck size={15} className="text-gray-400" />
+              <span className="text-sm text-white">¿Se hacen envíos?</span>
+            </div>
+            <button
+              type="button" onClick={() => setHaceEnvios((v) => !v)}
+              className={cn('w-11 h-6 rounded-full transition-colors relative flex-shrink-0',
+                haceEnvios ? 'bg-[var(--accent)]' : 'bg-surface-600')}
+            >
+              <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform',
+                haceEnvios ? 'translate-x-[22px]' : 'translate-x-0.5')} />
+            </button>
+          </div>
+
+          {haceEnvios && (
+            <div className="mb-2">
+              <label className="label flex items-center gap-1.5"><MapPin size={12} /> Dirección de envío</label>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <input value={calle} onChange={(e) => setCalle(e.target.value)} placeholder="Calle" className="input col-span-2" />
+                <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Número" className="input" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <input value={colonia} onChange={(e) => setColonia(e.target.value)} placeholder="Colonia" className="input" />
+                <input value={cp} onChange={(e) => setCp(e.target.value)} placeholder="Código postal" className="input" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <input value={ciudad} onChange={(e) => setCiudad(e.target.value)} placeholder="Ciudad" className="input" />
+                <input value={estadoDir} onChange={(e) => setEstadoDir(e.target.value)} placeholder="Estado" className="input" />
+              </div>
+              <input value={pais} onChange={(e) => setPais(e.target.value)} placeholder="País" className="input mb-3" />
+            </div>
+          )}
+        </div>
+      )}
+
       <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold mt-2">
         {loading ? <Spinner size="sm" /> : <><Check size={16} />{isEdit ? 'Guardar' : 'Agregar cliente'}</>}
       </button>
@@ -88,8 +177,11 @@ function DetalleCliente({ cliente, onClose, onEdit }) {
 
         <div className="flex items-start justify-between mb-4">
           <div>
-            <p className="text-base font-bold text-white">{cliente.nombre}</p>
-            <div className="flex gap-3 mt-1">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-base font-bold text-white">{cliente.nombre}</p>
+              <NivelBadge nivel={cliente.nivel} />
+            </div>
+            <div className="flex gap-3">
               {cliente.telefono && (
                 <a href={`tel:${cliente.telefono}`} className="flex items-center gap-1 text-[11px] text-[var(--accent)]">
                   <Phone size={11} /> {cliente.telefono}
@@ -106,6 +198,29 @@ function DetalleCliente({ cliente, onClose, onEdit }) {
             <Pencil size={13} /> Editar
           </button>
         </div>
+
+        {/* Envíos / dirección */}
+        {(cliente.hace_envios || cliente.direccion_calle) && (
+          <div className="bg-surface-700 rounded-xl p-3 mb-4">
+            <p className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
+              <Truck size={13} /> {cliente.hace_envios ? 'Se hacen envíos' : 'No se hacen envíos'}
+            </p>
+            {cliente.direccion_calle && (
+              <p className="text-xs text-gray-300 leading-relaxed flex items-start gap-1.5 mt-1.5">
+                <MapPin size={12} className="mt-0.5 flex-shrink-0 text-gray-400" />
+                <span>
+                  {[
+                    [cliente.direccion_calle, cliente.direccion_numero].filter(Boolean).join(' '),
+                    cliente.direccion_colonia,
+                    [cliente.direccion_ciudad, cliente.direccion_estado].filter(Boolean).join(', '),
+                    cliente.direccion_cp,
+                    cliente.direccion_pais,
+                  ].filter(Boolean).join(' · ')}
+                </span>
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -190,7 +305,10 @@ export default function ClientesPage() {
                   👤
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{c.nombre}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-white truncate">{c.nombre}</p>
+                    <NivelBadge nivel={c.nivel} />
+                  </div>
                   <p className="text-[11px] text-gray-400">
                     {c.telefono || c.instagram || c.email || 'Sin contacto'}
                   </p>

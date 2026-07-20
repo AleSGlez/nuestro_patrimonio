@@ -7,6 +7,7 @@ import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormVenta from './components/FormVenta'
+import NivelBadge from '@modules/clientes/components/NivelBadge'
 import { fmt, cn, fmtDate } from '@lib/utils'
 
 const METODO_LABEL = Object.fromEntries(METODOS_COBRO.map((m) => [m.value, m.label]))
@@ -37,9 +38,12 @@ function DetalleVenta({ venta, clientes, onClose }) {
             <p className="text-sm font-bold text-white">
               Venta — {fmtDate(venta.fecha)}
             </p>
-            <p className="text-xs text-gray-400">
-              {cliente?.nombre || 'Sin cliente'} · {METODO_LABEL[venta.metodo_cobro]}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs text-gray-400">
+                {cliente?.nombre || 'Sin cliente'} · {METODO_LABEL[venta.metodo_cobro]}
+              </p>
+              {cliente && <NivelBadge nivel={cliente.nivel} />}
+            </div>
           </div>
           <span className={cn('text-[10px] px-2 py-1 rounded-full font-medium',
             venta.estado === 'completada' ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'

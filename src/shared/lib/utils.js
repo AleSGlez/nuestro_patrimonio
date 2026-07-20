@@ -137,6 +137,17 @@ export const IDIOMAS = [
   { value: 'ZH', label: '🇨🇳 Chino',    flag: '🇨🇳' },
 ]
 
+// ── Nivel de cliente ─────────────────────────────────────────
+export const NIVEL_CLIENTE = [
+  { value: 'nuevo',  label: 'Nuevo',  emoji: '🟢', color: '#10B981' },
+  { value: 'normal', label: 'Normal', emoji: '🔵', color: '#3B82F6' },
+  { value: 'vip',    label: 'VIP',    emoji: '🟣', color: '#A855F7' },
+]
+
+export function getNivelCliente(value) {
+  return NIVEL_CLIENTE.find((n) => n.value === value) || NIVEL_CLIENTE[0]
+}
+
 // ── Gasto efectivo para una persona ──────────────────────────
 // Si la transacción es 'ambos', cuenta al 50% para cada persona.
 // Si es de la persona específica o el filtro es 'ambos', cuenta al 100%.
