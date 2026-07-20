@@ -5,6 +5,7 @@ import DashboardNegocio from '@modules/dashboard/components/DashboardNegocio'
 import InventarioPage from '@modules/inventario/InventarioPage'
 import VentasPage from '@modules/ventas/VentasPage'
 import ClientesPage from '@modules/clientes/ClientesPage'
+import CobrosPage from '@modules/clientes/CobrosPage'
 import PresupuestoNegocioPage from './PresupuestoNegocioPage'
 import ComprasPage from '@modules/compras/ComprasPage'
 
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'ventas',       label: 'Ventas',       emoji: '💰' },
   { id: 'inventario',   label: 'Inventario',   emoji: '📦' },
   { id: 'clientes',     label: 'Clientes',     emoji: '👤' },
+  { id: 'cobros',       label: 'Cobros',       emoji: '🧾' },
   { id: 'presupuesto',  label: 'Presupuesto',  emoji: '🎯' },
   { id: 'compras',      label: 'Compras',      emoji: '🛒' },
 ]
@@ -26,6 +28,7 @@ export default function NegocioHubPage() {
       case 'ventas':     return <VentasPage />
       case 'inventario': return <InventarioPage />
       case 'clientes':   return <ClientesPage />
+      case 'cobros':      return <CobrosPage />
       case 'presupuesto': return <PresupuestoNegocioPage />
       case 'compras':     return <ComprasPage />
       default:           return null

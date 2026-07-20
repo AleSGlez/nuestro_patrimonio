@@ -195,6 +195,11 @@ export default function ClientesPage() {
                     {c.telefono || c.instagram || c.email || 'Sin contacto'}
                   </p>
                 </div>
+                {c.saldo_pendiente > 0 && (
+                  <span className="text-[11px] font-mono font-semibold text-bad bg-bad/10 px-2 py-1 rounded-lg flex-shrink-0">
+                    Debe {fmt(c.saldo_pendiente)}
+                  </span>
+                )}
                 <div className="flex items-center gap-1">
                   <button onClick={(e) => { e.stopPropagation(); setEditCliente(c); setFormOpen(true) }}
                     aria-label="Editar cliente" className="icon-btn text-gray-500 hover:text-white">
