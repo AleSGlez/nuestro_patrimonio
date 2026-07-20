@@ -9,6 +9,7 @@ import { EmptyState } from '@ui/Field'
 import TarjetaCard from './components/TarjetaCard'
 import FormTarjeta from './components/FormTarjeta'
 import FormPago from './components/FormPago'
+import DetalleCorteTarjeta from './components/DetalleCorteTarjeta'
 import { fmt } from '@lib/utils'
 
 export default function CardsPage() {
@@ -22,6 +23,8 @@ export default function CardsPage() {
   const [editTarjeta, setEditTarjeta] = useState(null)
   const [pagoOpen, setPagoOpen]     = useState(false)
   const [pagoTarjeta, setPagoTarjeta] = useState(null)
+  const [desgloseOpen, setDesgloseOpen] = useState(false)
+  const [desgloseTarjeta, setDesgloseTarjeta] = useState(null)
 
   const totalDeuda  = tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
   const totalLimite = tarjetas.reduce((s, t) => s + Number(t.limite), 0)
@@ -65,6 +68,7 @@ export default function CardsPage() {
                 onEdit={(t) => { setEditTarjeta(t); setFormOpen(true) }}
                 onDelete={handleDelete}
                 onPagar={(t) => { setPagoTarjeta(t); setPagoOpen(true) }}
+                onVerDesglose={(t) => { setDesgloseTarjeta(t); setDesgloseOpen(true) }}
               />
             ))}
           </div>
@@ -77,6 +81,12 @@ export default function CardsPage() {
 
       <FormTarjeta open={formOpen} onClose={() => { setFormOpen(false); setEditTarjeta(null) }} tarjeta={editTarjeta} />
       <FormPago open={pagoOpen} onClose={() => { setPagoOpen(false); setPagoTarjeta(null) }} tarjeta={pagoTarjeta} />
+      <DetalleCorteTarjeta
+        open={desgloseOpen}
+        onClose={() => { setDesgloseOpen(false); setDesgloseTarjeta(null) }}
+        tarjeta={desgloseTarjeta}
+        nombres={nombres}
+      />
     </>
   )
 }

@@ -42,7 +42,9 @@ export function useTransacciones(filtros = {}) {
 }
 
 // ── Parsea el método de pago ──────────────────────────────────
-function parsearMetodoPago(metodo_pago, cuenta_id, tarjeta_id) {
+// Exportada para reusarse fuera de este archivo (ej. useCompras.js) — mismo
+// parseo de "cuenta:UUID" | "tarjeta:UUID" | "apartado:UUID:cuentaUUID" en un solo lugar.
+export function parsearMetodoPago(metodo_pago, cuenta_id, tarjeta_id) {
   // Formato nuevo: "cuenta:UUID" o "tarjeta:UUID" o "apartado:UUID:cuentaUUID"
   if (metodo_pago?.startsWith('cuenta:')) {
     return { tipo: 'cuenta', id: metodo_pago.split(':')[1] }
@@ -61,7 +63,10 @@ function parsearMetodoPago(metodo_pago, cuenta_id, tarjeta_id) {
 }
 
 // ── Aplica el efecto de una transacción en el saldo de cuenta/tarjeta ──
-async function aplicarEfecto(tx, ctx) {
+// Exportada — es la misma lógica que debe usar cualquier flujo que registre un
+// gasto/ingreso con efecto en saldo (ej. useCompras.js al crear un lote pagado con
+// tarjeta/cuenta), para que aplicar y revertir nunca queden desincronizados.
+export async function aplicarEfecto(tx, ctx) {
   const m      = Number(tx.monto)
   const metodo = parsearMetodoPago(tx.metodo_pago, tx.cuenta_id, tx.tarjeta_id)
   if (!metodo) return
@@ -89,7 +94,8 @@ async function aplicarEfecto(tx, ctx) {
 }
 
 // ── Revierte el efecto de una transacción (para editar/eliminar) ──
-async function revertirEfecto(tx, ctx) {
+// Exportada — reusada por useCompras.js al eliminar un lote con transacción vinculada.
+export async function revertirEfecto(tx, ctx) {
   const m      = Number(tx.monto)
   const metodo = parsearMetodoPago(tx.metodo_pago, tx.cuenta_id, tx.tarjeta_id)
   if (!metodo) return

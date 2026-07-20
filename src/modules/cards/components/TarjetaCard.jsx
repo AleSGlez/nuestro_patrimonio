@@ -1,9 +1,9 @@
 // src/modules/cards/components/TarjetaCard.jsx
-import { CreditCard, Pencil, Trash2 } from 'lucide-react'
+import { CreditCard, Pencil, Trash2, PieChart } from 'lucide-react'
 import { fmt, cn } from '@lib/utils'
 import { diasHasta } from '../hooks/useTarjetas'
 
-export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, nombres }) {
+export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerDesglose, nombres }) {
   const uso = tarjeta.limite > 0 ? Math.min(100, (tarjeta.saldo_total / tarjeta.limite) * 100) : 0
   const disponible = Math.max(0, tarjeta.limite - tarjeta.saldo_total)
   const personaLabel = { p1: nombres.p1, p2: nombres.p2, ambos: 'Compartida' }[tarjeta.persona]
@@ -80,13 +80,25 @@ export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, nombre
           </div>
         )}
 
-        {tarjeta.saldo_total > 0 && (
-          <button
-            onClick={() => onPagar(tarjeta)}
-            className="w-full py-2 rounded-xl text-xs font-semibold border border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-all"
-          >
-            Registrar pago
-          </button>
+        {(tarjeta.dia_corte || tarjeta.saldo_total > 0) && (
+          <div className="flex gap-2">
+            {tarjeta.dia_corte && (
+              <button
+                onClick={() => onVerDesglose(tarjeta)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold border border-white/10 text-gray-300 hover:bg-white/[0.06] transition-all flex items-center justify-center gap-1.5"
+              >
+                <PieChart size={13} /> Desglose del corte
+              </button>
+            )}
+            {tarjeta.saldo_total > 0 && (
+              <button
+                onClick={() => onPagar(tarjeta)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold border border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-all"
+              >
+                Registrar pago
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

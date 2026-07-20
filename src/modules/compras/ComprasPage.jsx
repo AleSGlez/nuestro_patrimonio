@@ -327,6 +327,8 @@ function DetalleLote({ lote, onClose }) {
   const toast = useToast()
   const confirmar = useConfirm()
   const { data: productos = [] } = useProductosLote(lote?.id)
+  const { data: cuentas = [] }   = useCuentas()
+  const { data: tarjetas = [] }  = useTarjetas()
   const avanzar         = useAvanzarEstadoLote()
   const marcarUna       = useMarcarDisponible()
   const marcarTodas     = useMarcarLoteDisponible()
@@ -346,7 +348,7 @@ function DetalleLote({ lote, onClose }) {
   const handleEliminar = async () => {
     if (!(await confirmar({ message: `¿Eliminar la compra "${lote.nombre}"? Esto desactivará todas sus cartas.` }))) return
     try {
-      await eliminar.mutateAsync(lote.id)
+      await eliminar.mutateAsync({ loteId: lote.id, cuentas, tarjetas })
       toast.success('Compra eliminada')
       onClose()
     } catch (e) { toast.error(e.message) }

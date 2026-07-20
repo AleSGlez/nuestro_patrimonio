@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
+import { periodoTarjeta, montoParaPersona } from '@lib/utils'
 
 export function useTarjetas() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
@@ -64,6 +65,60 @@ export function useEliminarTarjeta() {
   return useMutation({
     mutationFn: (id) => db.from('tarjetas').update({ activa: false }, { id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] }),
+  })
+}
+
+// ── Desglose del próximo corte por responsable (P1/P2/Negocio) ──────
+// Se calcula EN VIVO desde transacciones/transferencias del período vigente
+// (periodoTarjeta), no desde `gastos_periodo_actual` — ese contador nunca se
+// resetea automáticamente en la app hoy (no hay caller de useProcesarCorte), así
+// que no es confiable como fuente de este cálculo.
+// `enabled` permite activarlo solo cuando el usuario abre el detalle del corte,
+// para no disparar una consulta extra por cada tarjeta de la lista.
+export function useDesgloseCorteTarjeta(tarjeta, enabled = true) {
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  const diaCorte = tarjeta?.dia_corte
+
+  return useQuery({
+    queryKey: ['desglose-corte-tarjeta', tarjeta?.id, diaCorte],
+    queryFn: async () => {
+      const { inicio, fin } = periodoTarjeta(diaCorte)
+
+      const [transacciones, disposiciones] = await Promise.all([
+        db.from('transacciones').query(
+          `pareja_id=eq.${parejaId}&tarjeta_id=eq.${tarjeta.id}&fecha=gte.${inicio}&fecha=lte.${fin}&limit=500`
+        ),
+        db.from('transferencias').query(
+          `pareja_id=eq.${parejaId}&destino_tarjeta_id=eq.${tarjeta.id}&tipo=eq.disposicion_efectivo&fecha=gte.${inicio}&fecha=lte.${fin}&limit=200`
+        ),
+      ])
+
+      const personales = transacciones.filter((t) => t.contexto !== 'negocio')
+      const negocio = transacciones
+        .filter((t) => t.contexto === 'negocio')
+        .reduce((s, t) => s + Number(t.monto), 0)
+
+      // Mismo criterio que calcularDisponible en usePresupuestos.js: filtrar a las
+      // transacciones relevantes para esa persona (suyas o "ambos") ANTES de aplicar
+      // montoParaPersona — si no, montoParaPersona no filtra por sí sola y se
+      // contarían también las 100%-de-la-otra-persona (doble conteo).
+      const p1 = personales
+        .filter((t) => t.persona === 'p1' || t.persona === 'ambos')
+        .reduce((s, t) => s + montoParaPersona(t, 'p1'), 0)
+      const p2 = personales
+        .filter((t) => t.persona === 'p2' || t.persona === 'ambos')
+        .reduce((s, t) => s + montoParaPersona(t, 'p2'), 0)
+
+      const disposicionEfectivo = disposiciones.reduce(
+        (s, t) => s + Number(t.monto) + Number(t.comision || 0), 0
+      )
+
+      const total = negocio + p1 + p2 + disposicionEfectivo
+
+      return { inicio, fin, p1, p2, negocio, disposicionEfectivo, total }
+    },
+    enabled: enabled && !!parejaId && !!tarjeta?.id && !!diaCorte,
+    staleTime: 1000 * 60,
   })
 }
 

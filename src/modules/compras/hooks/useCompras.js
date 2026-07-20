@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
+import { aplicarEfecto, revertirEfecto } from '@modules/transactions/hooks/useTransacciones'
 
 export const ESTADOS_LOTE = [
   { value: 'pagado',           label: 'Pagado',               emoji: '💳', color: '#F59E0B' },
@@ -98,25 +99,8 @@ export function useCrearLote() {
           tarjeta_id: esTarjeta ? tarjeta_id : null,
         })
 
-        if (esTarjeta) {
-          // Sumar a la deuda de la tarjeta
-          const tarjeta = tarjetas.find((t) => t.id === tarjeta_id)
-          if (tarjeta) {
-            await db.from('tarjetas').update({
-              saldo_total: Number(tarjeta.saldo_total) + totalMXN,
-              gastos_periodo_actual: Number(tarjeta.gastos_periodo_actual) + totalMXN,
-            }, { id: tarjeta_id })
-          }
-        } else if (cuenta_id) {
-          // Descontar de la cuenta
-          const cuenta = cuentas.find((c) => c.id === cuenta_id)
-          if (cuenta) {
-            await db.from('cuentas').update(
-              { saldo: Number(cuenta.saldo) - totalMXN },
-              { id: cuenta_id }
-            )
-          }
-        }
+        // Mismo efecto en saldo/deuda que cualquier otro gasto de la app (useTransacciones.js)
+        await aplicarEfecto(tx, { cuentas, tarjetas })
 
         await db.from('lotes_compra').update({ transaccion_id: tx.id }, { id: lote.id })
       }
@@ -223,11 +207,24 @@ export function useAvanzarEstadoLote() {
 }
 
 // Eliminar lote y sus productos permanentemente
+// Revierte el efecto en saldo/deuda de la transacción vinculada (si existe) antes de
+// borrar — igual que useEliminarTransaccion en useTransacciones.js. Antes de este fix
+// el saldo de la cuenta/tarjeta usada para pagar el lote nunca se revertía.
 export function useEliminarLote() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useMutation({
-    mutationFn: async (loteId) => {
+    mutationFn: async ({ loteId, cuentas, tarjetas }) => {
+      const [lote] = await db.from('lotes_compra').query(`id=eq.${loteId}`)
+
+      if (lote?.transaccion_id) {
+        const [tx] = await db.from('transacciones').query(`id=eq.${lote.transaccion_id}`)
+        if (tx) {
+          await revertirEfecto(tx, { cuentas, tarjetas })
+          await db.from('transacciones').delete({ id: tx.id })
+        }
+      }
+
       // Primero borrar productos del lote
       await db.from('productos').delete({ lote_id: loteId })
       // Luego borrar el lote
@@ -238,6 +235,7 @@ export function useEliminarLote() {
       qc.invalidateQueries({ queryKey: ['productos', parejaId] })
       qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
     },
   })
 }
