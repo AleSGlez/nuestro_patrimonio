@@ -28,6 +28,14 @@ function ToastItem({ t, remove }) {
     )}>
       <Icon size={15} className={cn('flex-shrink-0 mt-0.5', color)} />
       <p className="text-sm text-white flex-1 leading-snug">{t.msg}</p>
+      {t.action && (
+        <button
+          onClick={() => { t.action.onClick?.(); remove(t.id) }}
+          className={cn('text-sm font-semibold flex-shrink-0', color)}
+        >
+          {t.action.label}
+        </button>
+      )}
       <button onClick={() => remove(t.id)} className="text-gray-500 hover:text-white flex-shrink-0">
         <X size={13} />
       </button>
@@ -40,17 +48,19 @@ export function ToastProvider({ children }) {
 
   const remove = useCallback((id) => setList((p) => p.filter((t) => t.id !== id)), [])
 
-  const add = useCallback((msg, type = 'info', duration = 3500) => {
+  // opts puede ser un número (duration, legacy) o { duration, action: { label, onClick } }
+  const add = useCallback((msg, type = 'info', opts = {}) => {
+    const { duration = 3500, action = null } = typeof opts === 'number' ? { duration: opts } : opts
     const id = Math.random().toString(36).slice(2)
-    setList((p) => [...p.slice(-3), { id, msg, type, duration }])
+    setList((p) => [...p.slice(-3), { id, msg, type, duration, action }])
     setTimeout(() => remove(id), duration + 300)
   }, [remove])
 
   const toast = {
-    success: (m, d) => add(m, 'success', d),
-    error:   (m, d) => add(m, 'error',   d),
-    warning: (m, d) => add(m, 'warning', d),
-    info:    (m, d) => add(m, 'info',    d),
+    success: (m, o) => add(m, 'success', o),
+    error:   (m, o) => add(m, 'error',   o),
+    warning: (m, o) => add(m, 'warning', o),
+    info:    (m, o) => add(m, 'info',    o),
   }
 
   return (

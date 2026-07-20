@@ -10,9 +10,8 @@ import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useCrearTransaccion, useActualizarTransaccion } from '../hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
-import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, cn } from '@lib/utils'
-
-const TIPO_EMOJI = { debito: '💳', ahorro: '🏦', efectivo: '💵', inversion: '📈' }
+import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, cn,
+         filtrarCuentasPorContexto, filtrarTarjetasPorContexto, TIPO_EMOJI_CUENTA } from '@lib/utils'
 
 export default function FormTransaccion({ open, onClose, tx = null, contextoInicial = 'personal' }) {
   const { nombres } = useAppStore()
@@ -42,29 +41,14 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
   const [metodoValor, setMetodoValor] = useState('')
 
   // IDs de cuentas personales que tienen al menos un apartado con es_negocio=true
+  // (solo para el label "(apartado negocio)" del dropdown de método de pago)
   const cuentasConApartadoNegocio = new Set(
     todosApartados.filter((a) => a.es_negocio).map((a) => a.cuenta_id)
   )
 
-  // Filtrado por persona y contexto
-  const cuentasFiltradas = cuentas.filter((c) => {
-    if (contexto === 'negocio') {
-      // Cuentas reales de negocio + cuentas personales con apartado de negocio
-      return c.persona === 'negocio' || cuentasConApartadoNegocio.has(c.id)
-    }
-    if (c.persona === 'negocio') return false
-    if (persona === 'ambos') return true
-    return c.persona === persona || c.persona === 'ambos'
-  })
-
-  // Tarjetas: aplican a gastos (no ingresos).
-  // En contexto negocio también se pueden usar tarjetas personales
-  // para gastos del negocio (ej: compra de inventario con BBVA Oro).
-  const tarjetasFiltradas = tipo === 'ingreso' ? [] : tarjetas.filter((t) => {
-    if (contexto === 'negocio') return true // todas las tarjetas disponibles para negocio
-    if (persona === 'ambos') return true
-    return t.persona === persona || t.persona === 'ambos'
-  })
+  // Filtrado por persona y contexto — reglas compartidas con FormAccesoRapido (@lib/utils.js)
+  const cuentasFiltradas  = filtrarCuentasPorContexto(cuentas, { contexto, persona }, todosApartados)
+  const tarjetasFiltradas = filtrarTarjetasPorContexto(tarjetas, { contexto, persona, tipo })
 
   // ── Dropdown unificado de método de pago ──────────────────────
   const metodoOpts = [
@@ -72,7 +56,7 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
       const esPersonalParaNegocio = contexto === 'negocio' && c.persona !== 'negocio' && cuentasConApartadoNegocio.has(c.id)
       return {
         value: `cuenta:${c.id}`,
-        label: `${TIPO_EMOJI[c.tipo] || '💳'} ${c.nombre}${esPersonalParaNegocio ? ' (apartado negocio)' : ''}`,
+        label: `${TIPO_EMOJI_CUENTA[c.tipo] || '💳'} ${c.nombre}${esPersonalParaNegocio ? ' (apartado negocio)' : ''}`,
       }
     }),
     ...tarjetasFiltradas.map((t) => ({

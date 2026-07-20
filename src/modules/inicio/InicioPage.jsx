@@ -7,6 +7,7 @@ import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { usePersonas } from '@modules/personas/hooks/usePersonas'
 import { useDashboardData } from '@modules/dashboard/hooks/useDashboard'
+import AccesosRapidosSection from '@modules/accesosRapidos/components/AccesosRapidosSection'
 import { fmt, cn } from '@lib/utils'
 
 function EspacioCard({ emoji, titulo, subtitulo, valor, estado, onClick, badge }) {
@@ -125,6 +126,8 @@ export default function InicioPage({ onNavegar }) {
       </div>
 
       <div className="page px-4 pt-4 space-y-3">
+        <AccesosRapidosSection />
+
         {alertas.length > 0 && (
           <div className="space-y-2">
             {alertas.map((a, i) => (

@@ -146,6 +146,35 @@ export function montoParaPersona(tx, persona) {
   return Number(tx.monto)
 }
 
+// ── Emoji por tipo de cuenta ──────────────────────────────────
+export const TIPO_EMOJI_CUENTA = { debito: '💳', ahorro: '🏦', efectivo: '💵', inversion: '📈' }
+
+// ── Filtrado de cuentas/tarjetas válidas para un movimiento ──
+// Reglas compartidas entre FormTransaccion y FormAccesoRapido: qué cuentas/tarjetas
+// aplican según el contexto (personal/negocio) y la persona responsable.
+export function filtrarCuentasPorContexto(cuentas, { contexto, persona }, apartadosNegocio = []) {
+  const cuentasConApartadoNegocio = new Set(
+    apartadosNegocio.filter((a) => a.es_negocio).map((a) => a.cuenta_id)
+  )
+  return cuentas.filter((c) => {
+    if (contexto === 'negocio') {
+      return c.persona === 'negocio' || cuentasConApartadoNegocio.has(c.id)
+    }
+    if (c.persona === 'negocio') return false
+    if (persona === 'ambos') return true
+    return c.persona === persona || c.persona === 'ambos'
+  })
+}
+
+export function filtrarTarjetasPorContexto(tarjetas, { contexto, persona, tipo }) {
+  if (tipo === 'ingreso') return []
+  return tarjetas.filter((t) => {
+    if (contexto === 'negocio') return true
+    if (persona === 'ambos') return true
+    return t.persona === persona || t.persona === 'ambos'
+  })
+}
+
 // ── Período de tarjeta de crédito ────────────────────────────
 // Dado un día de corte (ej: 7), devuelve el rango del período actual:
 // inicio = día 8 del mes anterior, fin = día 7 del mes actual
