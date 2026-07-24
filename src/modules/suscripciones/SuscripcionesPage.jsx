@@ -1,5 +1,5 @@
 // src/modules/suscripciones/SuscripcionesPage.jsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Check, Bell, Play } from 'lucide-react'
 import {
   useSuscripciones, useCrearSuscripcion, useActualizarSuscripcion,
@@ -40,15 +40,42 @@ function FormSuscripcion({ open, onClose, suscripcion = null }) {
   const isEdit = Boolean(suscripcion)
   const loading = crear.isPending || actualizar.isPending
 
-  const [nombre, setNombre]         = useState(suscripcion?.nombre || '')
-  const [emoji, setEmoji]           = useState(suscripcion?.emoji || '🔄')
-  const [monto, setMonto]           = useState(suscripcion?.monto ? String(suscripcion.monto) : '')
-  const [frecuencia, setFrecuencia] = useState(suscripcion?.frecuencia || 'mensual')
-  const [proximaFecha, setProxima]  = useState(suscripcion?.proxima_fecha || today())
-  const [persona, setPersona]       = useState(suscripcion?.persona || 'ambos')
-  const [contexto, setContexto]     = useState(suscripcion?.contexto || 'personal')
-  const [cuentaId, setCuentaId]     = useState(suscripcion?.cuenta_id || '')
-  const [nota, setNota]             = useState(suscripcion?.nota || '')
+  const [nombre, setNombre]         = useState('')
+  const [emoji, setEmoji]           = useState('🔄')
+  const [monto, setMonto]           = useState('')
+  const [frecuencia, setFrecuencia] = useState('mensual')
+  const [proximaFecha, setProxima]  = useState(today())
+  const [persona, setPersona]       = useState('ambos')
+  const [contexto, setContexto]     = useState('personal')
+  const [cuentaId, setCuentaId]     = useState('')
+  const [nota, setNota]             = useState('')
+
+  // Repoblar (o resetear) al abrir — el form vive montado todo el tiempo,
+  // así que sin este efecto los useState de arriba solo se leen una vez y
+  // el segundo "Editar" de una suscripción distinta dejaba los campos con
+  // los datos de la anterior (o vacíos si nunca se había abierto en editar).
+  useEffect(() => {
+    if (!open) return
+    if (suscripcion) {
+      setNombre(suscripcion.nombre || '')
+      setEmoji(suscripcion.emoji || '🔄')
+      setMonto(suscripcion.monto ? String(suscripcion.monto) : '')
+      setFrecuencia(suscripcion.frecuencia || 'mensual')
+      setProxima(suscripcion.proxima_fecha || today())
+      setPersona(suscripcion.persona || 'ambos')
+      setContexto(suscripcion.contexto || 'personal')
+      setCuentaId(
+        suscripcion.tarjeta_id ? `tarjeta:${suscripcion.tarjeta_id}`
+        : suscripcion.cuenta_id ? `cuenta:${suscripcion.cuenta_id}`
+        : ''
+      )
+      setNota(suscripcion.nota || '')
+    } else {
+      setNombre(''); setEmoji('🔄'); setMonto(''); setFrecuencia('mensual')
+      setProxima(today()); setPersona('ambos'); setContexto('personal')
+      setCuentaId(''); setNota('')
+    }
+  }, [open, suscripcion])
 
   const PERSONA_OPTS = [
     { value: 'ambos', label: '👫 Pareja' },

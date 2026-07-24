@@ -1,5 +1,5 @@
 // src/modules/metas/MetasPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Check, Target, TrendingUp, ChevronRight } from 'lucide-react'
 import { useMetas, useCrearMeta, useActualizarMeta, useEliminarMeta, useAportar, useAportaciones, useEliminarAportacion, calcularMeta } from './hooks/useMetas'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
@@ -26,16 +26,35 @@ function FormMeta({ open, onClose, meta = null }) {
   const isEdit = Boolean(meta)
   const loading = crear.isPending || actualizar.isPending
 
-  const [nombre, setNombre]       = useState(meta?.nombre || '')
-  const [emoji, setEmoji]         = useState(meta?.emoji || '🎯')
-  const [descripcion, setDesc]    = useState(meta?.descripcion || '')
-  const [objetivo, setObjetivo]   = useState(meta?.monto_objetivo ? String(meta.monto_objetivo) : '')
-  const [fechaObj, setFechaObj]   = useState(meta?.fecha_objetivo || '')
-  const [persona, setPersona]     = useState(meta?.persona || 'ambos')
-  const [cuentasIds, setCuentasIds] = useState(
-    meta?.cuenta_id ? [meta.cuenta_id] : []
-  )
-  const [color, setColor]         = useState(meta?.color || '#7C6EFA')
+  const [nombre, setNombre]       = useState('')
+  const [emoji, setEmoji]         = useState('🎯')
+  const [descripcion, setDesc]    = useState('')
+  const [objetivo, setObjetivo]   = useState('')
+  const [fechaObj, setFechaObj]   = useState('')
+  const [persona, setPersona]     = useState('ambos')
+  const [cuentasIds, setCuentasIds] = useState([])
+  const [color, setColor]         = useState('#7C6EFA')
+
+  // Repoblar (o resetear) al abrir — el form vive montado todo el tiempo,
+  // así que sin este efecto los useState de arriba solo se leen una vez y
+  // el segundo "Editar" de una meta distinta dejaba los campos con los
+  // datos de la anterior.
+  useEffect(() => {
+    if (!open) return
+    if (meta) {
+      setNombre(meta.nombre || '')
+      setEmoji(meta.emoji || '🎯')
+      setDesc(meta.descripcion || '')
+      setObjetivo(meta.monto_objetivo ? String(meta.monto_objetivo) : '')
+      setFechaObj(meta.fecha_objetivo || '')
+      setPersona(meta.persona || 'ambos')
+      setCuentasIds(meta.cuenta_id ? [meta.cuenta_id] : [])
+      setColor(meta.color || '#7C6EFA')
+    } else {
+      setNombre(''); setEmoji('🎯'); setDesc(''); setObjetivo('')
+      setFechaObj(''); setPersona('ambos'); setCuentasIds([]); setColor('#7C6EFA')
+    }
+  }, [open, meta])
 
   const PERSONA_OPTS = [
     { value: 'ambos', label: '👫 Pareja' },
@@ -161,7 +180,15 @@ function FormAportacion({ open, onClose, meta }) {
   const [monto, setMonto]     = useState('')
   const [fecha, setFecha]     = useState(today())
   const [nota, setNota]       = useState('')
-  const [cuentaId, setCuenta] = useState(meta?.cuenta_id || '')
+  const [cuentaId, setCuenta] = useState('')
+
+  // Resetear cada vez que se abre — evita que quede el monto/nota/cuenta
+  // de la última aportación (de esta u otra meta) al volver a abrir.
+  useEffect(() => {
+    if (!open) return
+    setMonto(''); setFecha(today()); setNota('')
+    setCuenta(meta?.cuenta_id || '')
+  }, [open, meta])
 
   const cuentaOpts = [
     { value: '', label: 'No descontar de ninguna cuenta' },

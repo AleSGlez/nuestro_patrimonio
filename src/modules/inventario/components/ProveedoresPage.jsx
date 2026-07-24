@@ -1,5 +1,5 @@
 // src/modules/inventario/components/ProveedoresPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, ExternalLink, Check } from 'lucide-react'
 import { useProveedores, useCrearProveedor, useActualizarProveedor } from '../hooks/useInventario'
 import { useAuthStore } from '@store/authStore'
@@ -22,10 +22,23 @@ function FormProveedor({ open, onClose, proveedor = null }) {
   const isEdit = Boolean(proveedor)
   const loading = crear.isPending || actualizar.isPending
 
-  const [nombre, setNombre]         = useState(proveedor?.nombre || '')
-  const [plataforma, setPlataforma] = useState(proveedor?.plataforma || 'Buyee')
-  const [url, setUrl]               = useState(proveedor?.url || '')
-  const [nota, setNota]             = useState(proveedor?.nota || '')
+  const [nombre, setNombre]         = useState('')
+  const [plataforma, setPlataforma] = useState('Buyee')
+  const [url, setUrl]               = useState('')
+  const [nota, setNota]             = useState('')
+
+  // Repoblar (o resetear) al abrir — mismo motivo que en Suscripciones/Clientes/Metas.
+  useEffect(() => {
+    if (!open) return
+    if (proveedor) {
+      setNombre(proveedor.nombre || '')
+      setPlataforma(proveedor.plataforma || 'Buyee')
+      setUrl(proveedor.url || '')
+      setNota(proveedor.nota || '')
+    } else {
+      setNombre(''); setPlataforma('Buyee'); setUrl(''); setNota('')
+    }
+  }, [open, proveedor])
 
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }

@@ -14,7 +14,7 @@ import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, 
          filtrarCuentasPorContexto, filtrarTarjetasPorContexto, opcionesApartadosNegocio,
          TIPO_EMOJI_CUENTA } from '@lib/utils'
 
-export default function FormTransaccion({ open, onClose, tx = null, contextoInicial = 'personal' }) {
+export default function FormTransaccion({ open, onClose, tx = null, contextoInicial = 'personal', tipoInicial = 'gasto' }) {
   const { nombres } = useAppStore()
   const toast = useToast()
   const { data: cuentas = [] } = useCuentas()
@@ -91,12 +91,12 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
       else if (metodo?.tipo === 'apartado') setMetodoValor(`apartado:${metodo.apartadoId}:${metodo.cuentaId}`)
       else setMetodoValor('')
     } else {
-      setTipo('gasto'); setContexto(contextoInicial); setMonto('')
+      setTipo(tipoInicial); setContexto(contextoInicial); setMonto('')
       setCategoria(''); setDesc(''); setFecha(today())
       setPersona(contextoInicial === 'negocio' ? 'ambos' : 'p1')
       setMetodoValor('')
     }
-  }, [open, tx, contextoInicial])
+  }, [open, tx, contextoInicial, tipoInicial])
 
   // Si cambia persona/contexto y el método seleccionado ya no aplica, se limpia.
   // En modo nuevo se auto-selecciona el primero disponible; al EDITAR se deja

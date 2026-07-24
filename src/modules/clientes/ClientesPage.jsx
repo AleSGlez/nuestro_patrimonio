@@ -1,5 +1,5 @@
 // src/modules/clientes/ClientesPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, ChevronRight, ChevronDown, Check, Phone, Instagram, Truck, MapPin } from 'lucide-react'
 import { useClientes, useCrearCliente, useActualizarCliente, useEliminarCliente, useVentasCliente } from './hooks/useClientes'
 import { useToast } from '@ui/Toast'
@@ -17,24 +17,55 @@ function FormCliente({ open, onClose, cliente = null }) {
   const isEdit = Boolean(cliente)
   const loading = crear.isPending || actualizar.isPending
 
-  const [nombre, setNombre]       = useState(cliente?.nombre || '')
-  const [telefono, setTelefono]   = useState(cliente?.telefono || '')
-  const [email, setEmail]         = useState(cliente?.email || '')
-  const [instagram, setInstagram] = useState(cliente?.instagram || '')
-  const [nivel, setNivel]         = useState(cliente?.nivel || 'nuevo')
-  const [wishlist, setWishlist]   = useState(cliente?.wishlist || '')
-  const [nota, setNota]           = useState(cliente?.nota || '')
+  const [nombre, setNombre]       = useState('')
+  const [telefono, setTelefono]   = useState('')
+  const [email, setEmail]         = useState('')
+  const [instagram, setInstagram] = useState('')
+  const [nivel, setNivel]         = useState('nuevo')
+  const [wishlist, setWishlist]   = useState('')
+  const [nota, setNota]           = useState('')
 
   // Información adicional — colapsada por default para no saturar el form
   const [showMas, setShowMas]         = useState(false)
-  const [haceEnvios, setHaceEnvios]   = useState(cliente?.hace_envios || false)
-  const [calle, setCalle]             = useState(cliente?.direccion_calle || '')
-  const [numero, setNumero]           = useState(cliente?.direccion_numero || '')
-  const [colonia, setColonia]         = useState(cliente?.direccion_colonia || '')
-  const [ciudad, setCiudad]           = useState(cliente?.direccion_ciudad || '')
-  const [estadoDir, setEstadoDir]     = useState(cliente?.direccion_estado || '')
-  const [cp, setCp]                   = useState(cliente?.direccion_cp || '')
-  const [pais, setPais]               = useState(cliente?.direccion_pais || 'México')
+  const [haceEnvios, setHaceEnvios]   = useState(false)
+  const [calle, setCalle]             = useState('')
+  const [numero, setNumero]           = useState('')
+  const [colonia, setColonia]         = useState('')
+  const [ciudad, setCiudad]           = useState('')
+  const [estadoDir, setEstadoDir]     = useState('')
+  const [cp, setCp]                   = useState('')
+  const [pais, setPais]               = useState('México')
+
+  // Repoblar (o resetear) al abrir — el form vive montado todo el tiempo,
+  // así que sin este efecto los useState de arriba solo se leen una vez y
+  // el segundo "Editar" de un cliente distinto dejaba los campos con los
+  // datos del anterior (o vacíos si nunca se había abierto en editar).
+  useEffect(() => {
+    if (!open) return
+    if (cliente) {
+      setNombre(cliente.nombre || '')
+      setTelefono(cliente.telefono || '')
+      setEmail(cliente.email || '')
+      setInstagram(cliente.instagram || '')
+      setNivel(cliente.nivel || 'nuevo')
+      setWishlist(cliente.wishlist || '')
+      setNota(cliente.nota || '')
+      setHaceEnvios(cliente.hace_envios || false)
+      setCalle(cliente.direccion_calle || '')
+      setNumero(cliente.direccion_numero || '')
+      setColonia(cliente.direccion_colonia || '')
+      setCiudad(cliente.direccion_ciudad || '')
+      setEstadoDir(cliente.direccion_estado || '')
+      setCp(cliente.direccion_cp || '')
+      setPais(cliente.direccion_pais || 'México')
+    } else {
+      setNombre(''); setTelefono(''); setEmail(''); setInstagram('')
+      setNivel('nuevo'); setWishlist(''); setNota('')
+      setHaceEnvios(false); setCalle(''); setNumero(''); setColonia('')
+      setCiudad(''); setEstadoDir(''); setCp(''); setPais('México')
+    }
+    setShowMas(false)
+  }, [open, cliente])
 
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
