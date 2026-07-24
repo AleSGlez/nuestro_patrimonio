@@ -12,11 +12,9 @@ import ComprasPage from '@modules/compras/ComprasPage'
 const TABS = [
   { id: 'resumen',      label: 'Resumen',      emoji: '📊' },
   { id: 'ventas',       label: 'Ventas',       emoji: '💰' },
-  { id: 'inventario',   label: 'Inventario',   emoji: '📦' },
   { id: 'clientes',     label: 'Clientes',     emoji: '👤' },
   { id: 'cobros',       label: 'Cobros',       emoji: '🧾' },
   { id: 'presupuesto',  label: 'Presupuesto',  emoji: '🎯' },
-  { id: 'compras',      label: 'Compras',      emoji: '🛒' },
 ]
 
 export default function NegocioHubPage() {

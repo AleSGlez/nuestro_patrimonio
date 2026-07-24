@@ -62,7 +62,9 @@ function DetalleVenta({ venta, clientes, onClose }) {
           {items.map((item) => (
             <div key={item.id} className="flex items-center gap-2 p-2.5 bg-surface-700 rounded-xl">
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-white font-medium">Carta #{item.producto_id.slice(-6)}</p>
+                <p className="text-xs text-white font-medium truncate">
+                  {item.descripcion || `Carta #${item.producto_id?.slice(-6) ?? '—'}`}
+                </p>
                 <p className="text-[10px] text-gray-400">
                   {item.cantidad}x · Costo: {fmt(item.costo_unitario)} c/u
                 </p>

@@ -2,11 +2,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
-import { calcularCostoReal } from '@modules/inventario/hooks/useInventario'
 import { aplicarMovimientoCliente, revertirMovimientoCliente } from '@modules/clientes/hooks/useClientes'
 import { revertirEfecto } from '@modules/transactions/hooks/useTransacciones'
-
-export { calcularCostoReal }
 
 const COMISION_PCT = {
   efectivo: 0, transferencia: 0,
@@ -65,14 +62,15 @@ export function useRegistrarVenta() {
       let totalCosto = 0
 
       const itemsCalculados = items.map((item) => {
-        const costoUnitario = calcularCostoReal(item.producto)
+        const costoUnitario = Number(item.costo) || 0
         const subtotal      = Number(item.precioVenta) * item.cantidad
         const costoTotal    = costoUnitario * item.cantidad
         const gananciaItem  = subtotal - costoTotal
         totalVenta += subtotal
         totalCosto += costoTotal
         return {
-          producto_id:    item.producto.id,
+          producto_id:    null,
+          descripcion:    item.descripcion,
           cantidad:       item.cantidad,
           precio_venta:   Number(item.precioVenta),
           costo_unitario: costoUnitario,
@@ -100,15 +98,7 @@ export function useRegistrarVenta() {
         db.from('ventas_items').insert({ ...item, venta_id: venta.id })
       ))
 
-      // ── 3. Descontar stock ───────────────────────────────
-      await Promise.all(items.map((item) => {
-        const nuevoStock = Math.max(0, Number(item.producto.cantidad_stock) - item.cantidad)
-        const patch = { cantidad_stock: nuevoStock }
-        if (nuevoStock === 0) patch.estado = 'vendido'
-        return db.from('productos').update(patch, { id: item.producto.id })
-      }))
-
-      // ── 4. Dinero recibido ahora vs. saldo pendiente ─────
+      // ── 3. Dinero recibido ahora vs. saldo pendiente ─────
       // `montoRecibido` es en términos brutos (lo que pagó el cliente del total_venta).
       // Sin cuenta seleccionada no hay dónde depositar nada, así que se trata como
       // si no se hubiera recibido nada todavía (igual que el comportamiento previo).
@@ -156,7 +146,6 @@ export function useRegistrarVenta() {
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['ventas', parejaId] })
-      qc.invalidateQueries({ queryKey: ['productos', parejaId] })
       qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['clientes', parejaId] })
@@ -181,9 +170,10 @@ export function useCancelarVenta() {
       const [venta] = await db.from('ventas').query(`id=eq.${ventaId}`)
       if (!venta) throw new Error('Venta no encontrada')
 
-      // 1. Restaurar stock (y sacar del estado 'vendido' si vuelve a haber unidades)
+      // 1. Restaurar stock (solo aplica a ventas viejas con producto real de
+      //    Inventario -- las ventas nuevas se registran sin producto_id)
       const items = await db.from('ventas_items').query(`venta_id=eq.${ventaId}`)
-      await Promise.all(items.map(async (item) => {
+      await Promise.all(items.filter((item) => item.producto_id).map(async (item) => {
         const [producto] = await db.from('productos').query(`id=eq.${item.producto_id}`)
         if (producto) {
           const nuevoStock = Number(producto.cantidad_stock) + Number(item.cantidad)
@@ -225,3 +215,4 @@ export function useCancelarVenta() {
     },
   })
 }
+

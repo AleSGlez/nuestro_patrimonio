@@ -1,25 +1,25 @@
 // src/modules/ventas/components/FormVenta.jsx
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Trash2, Check, Search, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, Check } from 'lucide-react'
 import Modal from '@ui/Modal'
 import { AmountInput, Select, Input } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
-import { useProductos } from '@modules/inventario/hooks/useInventario'
 import { useClientes } from '@modules/clientes/hooks/useClientes'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
-import { useRegistrarVenta, METODOS_COBRO, calcularCostoReal } from '../hooks/useVentas'
+import { useRegistrarVenta, METODOS_COBRO } from '../hooks/useVentas'
 import { fmt, cn, today, getNivelCliente } from '@lib/utils'
 
 export default function FormVenta({ open, onClose }) {
   const toast = useToast()
-  const { data: productos = [] } = useProductos()
   const { data: clientes = [] }  = useClientes()
   const { data: cuentas = [] }   = useCuentas()
   const registrar = useRegistrarVenta()
 
-  const [busqueda, setBusqueda]     = useState('')
-  const [items, setItems]           = useState([])       // { producto, cantidad, precioVenta }
+  const [items, setItems]           = useState([])       // { id, descripcion, cantidad, precioVenta, costo }
+  const [nuevaDescripcion, setNuevaDescripcion] = useState('')
+  const [nuevoPrecio, setNuevoPrecio]           = useState('')
+  const [nuevoCosto, setNuevoCosto]             = useState('')
   const [clienteId, setClienteId]   = useState('')
   const [fecha, setFecha]           = useState(today())
   const [metodoCobro, setMetodo]    = useState('efectivo')
@@ -28,36 +28,24 @@ export default function FormVenta({ open, onClose }) {
   const [nota, setNota]             = useState('')
   const [paso, setPaso]             = useState(1)        // 1=cartas, 2=pago
 
-  const productosFiltrados = useMemo(() => {
-    const q = busqueda.toLowerCase()
-    return productos
-      .filter((p) => p.cantidad_stock > 0)
-      .filter((p) =>
-        !q ||
-        p.nombre_jp?.toLowerCase().includes(q) ||
-        p.nombre_en?.toLowerCase().includes(q) ||
-        p.serie?.toLowerCase().includes(q) ||
-        p.numero_carta?.toLowerCase().includes(q)
-      )
-      .slice(0, 20)
-  }, [productos, busqueda])
-
-  const agregarProducto = (p) => {
-    const existe = items.find((i) => i.producto.id === p.id)
-    if (existe) return
+  const agregarItem = () => {
+    if (!nuevaDescripcion.trim()) { toast.error('Escribe qué vendiste'); return }
+    if (!nuevoPrecio || Number(nuevoPrecio) <= 0) { toast.error('Escribe el precio de venta'); return }
     setItems((prev) => [...prev, {
-      producto: p,
+      id: crypto.randomUUID(),
+      descripcion: nuevaDescripcion.trim(),
       cantidad: 1,
-      precioVenta: p.precio_venta ? String(p.precio_venta) : '',
+      precioVenta: nuevoPrecio,
+      costo: nuevoCosto || '0',
     }])
-    setBusqueda('')
+    setNuevaDescripcion(''); setNuevoPrecio(''); setNuevoCosto('')
   }
 
-  const quitarItem = (id) => setItems((prev) => prev.filter((i) => i.producto.id !== id))
+  const quitarItem = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
 
   const actualizarItem = (id, campo, valor) => {
     setItems((prev) => prev.map((i) =>
-      i.producto.id === id ? { ...i, [campo]: valor } : i
+      i.id === id ? { ...i, [campo]: valor } : i
     ))
   }
 
@@ -67,7 +55,7 @@ export default function FormVenta({ open, onClose }) {
     let totalVenta = 0, totalCosto = 0
     items.forEach((item) => {
       const pv = Number(item.precioVenta) || 0
-      const costo = calcularCostoReal(item.producto)
+      const costo = Number(item.costo) || 0
       totalVenta += pv * item.cantidad
       totalCosto += costo * item.cantidad
     })
@@ -90,9 +78,9 @@ export default function FormVenta({ open, onClose }) {
   const pendiente = Math.max(0, totales.totalVenta - recibido)
 
   const handleGuardar = async () => {
-    if (items.length === 0) { toast.error('Agrega al menos una carta'); return }
-    const sinPrecio = items.find((i) => !i.precioVenta || Number(i.precioVenta) <= 0)
-    if (sinPrecio) { toast.error(`Falta el precio de venta de "${sinPrecio.producto.nombre_jp || sinPrecio.producto.nombre_en}"`); return }
+    if (items.length === 0) { toast.error('Agrega al menos una línea de venta'); return }
+    const incompleto = items.find((i) => !i.descripcion || !i.precioVenta || Number(i.precioVenta) <= 0)
+    if (incompleto) { toast.error(`Falta el precio de venta de "${incompleto.descripcion}"`); return }
     // Todo el dinero de la venta debe quedar rastreado: o entra a una cuenta,
     // o queda como adeudo de un cliente. Antes una venta sin cuenta y sin
     // cliente se registraba sin dejar rastro de a dónde fue el dinero.
@@ -130,7 +118,7 @@ export default function FormVenta({ open, onClose }) {
     <Modal open={open} onClose={onClose} title="Nueva venta">
       {/* Tabs de paso */}
       <div className="flex bg-surface-700 rounded-xl p-1 mb-4">
-        {[['1','🃏 Cartas'],['2','💳 Pago']].map(([p, label]) => (
+        {[['1','🃏 Qué vendiste'],['2','💳 Pago']].map(([p, label]) => (
           <button key={p} onClick={() => setPaso(Number(p))}
             className={cn('flex-1 py-2 text-xs font-medium rounded-lg transition-all',
               paso === Number(p) ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
@@ -140,56 +128,40 @@ export default function FormVenta({ open, onClose }) {
 
       {paso === 1 && (
         <>
-          {/* Buscador de productos */}
-          <div className="relative mb-3">
-            <Search size={14} className="absolute left-3 top-3 text-gray-500" />
-            <input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar carta por nombre, serie, número..."
-              className="input pl-9 text-sm"
+          {/* Agregar línea de venta */}
+          <div className="card p-3 mb-3 space-y-2">
+            <Input
+              label="Qué vendiste" value={nuevaDescripcion}
+              onChange={(e) => setNuevaDescripcion(e.target.value)}
+              placeholder="Ej. Charizard PSA 9"
+              className="mb-0"
             />
-          </div>
-
-          {/* Resultados de búsqueda */}
-          {busqueda.length > 0 && (
-            <div className="bg-surface-700 rounded-xl mb-3 max-h-48 overflow-y-auto">
-              {productosFiltrados.length === 0 ? (
-                <p className="text-xs text-gray-400 p-3 text-center">Sin resultados</p>
-              ) : productosFiltrados.map((p) => (
-                <button key={p.id} onClick={() => agregarProducto(p)}
-                  className="w-full flex items-center gap-2.5 p-2.5 hover:bg-surface-600 text-left border-b border-white/[0.05] last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-white truncate">{p.nombre_jp || p.nombre_en}</p>
-                    <p className="text-[10px] text-gray-400">{p.serie} {p.numero_carta && `· #${p.numero_carta}`} · Stock: {p.cantidad_stock}</p>
-                  </div>
-                  <p className="text-xs text-gray-400 flex-shrink-0">{fmt(calcularCostoReal(p))} costo</p>
-                  <Plus size={14} className="text-[var(--accent)] flex-shrink-0" />
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2">
+              <AmountInput label="Precio de venta" value={nuevoPrecio} onChange={setNuevoPrecio} className="mb-0" />
+              <AmountInput label="Costo" value={nuevoCosto} onChange={setNuevoCosto} className="mb-0" />
             </div>
-          )}
+            <button onClick={agregarItem} className="btn-ghost w-full py-2.5 text-xs font-semibold">
+              <Plus size={14} /> Agregar a la venta
+            </button>
+          </div>
 
           {/* Items agregados */}
           {items.length === 0 ? (
             <div className="text-center py-6 text-gray-400 text-sm">
-              Busca y agrega las cartas que se vendieron
+              Escribe arriba qué vendiste para empezar
             </div>
           ) : (
             <div className="space-y-2 mb-3">
               {items.map((item) => {
-                const costo = calcularCostoReal(item.producto)
+                const costo = Number(item.costo) || 0
                 const ganancia = (Number(item.precioVenta) || 0) - costo
                 return (
-                  <div key={item.producto.id} className="card p-3">
+                  <div key={item.id} className="card p-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-white truncate">
-                          {item.producto.nombre_jp || item.producto.nombre_en}
-                        </p>
-                        <p className="text-[10px] text-gray-400">Costo: {fmt(costo)}</p>
-                      </div>
-                      <button onClick={() => quitarItem(item.producto.id)}
+                      <p className="flex-1 min-w-0 text-xs font-semibold text-white truncate">
+                        {item.descripcion}
+                      </p>
+                      <button onClick={() => quitarItem(item.id)}
                         className="text-gray-500 hover:text-bad flex-shrink-0">
                         <Trash2 size={13} />
                       </button>
@@ -197,22 +169,29 @@ export default function FormVenta({ open, onClose }) {
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="text-[10px] text-gray-400 block mb-1">Cant.</label>
-                        <input type="number" min="1" max={item.producto.cantidad_stock}
+                        <input type="number" min="1"
                           value={item.cantidad}
-                          onChange={(e) => actualizarItem(item.producto.id, 'cantidad', Number(e.target.value))}
+                          onChange={(e) => actualizarItem(item.id, 'cantidad', Number(e.target.value) || 1)}
                           className="input text-center text-sm py-1.5" />
                       </div>
-                      <div className="col-span-2">
-                        <label className="text-[10px] text-gray-400 block mb-1">Precio venta c/u</label>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-1">Precio c/u</label>
                         <input type="number" placeholder="0.00"
                           value={item.precioVenta}
-                          onChange={(e) => actualizarItem(item.producto.id, 'precioVenta', e.target.value)}
+                          onChange={(e) => actualizarItem(item.id, 'precioVenta', e.target.value)}
+                          className="input text-sm py-1.5" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-1">Costo c/u</label>
+                        <input type="number" placeholder="0.00"
+                          value={item.costo}
+                          onChange={(e) => actualizarItem(item.id, 'costo', e.target.value)}
                           className="input text-sm py-1.5" />
                       </div>
                     </div>
                     {item.precioVenta > 0 && (
                       <p className={cn('text-[10px] mt-1 font-medium', ganancia >= 0 ? 'text-ok' : 'text-bad')}>
-                        Ganancia: {fmt(ganancia * item.cantidad)} ({ganancia >= 0 ? '+' : ''}{Math.round((ganancia/costo)*100)}%)
+                        Ganancia: {fmt(ganancia * item.cantidad)}
                       </p>
                     )}
                   </div>
@@ -252,7 +231,7 @@ export default function FormVenta({ open, onClose }) {
         <>
           {/* Resumen */}
           <div className="bg-surface-700 rounded-xl p-3 mb-4">
-            <p className="text-xs text-gray-400 mb-2">{items.length} carta{items.length > 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-400 mb-2">{items.length} línea{items.length > 1 ? 's' : ''}</p>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <p className="text-[10px] text-gray-400">Total venta</p>
