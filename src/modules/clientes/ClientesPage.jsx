@@ -161,8 +161,8 @@ function FormCliente({ open, onClose, cliente = null }) {
               className={cn('w-11 h-6 p-0 rounded-full transition-colors relative flex-shrink-0',
                 haceEnvios ? 'bg-[var(--accent)]' : 'bg-surface-600')}
             >
-              <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform',
-                haceEnvios ? 'translate-x-[22px]' : 'translate-x-0.5')} />
+              <span className={cn('absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white transition-transform',
+                haceEnvios ? 'translate-x-[20px]' : 'translate-x-0')} />
             </button>
           </div>
 
