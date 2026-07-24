@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
+import { aplicarEfecto } from '@modules/transactions/hooks/useTransacciones'
 import { addDays, addWeeks, addMonths, addYears, parseISO, isPast, isToday, format } from 'date-fns'
 
 export function useSuscripciones() {
@@ -80,10 +81,10 @@ export function useRegistrarSuscripcion() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useMutation({
-    mutationFn: async ({ suscripcion, cuentas }) => {
+    mutationFn: async ({ suscripcion, cuentas, tarjetas = [] }) => {
       // 1. Crear transacción si hay método de pago
       if (suscripcion.cuenta_id || suscripcion.tarjeta_id) {
-        await db.from('transacciones').insert({
+        const [tx] = await db.from('transacciones').insert({
           pareja_id: parejaId,
           tipo: 'gasto',
           monto: suscripcion.monto,
@@ -95,17 +96,13 @@ export function useRegistrarSuscripcion() {
           metodo_pago: suscripcion.cuenta_id
             ? `cuenta:${suscripcion.cuenta_id}`
             : `tarjeta:${suscripcion.tarjeta_id}`,
+          cuenta_id: suscripcion.cuenta_id || null,
+          tarjeta_id: suscripcion.tarjeta_id || null,
         })
-        // Descontar de cuenta si aplica
-        if (suscripcion.cuenta_id) {
-          const cuenta = cuentas.find((c) => c.id === suscripcion.cuenta_id)
-          if (cuenta) {
-            await db.from('cuentas').update(
-              { saldo: Number(cuenta.saldo) - Number(suscripcion.monto) },
-              { id: cuenta.id }
-            )
-          }
-        }
+        // Mismo efecto en saldo/deuda que cualquier gasto de la app: descuenta la
+        // cuenta O sube saldo_total de la tarjeta. Antes la tarjeta nunca subía,
+        // pero borrar la tx sí le restaba — asimetría que descuadraba la deuda.
+        await aplicarEfecto(tx, { cuentas, tarjetas })
       }
       // 2. Avanzar proxima_fecha
       const siguiente = siguienteFecha(suscripcion.proxima_fecha, suscripcion.frecuencia)
@@ -118,6 +115,7 @@ export function useRegistrarSuscripcion() {
       qc.invalidateQueries({ queryKey: ['suscripciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
     },
   })
 }

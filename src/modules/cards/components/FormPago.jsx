@@ -50,26 +50,19 @@ export default function FormPago({ open, onClose, tarjeta }) {
     if (!cuentaId) { toast.error('Selecciona la cuenta o apartado'); return }
 
     try {
-      // Si es un apartado, usar la cuenta del apartado y reducir el apartado
+      // Si es un apartado, el dinero sale SOLO del apartado (el saldo de la
+      // cuenta ya excluye lo apartado) — el hook se encarga de no tocar la cuenta
       if (cuentaId.startsWith('apartado:')) {
         const [, apartadoId, cuentaOrigenId] = cuentaId.split(':')
-        const cuentaOrigen = cuentas.find((c) => c.id === cuentaOrigenId)
         const apartado = todosApartados.find((a) => a.id === apartadoId)
-        if (!cuentaOrigen || !apartado) { toast.error('Apartado no encontrado'); return }
+        if (!apartado) { toast.error('Apartado no encontrado'); return }
 
-        // Reducir monto del apartado
-        await import('@lib/supabase').then(({ db }) =>
-          db.from('cuenta_apartados').update(
-            { monto: Math.max(0, Number(apartado.monto) - Number(monto)) },
-            { id: apartadoId }
-          )
-        )
-        // Pagar con la cuenta del apartado
         await pagar.mutateAsync({
-          cuentaId: cuentaOrigenId, cuentaSaldo: cuentaOrigen.saldo,
+          cuentaId: cuentaOrigenId,
           tarjetaId: tarjeta.id,
           tarjetaSaldoTotal: tarjeta.saldo_total,
           monto, fecha,
+          apartadoId, apartadoMonto: apartado.monto,
         })
       } else {
         const cuenta = cuentas.find((c) => c.id === cuentaId)

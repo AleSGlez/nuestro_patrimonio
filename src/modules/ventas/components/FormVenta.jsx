@@ -93,8 +93,13 @@ export default function FormVenta({ open, onClose }) {
     if (items.length === 0) { toast.error('Agrega al menos una carta'); return }
     const sinPrecio = items.find((i) => !i.precioVenta || Number(i.precioVenta) <= 0)
     if (sinPrecio) { toast.error(`Falta el precio de venta de "${sinPrecio.producto.nombre_jp || sinPrecio.producto.nombre_en}"`); return }
-    if (cuentaId && pendiente > 0 && !clienteId) {
-      toast.error('Selecciona un cliente para registrar el saldo pendiente como adeudo')
+    // Todo el dinero de la venta debe quedar rastreado: o entra a una cuenta,
+    // o queda como adeudo de un cliente. Antes una venta sin cuenta y sin
+    // cliente se registraba sin dejar rastro de a dónde fue el dinero.
+    if (pendiente > 0 && !clienteId) {
+      toast.error(cuentaId
+        ? 'Selecciona un cliente para registrar el saldo pendiente como adeudo'
+        : 'Sin cuenta destino la venta queda como adeudo: selecciona un cliente, o una cuenta si ya te pagaron')
       return
     }
 

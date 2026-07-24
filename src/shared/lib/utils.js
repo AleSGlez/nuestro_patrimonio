@@ -39,12 +39,15 @@ export function fmtDate(date, style = 'short') {
   return d.toLocaleDateString('es-MX', opts[style] || opts.short)
 }
 
+// Fecha LOCAL — no usar toISOString(): convierte a UTC y en México (UTC-6)
+// después de las 6pm devolvía la fecha de MAÑANA en todos los formularios
 export function today() {
-  return new Date().toISOString().split('T')[0]
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function currentMonth() {
-  return new Date().toISOString().slice(0, 7) // YYYY-MM
+  return today().slice(0, 7) // YYYY-MM
 }
 
 // ── UUID ─────────────────────────────────────────────────────
@@ -163,18 +166,39 @@ export const TIPO_EMOJI_CUENTA = { debito: '💳', ahorro: '🏦', efectivo: '�
 // ── Filtrado de cuentas/tarjetas válidas para un movimiento ──
 // Reglas compartidas entre FormTransaccion y FormAccesoRapido: qué cuentas/tarjetas
 // aplican según el contexto (personal/negocio) y la persona responsable.
-export function filtrarCuentasPorContexto(cuentas, { contexto, persona }, apartadosNegocio = []) {
-  const cuentasConApartadoNegocio = new Set(
-    apartadosNegocio.filter((a) => a.es_negocio).map((a) => a.cuenta_id)
-  )
+// En contexto negocio solo cuentas de negocio: el dinero del negocio guardado en
+// cuentas personales se ofrece como APARTADO (apartado:UUID:cuentaUUID), no como
+// la cuenta personal — pagar "desde la cuenta" descontaba el disponible personal
+// y dejaba el apartado intacto.
+export function filtrarCuentasPorContexto(cuentas, { contexto, persona }) {
   return cuentas.filter((c) => {
-    if (contexto === 'negocio') {
-      return c.persona === 'negocio' || cuentasConApartadoNegocio.has(c.id)
-    }
+    if (contexto === 'negocio') return c.persona === 'negocio'
     if (c.persona === 'negocio') return false
     if (persona === 'ambos') return true
     return c.persona === persona || c.persona === 'ambos'
   })
+}
+
+// Suma de apartados NO-negocio cuyas cuentas cumplen el predicado. El dinero
+// apartado vive FUERA de cuenta.saldo (useCrearApartado lo resta del disponible),
+// así que cualquier cálculo de patrimonio debe sumarlo aparte o lo subestima.
+export function sumaApartadosPersonales(apartados = [], cuentas = [], predCuenta = () => true) {
+  return apartados
+    .filter((a) => !a.es_negocio)
+    .reduce((s, a) => {
+      const c = cuentas.find((x) => x.id === a.cuenta_id)
+      return c && predCuenta(c) ? s + Number(a.monto) : s
+    }, 0)
+}
+
+// Opciones de apartados es_negocio como método de pago directo para contexto negocio
+export function opcionesApartadosNegocio(apartados = []) {
+  return apartados
+    .filter((a) => a.es_negocio)
+    .map((a) => ({
+      value: `apartado:${a.id}:${a.cuenta_id}`,
+      label: `${a.emoji || '🗂️'} ${a.nombre} (apartado negocio)`,
+    }))
 }
 
 export function filtrarTarjetasPorContexto(tarjetas, { contexto, persona, tipo }) {

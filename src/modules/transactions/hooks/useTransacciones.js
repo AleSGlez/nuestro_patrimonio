@@ -53,7 +53,6 @@ export function parsearMetodoPago(metodo_pago, cuenta_id, tarjeta_id) {
     return { tipo: 'tarjeta', id: metodo_pago.split(':')[1] }
   }
   if (metodo_pago?.startsWith('apartado:')) {
-    // El dinero ya fue descontado del apartado al registrar — solo actualizar la cuenta origen
     return { tipo: 'apartado', apartadoId: metodo_pago.split(':')[1], cuentaId: metodo_pago.split(':')[2] }
   }
   // Formato legacy: campo separado
@@ -88,8 +87,18 @@ export async function aplicarEfecto(tx, ctx) {
     }
   }
 
-  // Apartado: el saldo de la cuenta origen ya fue descontado al registrar la tx
-  // No hacer nada aquí para evitar doble cargo
+  if (metodo.tipo === 'apartado') {
+    // El dinero del apartado vive FUERA del saldo disponible de la cuenta
+    // (useCrearApartado lo resta al crearlo), así que el efecto es solo sobre
+    // el monto del apartado — la cuenta no se toca.
+    const [apartado] = await db.from('cuenta_apartados').query(`id=eq.${metodo.apartadoId}`)
+    if (apartado) {
+      const delta = tx.tipo === 'ingreso' ? m : -m
+      await db.from('cuenta_apartados').update(
+        { monto: Number(apartado.monto) + delta }, { id: apartado.id }
+      )
+    }
+  }
 }
 
 // ── Revierte el efecto de una transacción (para editar/eliminar) ──
@@ -118,12 +127,12 @@ export async function revertirEfecto(tx, ctx) {
   }
 
   if (metodo.tipo === 'apartado') {
-    // Al revertir una tx pagada con apartado: devolver el monto al apartado
-    const { db: dbLib } = await import('@lib/supabase')
+    // Espejo exacto de aplicarEfecto: gasto → devolver al apartado; ingreso → restar
     const [apartado] = await db.from('cuenta_apartados').query(`id=eq.${metodo.apartadoId}`)
     if (apartado) {
+      const delta = tx.tipo === 'ingreso' ? -m : m
       await db.from('cuenta_apartados').update(
-        { monto: Number(apartado.monto) + m }, { id: apartado.id }
+        { monto: Number(apartado.monto) + delta }, { id: apartado.id }
       )
     }
   }
@@ -144,6 +153,8 @@ export function useCrearTransaccion() {
       qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados'] })
     },
   })
 }
@@ -170,6 +181,8 @@ export function useActualizarTransaccion() {
       qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados'] })
     },
   })
 }
@@ -188,6 +201,8 @@ export function useEliminarTransaccion() {
       qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados'] })
     },
   })
 }

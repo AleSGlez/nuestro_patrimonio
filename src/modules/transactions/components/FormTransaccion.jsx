@@ -1,5 +1,5 @@
 // src/modules/transactions/components/FormTransaccion.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Check } from 'lucide-react'
 import Modal from '@ui/Modal'
 import { Select, Input } from '@ui/Field'
@@ -8,10 +8,11 @@ import { useToast } from '@ui/Toast'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
-import { useCrearTransaccion, useActualizarTransaccion } from '../hooks/useTransacciones'
+import { useCrearTransaccion, useActualizarTransaccion, parsearMetodoPago } from '../hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
 import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, cn,
-         filtrarCuentasPorContexto, filtrarTarjetasPorContexto, TIPO_EMOJI_CUENTA } from '@lib/utils'
+         filtrarCuentasPorContexto, filtrarTarjetasPorContexto, opcionesApartadosNegocio,
+         TIPO_EMOJI_CUENTA } from '@lib/utils'
 
 export default function FormTransaccion({ open, onClose, tx = null, contextoInicial = 'personal' }) {
   const { nombres } = useAppStore()
@@ -40,25 +41,22 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
   // metodoPago ahora es un valor compuesto: "cuenta:UUID" | "tarjeta:UUID" | "efectivo-generico"
   const [metodoValor, setMetodoValor] = useState('')
 
-  // IDs de cuentas personales que tienen al menos un apartado con es_negocio=true
-  // (solo para el label "(apartado negocio)" del dropdown de método de pago)
-  const cuentasConApartadoNegocio = new Set(
-    todosApartados.filter((a) => a.es_negocio).map((a) => a.cuenta_id)
-  )
-
   // Filtrado por persona y contexto — reglas compartidas con FormAccesoRapido (@lib/utils.js)
-  const cuentasFiltradas  = filtrarCuentasPorContexto(cuentas, { contexto, persona }, todosApartados)
+  const cuentasFiltradas  = filtrarCuentasPorContexto(cuentas, { contexto, persona })
   const tarjetasFiltradas = filtrarTarjetasPorContexto(tarjetas, { contexto, persona, tipo })
+
+  // En contexto negocio los apartados es_negocio son método de pago directo:
+  // el gasto/ingreso afecta el MONTO del apartado (aplicarEfecto), no el saldo
+  // disponible de la cuenta personal que lo contiene.
+  const apartadosNegocioOpts = contexto === 'negocio' ? opcionesApartadosNegocio(todosApartados) : []
 
   // ── Dropdown unificado de método de pago ──────────────────────
   const metodoOpts = [
-    ...cuentasFiltradas.map((c) => {
-      const esPersonalParaNegocio = contexto === 'negocio' && c.persona !== 'negocio' && cuentasConApartadoNegocio.has(c.id)
-      return {
-        value: `cuenta:${c.id}`,
-        label: `${TIPO_EMOJI_CUENTA[c.tipo] || '💳'} ${c.nombre}${esPersonalParaNegocio ? ' (apartado negocio)' : ''}`,
-      }
-    }),
+    ...cuentasFiltradas.map((c) => ({
+      value: `cuenta:${c.id}`,
+      label: `${TIPO_EMOJI_CUENTA[c.tipo] || '💳'} ${c.nombre}`,
+    })),
+    ...apartadosNegocioOpts,
     ...tarjetasFiltradas.map((t) => ({
       value: `tarjeta:${t.id}`,
       label: `💳 ${t.nombre} (crédito)`,
@@ -72,20 +70,26 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
     : CAT_GASTO
   ).map((c) => ({ value: c.value, label: `${c.emoji} ${c.label}` }))
 
+  // Evita que el efecto de auto-selección pise el método recién inicializado:
+  // ambos efectos corren en el mismo commit al abrir, y el segundo leería el
+  // metodoValor viejo (stale closure) y lo sobreescribiría.
+  const inicializando = useRef(false)
+
   // ── Inicializar/resetear al abrir ─────────────────────────────
   useEffect(() => {
     if (!open) return
+    inicializando.current = true
     if (tx) {
       setTipo(tx.tipo); setContexto(tx.contexto); setMonto(String(tx.monto))
       setCategoria(tx.categoria); setDesc(tx.descripcion || ''); setFecha(tx.fecha)
       setPersona(tx.persona)
-      if (tx.metodo_pago === 'tarjeta' && tx.tarjeta_id) {
-        setMetodoValor(`tarjeta:${tx.tarjeta_id}`)
-      } else if (tx.cuenta_id) {
-        setMetodoValor(`cuenta:${tx.cuenta_id}`)
-      } else {
-        setMetodoValor('')
-      }
+      // Parsear con la misma lógica que aplicar/revertirEfecto — cubre los
+      // formatos "tarjeta:UUID"/"cuenta:UUID"/"apartado:UUID:cuentaUUID" y el legacy
+      const metodo = parsearMetodoPago(tx.metodo_pago, tx.cuenta_id, tx.tarjeta_id)
+      if (metodo?.tipo === 'tarjeta')       setMetodoValor(`tarjeta:${metodo.id}`)
+      else if (metodo?.tipo === 'cuenta')   setMetodoValor(`cuenta:${metodo.id}`)
+      else if (metodo?.tipo === 'apartado') setMetodoValor(`apartado:${metodo.apartadoId}:${metodo.cuentaId}`)
+      else setMetodoValor('')
     } else {
       setTipo('gasto'); setContexto(contextoInicial); setMonto('')
       setCategoria(''); setDesc(''); setFecha(today())
@@ -94,11 +98,14 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
     }
   }, [open, tx, contextoInicial])
 
-  // Si cambia persona/contexto y el método seleccionado ya no aplica, se limpia
-  // y se auto-selecciona el primero disponible
+  // Si cambia persona/contexto y el método seleccionado ya no aplica, se limpia.
+  // En modo nuevo se auto-selecciona el primero disponible; al EDITAR se deja
+  // vacío para que el usuario elija explícitamente — auto-seleccionar aquí movía
+  // la deuda de tarjeta a la primera cuenta sin que se notara.
   useEffect(() => {
+    if (inicializando.current) { inicializando.current = false; return }
     const sigueValido = metodoOpts.some((o) => o.value === metodoValor)
-    if (!sigueValido) setMetodoValor(metodoOpts[0]?.value || '')
+    if (!sigueValido) setMetodoValor(isEdit ? '' : (metodoOpts[0]?.value || ''))
   }, [persona, contexto, tipo, cuentas, tarjetas])
 
   const handleSave = async () => {
@@ -106,16 +113,18 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
     if (!categoria) { toast.error('Selecciona una categoría'); return }
     if (!metodoValor) { toast.error('Selecciona de dónde sale o entra el dinero'); return }
 
-    const [tipoMetodo, id] = metodoValor.split(':')
-    // metodo_pago como "cuenta:UUID" o "tarjeta:UUID" para que revertirEfecto funcione
-    const metodoPagoDB = `${tipoMetodo}:${id}`
+    // metodo_pago se guarda completo: "cuenta:UUID" | "tarjeta:UUID" |
+    // "apartado:UUID:cuentaUUID" — es lo que aplicar/revertirEfecto parsean
+    const partes = metodoValor.split(':')
+    const tipoMetodo = partes[0]
 
     const payload = {
       tipo, contexto, monto: Number(monto), categoria,
       descripcion: descripcion.trim() || null,
-      fecha, persona, metodo_pago: metodoPagoDB,
-      cuenta_id:  tipoMetodo === 'cuenta'  ? id : null,
-      tarjeta_id: tipoMetodo === 'tarjeta' ? id : null,
+      fecha, persona, metodo_pago: metodoValor,
+      cuenta_id:  tipoMetodo === 'cuenta' ? partes[1]
+                : tipoMetodo === 'apartado' ? partes[2] : null,
+      tarjeta_id: tipoMetodo === 'tarjeta' ? partes[1] : null,
     }
 
     try {

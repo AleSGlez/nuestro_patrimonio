@@ -2,13 +2,14 @@
 import { useState, useMemo } from 'react'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
+import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { buildSparklineData } from '../hooks/useDashboard'
 import GraficaFlujo from './GraficaFlujo'
 import GraficaCategorias from './GraficaCategorias'
 import UltimosMovimientos from './UltimosMovimientos'
 import Sparkline from './Sparkline'
 import PresupuestosWidget from './PresupuestosWidget'
-import { fmt, cn } from '@lib/utils'
+import { fmt, cn, sumaApartadosPersonales } from '@lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react'
@@ -80,10 +81,11 @@ function IngresosGastosCard({ ingresos, gastos }) {
 }
 
 // ── Vista Pareja (todo personal combinado) ────────────────────
-function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas }) {
+function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados }) {
   const tx        = txMesData.filter((t) => t.contexto !== 'negocio')
   const txHist    = txHistoricoData.filter((t) => t.contexto !== 'negocio')
   const patrimonio = cuentas.filter((c) => c.persona !== 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
+    + sumaApartadosPersonales(apartados, cuentas, (c) => c.persona !== 'negocio')
     - tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
   const ingresos  = tx.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
   const gastos    = tx.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
@@ -111,12 +113,13 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas }) {
 }
 
 // ── Vista individual de una persona ──────────────────────────
-function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, tarjetas }) {
+function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, tarjetas, apartados }) {
   // Solo cuentas propias (no compartidas, no negocio)
   const cuentasPersona = cuentas.filter((c) => c.persona === persona)
   const tarjetasPersona = tarjetas.filter((t) => t.persona === persona)
 
   const saldoCuentas  = cuentasPersona.reduce((s, c) => s + Number(c.saldo), 0)
+    + sumaApartadosPersonales(apartados, cuentas, (c) => c.persona === persona)
   const deudaTarjetas = tarjetasPersona.reduce((s, t) => s + Number(t.saldo_total), 0)
   const patrimonio    = saldoCuentas - deudaTarjetas
 
@@ -179,6 +182,7 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
   const [subVista, setSubVista] = useState('pareja')
   const { data: cuentas = [] }  = useCuentas()
   const { data: tarjetas = [] } = useTarjetas()
+  const { data: apartados = [] } = useTodosLosApartados()
 
   const SUB_TABS = [
     { id: 'pareja', label: '👫 Pareja' },
@@ -209,21 +213,21 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
         {subVista === 'pareja' && (
           <VistaPareja
             txMesData={txMesData} txHistoricoData={txHistoricoData}
-            cuentas={cuentas} tarjetas={tarjetas}
+            cuentas={cuentas} tarjetas={tarjetas} apartados={apartados}
           />
         )}
         {subVista === 'p1' && (
           <VistaPersona
             persona="p1" nombre={nombres.p1}
             txMesData={txMesData} txHistoricoData={txHistoricoData}
-            cuentas={cuentas} tarjetas={tarjetas}
+            cuentas={cuentas} tarjetas={tarjetas} apartados={apartados}
           />
         )}
         {subVista === 'p2' && (
           <VistaPersona
             persona="p2" nombre={nombres.p2}
             txMesData={txMesData} txHistoricoData={txHistoricoData}
-            cuentas={cuentas} tarjetas={tarjetas}
+            cuentas={cuentas} tarjetas={tarjetas} apartados={apartados}
           />
         )}
       </div>

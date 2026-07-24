@@ -1,7 +1,7 @@
 // src/modules/metas/MetasPage.jsx
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, Check, Target, TrendingUp, ChevronRight } from 'lucide-react'
-import { useMetas, useCrearMeta, useActualizarMeta, useEliminarMeta, useAportar, useAportaciones, calcularMeta } from './hooks/useMetas'
+import { useMetas, useCrearMeta, useActualizarMeta, useEliminarMeta, useAportar, useAportaciones, useEliminarAportacion, calcularMeta } from './hooks/useMetas'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
@@ -313,10 +313,24 @@ function MetaCard({ meta, onEdit, onDelete, onAportar, onDetalle }) {
 
 // ── Detalle con historial ─────────────────────────────────────
 function DetalleMetaModal({ meta, onClose }) {
+  const toast = useToast()
+  const confirmar = useConfirm()
   const { data: aportaciones = [] } = useAportaciones(meta?.id)
+  const { data: cuentas = [] } = useCuentas()
+  const eliminarAportacion = useEliminarAportacion()
   if (!meta) return null
 
   const { pct } = calcularMeta(meta)
+
+  const handleEliminarAportacion = async (a) => {
+    if (!(await confirmar({
+      message: `¿Eliminar la aportación de ${fmt(a.monto)}? La meta bajará ese monto${a.cuenta_id ? ' y el dinero regresará a la cuenta' : ''}.`,
+    }))) return
+    try {
+      await eliminarAportacion.mutateAsync({ aportacion: a, meta, cuentas })
+      toast.success('Aportación eliminada — meta y cuenta restauradas')
+    } catch (e) { toast.error(e.message) }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
@@ -342,7 +356,16 @@ function DetalleMetaModal({ meta, onClose }) {
                   <p className="text-xs text-white font-medium">{fmt(a.monto)}</p>
                   <p className="text-[10px] text-gray-400">{a.fecha}{a.nota && ` · ${a.nota}`}</p>
                 </div>
-                <p className="text-ok text-xs font-mono">+{fmt(a.monto)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-ok text-xs font-mono">+{fmt(a.monto)}</p>
+                  <button
+                    onClick={() => handleEliminarAportacion(a)}
+                    aria-label="Eliminar aportación"
+                    className="icon-btn text-gray-500 hover:text-bad"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

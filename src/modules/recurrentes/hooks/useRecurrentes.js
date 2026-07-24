@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
 import { siguienteFecha } from '@modules/suscripciones/hooks/useSuscripciones'
+import { aplicarEfecto } from '@modules/transactions/hooks/useTransacciones'
 import { format } from 'date-fns'
 
 export function useRecurrentes() {
@@ -49,9 +50,11 @@ export function useRegistrarRecurrente() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useMutation({
-    mutationFn: async ({ recurrente, cuentas }) => {
-      // 1. Crear transacción
-      await db.from('transacciones').insert({
+    mutationFn: async ({ recurrente, cuentas, tarjetas = [] }) => {
+      // 1. Crear transacción — metodo_pago siempre con prefijo+UUID para que
+      // aplicar/revertirEfecto encuentren la cuenta o tarjeta (antes con tarjeta
+      // quedaba null: no subía la deuda y no había nada que revertir al borrar)
+      const [tx] = await db.from('transacciones').insert({
         pareja_id: parejaId,
         tipo: recurrente.tipo,
         monto: recurrente.monto,
@@ -62,20 +65,13 @@ export function useRegistrarRecurrente() {
         contexto: recurrente.contexto,
         cuenta_id: recurrente.cuenta_id || null,
         tarjeta_id: recurrente.tarjeta_id || null,
-        metodo_pago: recurrente.cuenta_id ? `cuenta:${recurrente.cuenta_id}` : null,
+        metodo_pago: recurrente.cuenta_id
+          ? `cuenta:${recurrente.cuenta_id}`
+          : recurrente.tarjeta_id ? `tarjeta:${recurrente.tarjeta_id}` : null,
       })
 
-      // 2. Actualizar saldo si hay cuenta
-      if (recurrente.cuenta_id) {
-        const cuenta = cuentas.find((c) => c.id === recurrente.cuenta_id)
-        if (cuenta) {
-          const delta = recurrente.tipo === 'ingreso' ? 1 : -1
-          await db.from('cuentas').update(
-            { saldo: Number(cuenta.saldo) + delta * Number(recurrente.monto) },
-            { id: cuenta.id }
-          )
-        }
-      }
+      // 2. Mismo efecto en saldo/deuda que cualquier gasto/ingreso de la app
+      await aplicarEfecto(tx, { cuentas, tarjetas })
 
       // 3. Avanzar proxima_fecha
       const siguiente = siguienteFecha(recurrente.proxima_fecha, recurrente.frecuencia)
@@ -88,6 +84,7 @@ export function useRegistrarRecurrente() {
       qc.invalidateQueries({ queryKey: ['recurrentes', parejaId] })
       qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
     },
   })
 }

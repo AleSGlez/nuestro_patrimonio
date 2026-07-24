@@ -108,24 +108,18 @@ export default function FormTransferencia({ open, onClose }) {
           monto, comision, descripcion, fecha,
         })
       } else if (tipo === 'personal_a_negocio' || tipo === 'negocio_a_personal') {
-        // Si el origen es un apartado, usar la cuenta del apartado y reducir el apartado
+        // Si el origen es un apartado, el dinero sale SOLO del apartado (el saldo
+        // de la cuenta ya excluye lo apartado) — el hook no toca la cuenta origen
         if (tipo === 'negocio_a_personal' && origenId.startsWith('apartado:')) {
           const [, apartadoId, cuentaOrigenId] = origenId.split(':')
-          const cuentaOrigen = cuentas.find((c) => c.id === cuentaOrigenId)
           const apartado = todosApartados.find((a) => a.id === apartadoId)
           const destino = cuentas.find((c) => c.id === destinoId)
-          // Reducir apartado
-          const { db } = await import('@lib/supabase')
-          await db.from('cuenta_apartados').update(
-            { monto: Math.max(0, Number(apartado.monto) - Number(monto)) },
-            { id: apartadoId }
-          )
-          // Transferir de la cuenta origen a destino
           await transferirPN.mutateAsync({
             tipo: 'negocio_a_personal',
             origenId: cuentaOrigenId, destinoId,
-            origenSaldo: cuentaOrigen.saldo, destinoSaldo: destino.saldo,
+            destinoSaldo: destino.saldo,
             monto, descripcion: descripcion || `Desde apartado ${apartado.nombre}`, fecha,
+            apartadoId, apartadoMonto: apartado.monto,
           })
         } else {
           const origen  = cuentas.find((c) => c.id === origenId)

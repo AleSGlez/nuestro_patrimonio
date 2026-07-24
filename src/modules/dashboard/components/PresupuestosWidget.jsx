@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { useAppStore } from '@store/appStore'
 import { usePresupuestos, calcularDisponible, calcularDesglose } from '@modules/presupuestos/hooks/usePresupuestos'
-import { fmt, cn } from '@lib/utils'
+import { fmt, cn, today } from '@lib/utils'
 import { getDaysInMonth, startOfWeek } from 'date-fns'
 import { montoParaPersona } from '@lib/utils'
 
@@ -20,7 +20,7 @@ const VISTAS = [
 function calcularParaVista(presupuesto, transacciones, vista) {
   const desglose = calcularDesglose(presupuesto)
   const hoy = new Date()
-  const hoyStr = hoy.toISOString().slice(0, 10)
+  const hoyStr = today() // fecha local — toISOString daba mañana después de las 6pm
 
   // Filtro base: solo gastos personales de la persona del presupuesto
   const personaCalculo = presupuesto.persona === 'ambos' ? null : presupuesto.persona

@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2, Check, Play, TrendingUp, TrendingDown } from 'lucide-react'
 import { useRecurrentes, useCrearRecurrente, useActualizarRecurrente, useEliminarRecurrente, useRegistrarRecurrente } from './hooks/useRecurrentes'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
+import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
@@ -207,6 +208,7 @@ export default function RecurrentesPage() {
   const confirmar = useConfirm()
   const { data: recurrentes = [], isPending } = useRecurrentes()
   const { data: cuentas = [] } = useCuentas()
+  const { data: tarjetas = [] } = useTarjetas()
   const eliminar = useEliminarRecurrente()
   const registrar = useRegistrarRecurrente()
   const [formOpen, setFormOpen] = useState(false)
@@ -223,7 +225,7 @@ export default function RecurrentesPage() {
   const handleRegistrar = async (rec) => {
     if (!(await confirmar({ message: `¿Registrar ${rec.tipo === 'ingreso' ? 'ingreso' : 'gasto'} de ${fmt(rec.monto)} — ${rec.nombre}?` }))) return
     try {
-      await registrar.mutateAsync({ recurrente: rec, cuentas })
+      await registrar.mutateAsync({ recurrente: rec, cuentas, tarjetas })
       toast.success('Registrado ✅')
     } catch (e) { toast.error(e.message) }
   }

@@ -28,10 +28,11 @@ Deno.serve(async (req) => {
   let registradas = 0
 
   // ── Suscripciones vencidas ─────────────────────────────────
+  // Solo las ACTIVAS — neq.cancelada incluía también las pausadas y las cobraba
   const { data: suscripciones } = await supabase
     .from('suscripciones')
     .select('*')
-    .neq('estado', 'cancelada')
+    .eq('estado', 'activa')
     .lte('proxima_fecha', hoy)
 
   for (const sus of suscripciones || []) {
@@ -47,13 +48,20 @@ Deno.serve(async (req) => {
         persona: sus.persona,
         contexto: sus.contexto || 'personal',
         metodo_pago: sus.cuenta_id ? `cuenta:${sus.cuenta_id}` : sus.tarjeta_id ? `tarjeta:${sus.tarjeta_id}` : null,
+        cuenta_id: sus.cuenta_id || null,
+        tarjeta_id: sus.tarjeta_id || null,
       })
 
-      // Descontar de cuenta si aplica
+      // Descontar de cuenta o subir deuda de tarjeta — mismo efecto que el frontend
       if (sus.cuenta_id) {
         const { data: cuenta } = await supabase.from('cuentas').select('saldo').eq('id', sus.cuenta_id).single()
         if (cuenta) {
           await supabase.from('cuentas').update({ saldo: Number(cuenta.saldo) - Number(sus.monto) }).eq('id', sus.cuenta_id)
+        }
+      } else if (sus.tarjeta_id) {
+        const { data: tarjeta } = await supabase.from('tarjetas').select('saldo_total').eq('id', sus.tarjeta_id).single()
+        if (tarjeta) {
+          await supabase.from('tarjetas').update({ saldo_total: Number(tarjeta.saldo_total) + Number(sus.monto) }).eq('id', sus.tarjeta_id)
         }
       }
 
@@ -85,7 +93,7 @@ Deno.serve(async (req) => {
         fecha: rec.proxima_fecha,
         persona: rec.persona,
         contexto: rec.contexto,
-        metodo_pago: rec.cuenta_id ? `cuenta:${rec.cuenta_id}` : null,
+        metodo_pago: rec.cuenta_id ? `cuenta:${rec.cuenta_id}` : rec.tarjeta_id ? `tarjeta:${rec.tarjeta_id}` : null,
       })
 
       if (rec.cuenta_id) {
@@ -93,6 +101,11 @@ Deno.serve(async (req) => {
         if (cuenta) {
           const delta = rec.tipo === 'ingreso' ? 1 : -1
           await supabase.from('cuentas').update({ saldo: Number(cuenta.saldo) + delta * Number(rec.monto) }).eq('id', rec.cuenta_id)
+        }
+      } else if (rec.tarjeta_id && rec.tipo === 'gasto') {
+        const { data: tarjeta } = await supabase.from('tarjetas').select('saldo_total').eq('id', rec.tarjeta_id).single()
+        if (tarjeta) {
+          await supabase.from('tarjetas').update({ saldo_total: Number(tarjeta.saldo_total) + Number(rec.monto) }).eq('id', rec.tarjeta_id)
         }
       }
 

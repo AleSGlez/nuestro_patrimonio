@@ -29,13 +29,16 @@ export function useTransferirEntreCuentas() {
   })
 }
 
-// Pago de tarjeta de crédito desde una cuenta
+// Pago de tarjeta de crédito desde una cuenta o desde un apartado.
+// Si viene apartadoId: el dinero sale SOLO del apartado — el saldo de la cuenta
+// no se toca, porque al crear el apartado ese monto ya se restó del disponible
+// (useCrearApartado). Descontar ambos duplicaría la salida de dinero.
 export function usePagarTarjeta() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ cuentaId, cuentaSaldo, tarjetaId, tarjetaSaldoTotal, monto, descripcion, fecha }) => {
+    mutationFn: async ({ cuentaId, cuentaSaldo, tarjetaId, tarjetaSaldoTotal, monto, descripcion, fecha, apartadoId, apartadoMonto }) => {
       const m = Number(monto)
 
       await db.from('transferencias').insert({
@@ -43,13 +46,19 @@ export function usePagarTarjeta() {
         tipo: 'pago_tarjeta',
         monto: m,
         origen_cuenta_id: cuentaId,
+        origen_apartado_id: apartadoId || null,
         destino_tarjeta_id: tarjetaId,
         descripcion: descripcion || null,
         fecha,
       })
 
-      // Descontar de la cuenta origen
-      await db.from('cuentas').update({ saldo: Number(cuentaSaldo) - m }, { id: cuentaId })
+      if (apartadoId) {
+        await db.from('cuenta_apartados').update(
+          { monto: Math.max(0, Number(apartadoMonto) - m) }, { id: apartadoId }
+        )
+      } else {
+        await db.from('cuentas').update({ saldo: Number(cuentaSaldo) - m }, { id: cuentaId })
+      }
 
       // El pago reduce la deuda total. pago_sin_intereses es lo que el usuario
       // definió manualmente — NO se toca aquí (regla de negocio §11).
@@ -60,6 +69,8 @@ export function usePagarTarjeta() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados'] })
     },
   })
 }
@@ -104,13 +115,15 @@ export function useDisposicionEfectivo() {
   })
 }
 
-// Transferencia personal → negocio o negocio → personal
+// Transferencia personal → negocio o negocio → personal.
+// Si viene apartadoId (negocio→personal desde apartado): el dinero sale SOLO
+// del apartado — la cuenta origen no se toca (mismo criterio que usePagarTarjeta).
 export function useTransferirPersonalNegocio() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
 
   return useMutation({
-    mutationFn: async ({ tipo, origenId, destinoId, origenSaldo, destinoSaldo, monto, descripcion, fecha }) => {
+    mutationFn: async ({ tipo, origenId, destinoId, origenSaldo, destinoSaldo, monto, descripcion, fecha, apartadoId, apartadoMonto }) => {
       const m = Number(monto)
 
       await db.from('transferencias').insert({
@@ -118,16 +131,43 @@ export function useTransferirPersonalNegocio() {
         tipo, // 'personal_a_negocio' | 'negocio_a_personal'
         monto: m,
         origen_cuenta_id: origenId,
+        origen_apartado_id: apartadoId || null,
         destino_cuenta_id: destinoId,
         descripcion: descripcion || null,
         fecha,
       })
 
-      await db.from('cuentas').update({ saldo: Number(origenSaldo) - m },  { id: origenId })
+      if (apartadoId) {
+        await db.from('cuenta_apartados').update(
+          { monto: Math.max(0, Number(apartadoMonto) - m) }, { id: apartadoId }
+        )
+      } else {
+        await db.from('cuentas').update({ saldo: Number(origenSaldo) - m }, { id: origenId })
+      }
       await db.from('cuentas').update({ saldo: Number(destinoSaldo) + m }, { id: destinoId })
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['cuentas', parejaId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados'] })
+    },
   })
+}
+
+// Devuelve el monto de una transferencia a su origen: al apartado si salió de
+// un apartado (origen_apartado_id), o a la cuenta origen si no.
+async function devolverAOrigen(t, cuentas, m) {
+  if (t.origen_apartado_id) {
+    const [apartado] = await db.from('cuenta_apartados').query(`id=eq.${t.origen_apartado_id}`)
+    if (apartado) {
+      await db.from('cuenta_apartados').update(
+        { monto: Number(apartado.monto) + m }, { id: apartado.id }
+      )
+    }
+    return
+  }
+  const origen = cuentas.find((c) => c.id === t.origen_cuenta_id)
+  if (origen) await db.from('cuentas').update({ saldo: Number(origen.saldo) + m }, { id: origen.id })
 }
 
 // Eliminar una transferencia — revierte el efecto en saldos según su tipo
@@ -141,16 +181,14 @@ export function useEliminarTransferencia() {
       const m = Number(t.monto)
 
       if (t.tipo === 'entre_cuentas' || t.tipo === 'personal_a_negocio' || t.tipo === 'negocio_a_personal') {
-        const origen  = cuentas.find((c) => c.id === t.origen_cuenta_id)
         const destino = cuentas.find((c) => c.id === t.destino_cuenta_id)
-        if (origen)  await db.from('cuentas').update({ saldo: Number(origen.saldo) + m },  { id: origen.id })
+        await devolverAOrigen(t, cuentas, m)
         if (destino) await db.from('cuentas').update({ saldo: Number(destino.saldo) - m }, { id: destino.id })
       }
 
       if (t.tipo === 'pago_tarjeta') {
-        const cuenta  = cuentas.find((c) => c.id === t.origen_cuenta_id)
         const tarjeta = tarjetas.find((tj) => tj.id === t.destino_tarjeta_id)
-        if (cuenta)  await db.from('cuentas').update({ saldo: Number(cuenta.saldo) + m }, { id: cuenta.id })
+        await devolverAOrigen(t, cuentas, m)
         // pago_sin_intereses NO se toca — es manual (regla de negocio §11), igual
         // que en usePagarTarjeta al aplicar el pago. Antes se sumaba aquí y no allá,
         // una asimetría que dejaba ese campo mal cada vez que se revertía un pago.
@@ -180,6 +218,8 @@ export function useEliminarTransferencia() {
       qc.invalidateQueries({ queryKey: ['transferencias-list', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
+      qc.invalidateQueries({ queryKey: ['apartados'] })
     },
   })
 }

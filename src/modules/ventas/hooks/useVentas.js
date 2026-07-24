@@ -103,7 +103,9 @@ export function useRegistrarVenta() {
       // ── 3. Descontar stock ───────────────────────────────
       await Promise.all(items.map((item) => {
         const nuevoStock = Math.max(0, Number(item.producto.cantidad_stock) - item.cantidad)
-        return db.from('productos').update({ cantidad_stock: nuevoStock }, { id: item.producto.id })
+        const patch = { cantidad_stock: nuevoStock }
+        if (nuevoStock === 0) patch.estado = 'vendido'
+        return db.from('productos').update(patch, { id: item.producto.id })
       }))
 
       // ── 4. Dinero recibido ahora vs. saldo pendiente ─────
@@ -179,15 +181,15 @@ export function useCancelarVenta() {
       const [venta] = await db.from('ventas').query(`id=eq.${ventaId}`)
       if (!venta) throw new Error('Venta no encontrada')
 
-      // 1. Restaurar stock
+      // 1. Restaurar stock (y sacar del estado 'vendido' si vuelve a haber unidades)
       const items = await db.from('ventas_items').query(`venta_id=eq.${ventaId}`)
       await Promise.all(items.map(async (item) => {
         const [producto] = await db.from('productos').query(`id=eq.${item.producto_id}`)
         if (producto) {
-          await db.from('productos').update(
-            { cantidad_stock: Number(producto.cantidad_stock) + Number(item.cantidad) },
-            { id: item.producto_id }
-          )
+          const nuevoStock = Number(producto.cantidad_stock) + Number(item.cantidad)
+          const patch = { cantidad_stock: nuevoStock }
+          if (producto.estado === 'vendido' && nuevoStock > 0) patch.estado = 'disponible'
+          await db.from('productos').update(patch, { id: item.producto_id })
         }
       }))
 

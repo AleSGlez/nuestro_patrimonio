@@ -12,7 +12,8 @@ import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useAppStore } from '@store/appStore'
 import {
   CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, cn,
-  filtrarCuentasPorContexto, filtrarTarjetasPorContexto, TIPO_EMOJI_CUENTA,
+  filtrarCuentasPorContexto, filtrarTarjetasPorContexto, opcionesApartadosNegocio,
+  TIPO_EMOJI_CUENTA,
 } from '@lib/utils'
 import {
   useCrearAccesoRapido, useActualizarAccesoRapido, useEliminarAccesoRapido, useDuplicarAccesoRapido,
@@ -53,14 +54,16 @@ export default function FormAccesoRapido({ open, onClose, acceso = null }) {
   const contexto = responsable === 'negocio' ? 'negocio' : 'personal'
   const persona  = responsable === 'negocio' ? 'ambos'   : responsable
 
-  const cuentasFiltradas  = filtrarCuentasPorContexto(cuentas, { contexto, persona }, todosApartados)
+  const cuentasFiltradas  = filtrarCuentasPorContexto(cuentas, { contexto, persona })
   const tarjetasFiltradas = filtrarTarjetasPorContexto(tarjetas, { contexto, persona, tipo })
+  const apartadosNegocioOpts = contexto === 'negocio' ? opcionesApartadosNegocio(todosApartados) : []
 
   const metodoOpts = [
     ...cuentasFiltradas.map((c) => ({
       value: `cuenta:${c.id}`,
       label: `${TIPO_EMOJI_CUENTA[c.tipo] || '💳'} ${c.nombre}`,
     })),
+    ...apartadosNegocioOpts,
     ...tarjetasFiltradas.map((t) => ({
       value: `tarjeta:${t.id}`,
       label: `💳 ${t.nombre} (crédito)`,

@@ -8,7 +8,7 @@ import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { usePersonas } from '@modules/personas/hooks/usePersonas'
 import { useDashboardData } from '@modules/dashboard/hooks/useDashboard'
 import AccesosRapidosSection from '@modules/accesosRapidos/components/AccesosRapidosSection'
-import { fmt, cn } from '@lib/utils'
+import { fmt, cn, sumaApartadosPersonales } from '@lib/utils'
 
 function EspacioCard({ emoji, titulo, subtitulo, valor, estado, onClick, badge }) {
   return (
@@ -47,7 +47,10 @@ export default function InicioPage({ onNavegar }) {
   const hora = new Date().getHours()
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
 
+  // Los apartados personales viven fuera de cuenta.saldo — sin sumarlos el
+  // patrimonio subestima todo el dinero apartado
   const totalCuentas = cuentas.filter((c) => c.persona !== 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
+    + sumaApartadosPersonales(todosApartados, cuentas, (c) => c.persona !== 'negocio')
   const totalDeuda   = tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
   const patrimonio   = totalCuentas - totalDeuda
 
@@ -69,11 +72,13 @@ export default function InicioPage({ onNavegar }) {
 
   // Patrimonio del usuario logueado
   const misCuentas    = cuentas.filter((c) => c.persona === miPersona).reduce((s, c) => s + Number(c.saldo), 0)
+    + sumaApartadosPersonales(todosApartados, cuentas, (c) => c.persona === miPersona)
   const misTarjetas   = tarjetas.filter((t) => t.persona === miPersona).reduce((s, t) => s + Number(t.saldo_total), 0)
   const miPatrimonio  = misCuentas - misTarjetas
 
   // Patrimonio de la pareja (el otro usuario)
   const susCuentas    = cuentas.filter((c) => c.persona === suPersona).reduce((s, c) => s + Number(c.saldo), 0)
+    + sumaApartadosPersonales(todosApartados, cuentas, (c) => c.persona === suPersona)
   const susTarjetas   = tarjetas.filter((t) => t.persona === suPersona).reduce((s, t) => s + Number(t.saldo_total), 0)
   const suPatrimonio  = susCuentas - susTarjetas
 

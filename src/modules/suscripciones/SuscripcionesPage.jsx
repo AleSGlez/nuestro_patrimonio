@@ -221,6 +221,7 @@ export default function SuscripcionesPage() {
   const confirmar = useConfirm()
   const { data: suscripciones = [], isPending } = useSuscripciones()
   const { data: cuentas = [] } = useCuentas()
+  const { data: tarjetas = [] } = useTarjetas()
   const eliminar = useEliminarSuscripcion()
   const registrar = useRegistrarSuscripcion()
   const [formOpen, setFormOpen] = useState(false)
@@ -242,7 +243,7 @@ export default function SuscripcionesPage() {
   const handleRegistrar = async (sus) => {
     if (!(await confirmar({ message: `¿Registrar el cargo de ${fmt(sus.monto)} de ${sus.nombre}?` }))) return
     try {
-      await registrar.mutateAsync({ suscripcion: sus, cuentas })
+      await registrar.mutateAsync({ suscripcion: sus, cuentas, tarjetas })
       toast.success('Cargo registrado ✅')
     } catch (e) { toast.error(e.message) }
   }
