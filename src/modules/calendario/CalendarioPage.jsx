@@ -100,16 +100,16 @@ function VistaMensual({ fecha, eventos, onDiaClick }) {
   const DIAS_SEMANA = ['L','M','M','J','V','S','D']
 
   return (
-    <div>
+    <div className="rounded-2xl overflow-hidden">
       {/* Header días semana */}
-      <div className="grid grid-cols-7 mb-1 lg:mb-0 lg:rounded-t-2xl lg:overflow-hidden">
+      <div className="grid grid-cols-7">
         {DIAS_SEMANA.map((d, i) => (
-          <div key={i} className="text-center text-[10px] text-gray-400 py-1 lg:py-3 font-medium lg:bg-surface-800 lg:border-b lg:border-white/[0.06] lg:font-bold lg:uppercase lg:tracking-wider">{d}</div>
+          <div key={i} className="text-center text-[9px] lg:text-[10px] text-gray-400 py-2 lg:py-3 font-bold uppercase tracking-wider bg-surface-800 border-b border-white/[0.06]">{d}</div>
         ))}
       </div>
 
       {/* Grid de días */}
-      <div className="grid grid-cols-7 gap-0.5 lg:gap-px lg:bg-white/[0.06] lg:rounded-b-2xl lg:overflow-hidden">
+      <div className="grid grid-cols-7 gap-px bg-white/[0.06]">
         {dias.map((dia, i) => {
           const key = dia.toISOString().slice(0, 10)
           const eventosDelDia = eventosPorFecha[key] || []
@@ -121,46 +121,31 @@ function VistaMensual({ fecha, eventos, onDiaClick }) {
               key={i}
               onClick={() => eventosDelDia.length > 0 && onDiaClick(dia, eventosDelDia)}
               className={cn(
-                'relative rounded-xl lg:rounded-none p-1 lg:p-2 min-h-[48px] lg:min-h-[110px] text-left lg:align-top transition-all',
-                esMesActual ? 'bg-surface-700/50 lg:bg-surface-900' : 'opacity-30 lg:opacity-100 lg:bg-surface-950',
+                'relative p-1 lg:p-2 min-h-[64px] lg:min-h-[110px] text-left align-top transition-all',
+                esMesActual ? 'bg-surface-900' : 'bg-surface-950 opacity-60',
                 eventosDelDia.length > 0 && 'cursor-pointer active:scale-95',
-                esHoy && 'ring-2 ring-[var(--accent)] lg:ring-inset lg:z-10'
+                esHoy && 'ring-2 ring-inset ring-[var(--accent)] z-10'
               )}
             >
               <p className={cn(
-                'text-[11px] lg:text-xs font-medium lg:font-mono mb-1 text-center lg:text-left',
+                'text-[10px] lg:text-xs font-mono mb-1',
                 esHoy ? 'text-[var(--accent)] font-bold' : esMesActual ? 'text-white' : 'text-gray-600'
               )}>
                 {format(dia, 'd')}
               </p>
 
-              {/* Mobile: puntos de color */}
-              <div className="space-y-0.5 lg:hidden">
+              <div className="space-y-0.5 lg:space-y-1">
                 {eventosDelDia.slice(0, 2).map((e, j) => (
                   <div
                     key={j}
-                    className="w-full h-1.5 rounded-full"
-                    style={{ backgroundColor: e.color }}
-                  />
-                ))}
-                {eventosDelDia.length > 2 && (
-                  <p className="text-[9px] text-gray-400 text-center">+{eventosDelDia.length - 2}</p>
-                )}
-              </div>
-
-              {/* Desktop: chips con etiqueta, hay espacio de sobra */}
-              <div className="hidden lg:block space-y-1 mt-1">
-                {eventosDelDia.slice(0, 3).map((e, j) => (
-                  <div
-                    key={j}
-                    className="px-1.5 py-0.5 rounded truncate"
+                    className="px-1 lg:px-1.5 py-0.5 rounded truncate"
                     style={{ backgroundColor: `${e.color}1A`, borderLeft: `2px solid ${e.color}` }}
                   >
-                    <p className="text-[9px] font-bold uppercase truncate" style={{ color: e.color }}>{e.titulo}</p>
+                    <p className="text-[8px] lg:text-[9px] font-bold uppercase truncate" style={{ color: e.color }}>{e.titulo}</p>
                   </div>
                 ))}
-                {eventosDelDia.length > 3 && (
-                  <p className="text-[9px] text-gray-500 font-medium">+{eventosDelDia.length - 3} más</p>
+                {eventosDelDia.length > 2 && (
+                  <p className="text-[8px] lg:text-[9px] text-gray-500 font-medium">+{eventosDelDia.length - 2} más</p>
                 )}
               </div>
             </button>
@@ -293,26 +278,26 @@ export default function CalendarioPage() {
 
   return (
     <>
-      <div className="top-header flex-col items-stretch !h-auto pb-3 lg:!h-auto lg:px-10 lg:pt-8 lg:pb-0 lg:border-b-0 lg:bg-surface-950">
+      <div className="top-header flex-col items-stretch !h-auto pb-3 lg:px-10 lg:pt-8 lg:pb-0 lg:bg-surface-950">
         <div className="lg:max-w-6xl lg:w-full">
-          <div className="lg:flex lg:items-center lg:justify-between lg:mb-8">
-            <div className="lg:flex lg:items-center lg:gap-8">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-0 lg:mb-8">
+            <div className="flex items-center gap-3 lg:gap-8">
               {/* Navegación */}
-              <div className="flex items-center justify-between lg:justify-start lg:gap-3">
-                <button onClick={navAnterior} aria-label="Mes anterior" className="icon-btn lg:w-9 lg:h-9 lg:bg-surface-800 lg:rounded-lg text-gray-400 hover:text-white">
-                  <ChevronLeft size={20} />
+              <div className="flex items-center gap-2 lg:gap-3">
+                <button onClick={navAnterior} aria-label="Mes anterior" className="icon-btn lg:w-9 lg:h-9 bg-surface-800 rounded-lg text-gray-400 hover:text-white">
+                  <ChevronLeft size={18} />
                 </button>
-                <p className="text-sm lg:text-2xl font-semibold lg:font-bold text-white capitalize lg:tracking-tight">{tituloNav}</p>
-                <button onClick={navSiguiente} aria-label="Mes siguiente" className="icon-btn lg:w-9 lg:h-9 lg:bg-surface-800 lg:rounded-lg text-gray-400 hover:text-white">
-                  <ChevronRight size={20} />
+                <p className="flex-1 lg:flex-none text-center text-sm lg:text-2xl font-semibold lg:font-bold text-white capitalize lg:tracking-tight">{tituloNav}</p>
+                <button onClick={navSiguiente} aria-label="Mes siguiente" className="icon-btn lg:w-9 lg:h-9 bg-surface-800 rounded-lg text-gray-400 hover:text-white">
+                  <ChevronRight size={18} />
                 </button>
               </div>
 
               {/* Toggle mes/semana */}
-              <div className="flex bg-surface-700 rounded-xl p-1 mb-3 lg:mb-0 lg:bg-surface-900 lg:border lg:border-white/[0.06] mt-3 lg:mt-0">
+              <div className="flex bg-surface-900 border border-white/[0.06] rounded-xl p-1">
                 {[['mes','📅 Mes'],['semana','🗓️ Semana']].map(([id, label]) => (
                   <button key={id} onClick={() => setVista(id)}
-                    className={cn('flex-1 py-2 lg:py-1.5 lg:px-4 text-xs font-medium lg:font-semibold rounded-lg transition-all',
+                    className={cn('py-1.5 px-3 lg:px-4 text-[11px] lg:text-xs font-semibold rounded-lg transition-all',
                       vista === id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
                     )}
                   >{label}</button>
@@ -320,8 +305,8 @@ export default function CalendarioPage() {
               </div>
             </div>
 
-            {/* Leyenda (desktop: junto al header) */}
-            <div className="hidden lg:flex lg:items-center lg:gap-4">
+            {/* Leyenda */}
+            <div className="flex items-center gap-3 lg:gap-4 flex-wrap">
               {[
                 { color: COLOR_EVENTO.quincena,      label: 'Quincena' },
                 { color: COLOR_EVENTO.corte_tarjeta, label: 'Corte tarjeta' },
@@ -330,7 +315,7 @@ export default function CalendarioPage() {
               ].map((l) => (
                 <div key={l.label} className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: l.color }} />
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.label}</span>
+                  <span className="text-[9px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.label}</span>
                 </div>
               ))}
             </div>
@@ -340,21 +325,6 @@ export default function CalendarioPage() {
 
       <div className="page px-4 lg:px-10 pt-3 lg:pt-8">
         <div className="lg:max-w-6xl">
-          {/* Leyenda (mobile) */}
-          <div className="flex gap-3 mb-3 flex-wrap lg:hidden">
-            {[
-              { color: COLOR_EVENTO.quincena,      label: 'Quincena' },
-              { color: COLOR_EVENTO.corte_tarjeta, label: 'Corte tarjeta' },
-              { color: COLOR_EVENTO.pago_tarjeta,  label: 'Pago tarjeta' },
-              { color: COLOR_EVENTO.suscripcion,   label: 'Suscripción' },
-            ].map((l) => (
-              <div key={l.label} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: l.color }} />
-                <p className="text-[10px] text-gray-400">{l.label}</p>
-              </div>
-            ))}
-          </div>
-
           {vista === 'mes' ? (
             <VistaMensual
               fecha={fecha} eventos={eventos}
@@ -371,17 +341,17 @@ export default function CalendarioPage() {
               {tarjetas.filter((t) => t.dia_corte).map((t) => {
                 const periodo = periodoTarjeta(t.dia_corte, fecha)
                 return (
-                  <div key={t.id} className="card p-3 lg:p-4 flex items-center gap-3 lg:gap-6">
-                    <div className="w-2 lg:w-1 h-8 lg:self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                  <div key={t.id} className="card p-3 lg:p-4 flex items-center gap-4 lg:gap-6">
+                    <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
                     <div className="flex-1">
-                      <p className="text-xs lg:text-sm font-semibold lg:font-bold text-white">{t.nombre}</p>
-                      <p className="text-[10px] lg:text-xs text-gray-400">
+                      <p className="text-sm font-bold text-white">{t.nombre}</p>
+                      <p className="text-[11px] lg:text-xs text-gray-400">
                         Período: {periodo.inicio} → {periodo.fin}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] text-gray-400">Sin intereses</p>
-                      <p className="text-xs lg:text-lg font-mono lg:font-bold text-[var(--accent)] lg:text-white">{fmt(t.pago_sin_intereses)}</p>
+                      <p className="text-sm lg:text-lg font-mono font-bold text-white">{fmt(t.pago_sin_intereses)}</p>
                     </div>
                   </div>
                 )
