@@ -60,8 +60,10 @@ export function useCrearLote() {
       const costoEnvioN  = Number(costo_envio || 0)
       const costoAduanaN = Number(costo_aduana || 0)
       const totalMXN     = montoMXN + costoEnvioN + costoAduanaN
-      const numProductos = productos.length || 1
-      const costoProrr   = (costoEnvioN + costoAduanaN) / numProductos
+      // Prorratear entre el número de CARTAS FÍSICAS del lote, no el número de
+      // renglones/líneas capturadas — un renglón "Charizard x3" son 3 cartas, no 1.
+      const totalCartas  = productos.reduce((s, p) => s + Number(p.cantidad_compra || 1), 0) || 1
+      const costoProrr   = (costoEnvioN + costoAduanaN) / totalCartas
 
       // 1. Crear el lote
       const [lote] = await db.from('lotes_compra').insert({
