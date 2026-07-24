@@ -55,3 +55,28 @@ export function buildSparklineData(transacciones, dias = 14) {
     return acum
   })
 }
+
+// Serie acumulada día a día (1 al día actual) de un solo tipo dentro del
+// mes en curso — usada por el switch de métricas (Ingresos/Gastos), que a
+// diferencia del flujo neto de buildSparklineData necesita una curva
+// siempre creciente por tipo, no un neto ingreso-gasto.
+export function buildCumulativoMes(transaccionesMes, tipo) {
+  const hoy = new Date()
+  const dias = hoy.getDate()
+  const puntos = Array.from({ length: dias }, (_, i) => {
+    const fecha = format(new Date(hoy.getFullYear(), hoy.getMonth(), i + 1), 'yyyy-MM-dd')
+    return { fecha, valor: 0 }
+  })
+
+  transaccionesMes.forEach((t) => {
+    if (t.tipo !== tipo) return
+    const punto = puntos.find((p) => p.fecha === t.fecha)
+    if (punto) punto.valor += Number(t.monto)
+  })
+
+  let acum = 0
+  return puntos.map((p) => {
+    acum += p.valor
+    return acum
+  })
+}
