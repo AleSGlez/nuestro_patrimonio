@@ -2,7 +2,6 @@
 import { useMemo } from 'react'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
-import { useVentas } from '@modules/ventas/hooks/useVentas'
 import { useDashboardData, buildSparklineData } from '../hooks/useDashboard'
 import GraficaFlujo from './GraficaFlujo'
 import GraficaCategorias from './GraficaCategorias'
@@ -40,72 +39,9 @@ function MetricaNegocio({ label, valor, positivo, sparkData, sufijo }) {
   )
 }
 
-// Anillos concéntricos Ventas (100% referencia) / Costos / Ganancia — ambos
-// como % de las ventas del mes. Ventas=azul info, Costos=ámbar warn,
-// Ganancia=verde ok (mismos tonos del tema, sin inventar colores nuevos).
-function VentasRingsCard({ ventas, costos, ganancia }) {
-  if (!ventas) return null
-
-  const costosPct   = Math.min(100, (costos / ventas) * 100)
-  const gananciaPct = Math.min(100, (ganancia / ventas) * 100)
-  const circ = (r) => 2 * Math.PI * r
-  const R_OUT = 50, R_MID = 38, R_IN = 26
-  const COLOR_VENTAS = '#3B82F6', COLOR_COSTOS = '#F59E0B', COLOR_GANANCIA = '#22C55E'
-
-  return (
-    <div className="card p-4 lg:p-6 flex items-center gap-5 lg:gap-8 mt-3">
-      <div className="relative w-[116px] h-[116px] lg:w-[160px] lg:h-[160px] flex-shrink-0">
-        <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-          <circle cx="60" cy="60" r={R_OUT} fill="none" stroke={COLOR_VENTAS} strokeOpacity="0.15" strokeWidth="9" />
-          <circle cx="60" cy="60" r={R_OUT} fill="none" stroke={COLOR_VENTAS} strokeWidth="9" strokeLinecap="round"
-            strokeDasharray={`${circ(R_OUT)} ${circ(R_OUT)}`} />
-          <circle cx="60" cy="60" r={R_MID} fill="none" stroke={COLOR_COSTOS} strokeOpacity="0.15" strokeWidth="9" />
-          <circle cx="60" cy="60" r={R_MID} fill="none" stroke={COLOR_COSTOS} strokeWidth="9" strokeLinecap="round"
-            strokeDasharray={`${circ(R_MID) * costosPct / 100} ${circ(R_MID)}`} />
-          <circle cx="60" cy="60" r={R_IN} fill="none" stroke={COLOR_GANANCIA} strokeOpacity="0.15" strokeWidth="9" />
-          <circle cx="60" cy="60" r={R_IN} fill="none" stroke={COLOR_GANANCIA} strokeWidth="9" strokeLinecap="round"
-            strokeDasharray={`${circ(R_IN) * gananciaPct / 100} ${circ(R_IN)}`} />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <p className="text-[8px] lg:text-[10px] text-gray-400 uppercase tracking-wide">Ventas</p>
-          <p className="text-sm lg:text-lg font-bold font-mono text-white">{fmt(ventas)}</p>
-        </div>
-      </div>
-      <div className="flex-1 space-y-2.5 lg:space-y-4 min-w-0">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLOR_VENTAS }} />
-          <div className="min-w-0">
-            <p className="text-[11px] lg:text-xs text-gray-300">Ventas</p>
-            <p className="text-sm lg:text-base font-bold font-mono text-white">{fmt(ventas)}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLOR_COSTOS }} />
-          <div className="min-w-0">
-            <p className="text-[11px] lg:text-xs text-gray-300">Costos</p>
-            <p className="text-sm lg:text-base font-bold font-mono text-white">
-              {fmt(costos)} <span className="text-[10px] lg:text-xs text-gray-400 font-normal">{Math.round(costosPct)}%</span>
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLOR_GANANCIA }} />
-          <div className="min-w-0">
-            <p className="text-[11px] lg:text-xs text-gray-300">Ganancia</p>
-            <p className="text-sm lg:text-base font-bold font-mono text-white">
-              {fmt(ganancia)} <span className="text-[10px] lg:text-xs text-gray-400 font-normal">{Math.round(gananciaPct)}%</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function DashboardNegocio() {
   const { data: cuentas = [] }        = useCuentas()
   const { data: todosApartados = [] } = useTodosLosApartados()
-  const { data: ventasList = [] }     = useVentas()
   const { txMes, txHistorico }        = useDashboardData()
 
   const txMesData       = txMes.data || []
@@ -139,13 +75,6 @@ export default function DashboardNegocio() {
   const sparkUtilidad = useMemo(() => buildSparklineData(txNegocioMes, 14), [txNegocioMes])
   const sparkCapital  = useMemo(() => buildSparklineData(txNegocioHistorico, 30), [txNegocioHistorico])
 
-  // ── Ventas del mes (ventas/costo/ganancia reales, no tx de ingreso/gasto) ──
-  const mesActualStr = format(new Date(), 'yyyy-MM')
-  const ventasMes = ventasList.filter((v) => v.estado === 'completada' && v.fecha.startsWith(mesActualStr))
-  const totalVentasMes   = ventasMes.reduce((s, v) => s + Number(v.total_venta), 0)
-  const totalCostoMes    = ventasMes.reduce((s, v) => s + Number(v.total_costo), 0)
-  const totalGananciaMes = ventasMes.reduce((s, v) => s + Number(v.ganancia), 0)
-
   const mes = format(new Date(), 'MMMM', { locale: es })
   const total = ingresosNegocio + gastosNegocio
   const pctGastos = total > 0 ? Math.min(100, (gastosNegocio / ingresosNegocio) * 100) : 0
@@ -169,8 +98,6 @@ export default function DashboardNegocio() {
           sparkData={sparkUtilidad}
         />
       </div>
-
-      <VentasRingsCard ventas={totalVentasMes} costos={totalCostoMes} ganancia={totalGananciaMes} />
 
       {/* Ingresos vs Gastos negocio */}
       <div className="card p-4 mt-3">
