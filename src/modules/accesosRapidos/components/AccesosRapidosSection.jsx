@@ -147,7 +147,7 @@ export default function AccesosRapidosSection() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 lg:grid-cols-2 gap-2 lg:gap-3">
           {accesos.map((acceso) => (
             <AccesoRapidoTile
               key={acceso.id}
@@ -160,7 +160,7 @@ export default function AccesosRapidosSection() {
           ))}
           <button
             type="button" onClick={abrirCrear}
-            className="card-interactive w-full flex flex-col items-center justify-center gap-1 py-3 px-2 border-dashed border border-white/10 text-gray-500 hover:text-white"
+            className="card-interactive w-full flex flex-col items-center justify-center gap-1 py-3 px-2 lg:py-4 border-dashed border border-white/10 text-gray-500 hover:text-white"
           >
             <Plus size={18} />
             <span className="text-[10px]">Agregar</span>

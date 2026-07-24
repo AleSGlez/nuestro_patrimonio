@@ -174,3 +174,20 @@ export function diasHasta(fechaISO) {
   hoy.setHours(0, 0, 0, 0)
   return Math.ceil((fecha - hoy) / 86400000)
 }
+
+// ── Alertas de pagos de tarjeta próximos a vencer (≤5 días) ──
+// Compartido entre InicioPage (mobile, inline) y RightRail (desktop).
+export function useAlertasTarjetas() {
+  const { data: tarjetas = [] } = useTarjetas()
+  const alertas = []
+  tarjetas.forEach((t) => {
+    if (t.dia_corte && t.dia_limite_pago) {
+      const { limite } = calcularFechasCorte(t.dia_corte, t.dia_limite_pago)
+      const dias = diasHasta(limite)
+      if (dias != null && dias >= 0 && dias <= 5) {
+        alertas.push({ msg: `Pago ${t.nombre} vence ${dias === 0 ? 'hoy' : `en ${dias} días`}`, tipo: 'warn' })
+      }
+    }
+  })
+  return alertas
+}

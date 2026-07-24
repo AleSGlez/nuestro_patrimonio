@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useAppStore } from '@store/appStore'
 import BottomNav from '@shared/components/layout/BottomNav'
 import Sidebar from '@shared/components/layout/Sidebar'
+import RightRail from '@shared/components/layout/RightRail'
 import InicioPage       from '@modules/inicio/InicioPage'
 import FinanzasPage     from '@modules/finanzas/FinanzasPage'
 import PersonasHubPage  from '@modules/personas-hub/PersonasHubPage'
@@ -55,6 +56,7 @@ export default function DashboardPage() {
         {renderTab()}
         <BottomNav active={tab} onChange={setTab} onAccion={handleAccion} />
       </div>
+      <RightRail />
       {formOpen && (
         <FormTransaccion open={formOpen} onClose={() => setFormOpen(false)} tipoInicial={formTipo} />
       )}

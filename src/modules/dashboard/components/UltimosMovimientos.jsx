@@ -15,12 +15,12 @@ export default function UltimosMovimientos({ transacciones, onVerTodos }) {
   if (ultimos.length === 0) return null
 
   return (
-    <div className="card px-3 mb-3">
-      <div className="flex items-center justify-between py-3 border-b border-white/[0.06]">
-        <p className="text-sm font-semibold text-white">Últimos movimientos</p>
+    <div className="card px-3 lg:px-0 lg:overflow-hidden mb-3">
+      <div className="flex items-center justify-between py-3 lg:py-4 px-0 lg:px-5 border-b border-white/[0.06]">
+        <p className="text-sm font-semibold lg:font-bold text-white lg:uppercase lg:tracking-wider">Últimos movimientos</p>
         <button
           onClick={() => setTab('transacciones')}
-          className="flex items-center gap-0.5 text-xs text-[var(--accent)]"
+          className="flex items-center gap-0.5 text-xs font-medium lg:font-semibold text-[var(--accent)]"
         >
           Ver todos <ChevronRight size={13} />
         </button>
@@ -29,13 +29,13 @@ export default function UltimosMovimientos({ transacciones, onVerTodos }) {
         const cat = getCat(tx.categoria)
         const isIngreso = tx.tipo === 'ingreso'
         return (
-          <div key={tx.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
+          <div key={tx.id} className="flex items-center gap-3 lg:gap-4 py-2.5 lg:py-4 px-0 lg:px-5 border-b border-white/[0.04] last:border-0">
             <span className="text-base flex-shrink-0">{cat.emoji}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white truncate">{tx.descripcion || cat.label}</p>
-              <p className="text-[11px] text-gray-400">{fmtDate(tx.fecha)}</p>
+              <p className="text-[11px] lg:text-xs text-gray-400 lg:text-gray-500">{fmtDate(tx.fecha)}</p>
             </div>
-            <p className={cn('text-sm font-semibold font-mono flex-shrink-0', isIngreso ? 'text-ok' : 'text-white')}>
+            <p className={cn('text-sm font-semibold lg:font-bold font-mono flex-shrink-0', isIngreso ? 'text-ok' : 'text-white')}>
               {isIngreso ? '+' : '-'}{fmt(tx.monto)}
             </p>
           </div>

@@ -1,3 +1,18 @@
+# Theme — Design Tokens, CSS Variables, Tailwind Config
+
+## Summary
+- **Dark-mode only.** No light theme exists anywhere in the app.
+- **4 selectable accent themes**: `violet` (default), `emerald`, `rose`, `amber` — swapped via `[data-theme="..."]` attribute on `<html>`, each only redefining `--accent` / `--accent-light` / `--accent-muted`. Everything else (grays, semantic colors) is constant across themes.
+- **Grayscale ramp**: `surface-950` (#09090E, darkest) through `surface-400` (#3A3A4D, lightest), defined in `tailwind.config.js`, not CSS vars.
+- **Semantic colors** (also constant, not theme-dependent): `ok` #22C55E (green), `warn` #F59E0B (amber), `bad` #EF4444 (red), `info` #3B82F6 (blue).
+- **Fonts**: Inter (sans, body text) + JetBrains Mono (mono, used specifically for money amounts and codes via `font-mono` / `.money*` classes).
+- **Mobile-first, phone-frame-by-default**: `#root` is capped at `max-width: 430px` and centered — the app *looks* like a phone even in a desktop browser, UNLESS the desktop shell kicks in (see below).
+- **iOS PWA specifics**: `100svh` + `position: fixed` root (avoids Safari viewport-resize bugs on keyboard open), `env(safe-area-inset-*)` used throughout for the Dynamic Island / home indicator, 16px minimum input font-size (prevents iOS auto-zoom on focus).
+- **NEW — Desktop breakpoint (`≥1024px`), added this session**: a sidebar-based desktop layout that activates ONLY once the authenticated dashboard shell (`.dashboard-shell` class, rendered by `DashboardPage`) is mounted, via the selector `body:has(.dashboard-shell)`. Below `1024px`, and on the login/setup screens at ANY width, the app is pixel-identical to the pre-existing mobile/phone-frame design. This is very recent (same session as the `Sidebar` component in `layouts.md`) and not yet "conventional wisdom" elsewhere in the codebase — every other page/component still assumes the 430px phone frame is the only layout that exists, except where `.dashboard-shell`/`.dashboard-content`/the desktop media query explicitly override it.
+
+## Full `src/index.css`
+
+```css
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -131,7 +146,7 @@ body {
 
   /* ── Sección ── */
   .section-label {
-    @apply text-[10px] font-semibold text-gray-400 uppercase tracking-[0.12em];
+    @apply text-[10px] font-semibold text-gray-500 uppercase tracking-[0.12em];
   }
 
   /* ── Glass ── */
@@ -192,13 +207,6 @@ body {
     z-index: 30;
   }
 
-  /* ── Icon button (44px hit area, WCAG/Apple touch target minimum) ── */
-  .icon-btn {
-    @apply inline-flex items-center justify-center rounded-xl transition-all duration-150 active:scale-95;
-    min-width: 44px;
-    min-height: 44px;
-  }
-
   /* ── FAB ── */
   .fab {
     position: fixed;
@@ -251,6 +259,9 @@ body {
 
   .dashboard-content {
     position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
     min-width: 0;
   }
 
@@ -267,41 +278,77 @@ body {
     right: 24px;
     bottom: 24px;
   }
-
-  /* Los tab-strips horizontales (SubNav, filtros de cuentas/presupuestos)
-     ocultan su scrollbar en móvil porque ahí el swipe es descubrible por
-     tacto. En desktop no hay ninguna pista de que haya tabs fuera de vista
-     (p.ej. Finanzas tiene 10), así que se reactiva el scrollbar — más
-     grueso y visible que el scrollbar global de página (3px/8%), porque
-     acá tiene que funcionar como señal de "hay más contenido", no solo
-     como control de scroll. */
-  .no-scrollbar {
-    -ms-overflow-style: auto;
-    scrollbar-width: thin;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: block;
-    width: 6px;
-    height: 6px;
-  }
-  .no-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.22);
-    border-radius: 99px;
-  }
-  .no-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.35);
-  }
 }
+```
 
-/* ── Reduced motion (app-wide, todos los tamaños) ────────────────
-   fadeIn/slideUp/scaleIn se usan para entradas de Modal/Toast/menús.
-   Con esta preferencia se mantiene un fade corto (más gentil, no cero)
-   y se descarta el movimiento/escala. */
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-in,
-  .animate-slide-up,
-  .animate-scale-in {
-    animation-name: fadeIn;
-    animation-duration: 150ms;
-  }
+## Full `tailwind.config.js`
+
+```js
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx}'],
+  theme: {
+    extend: {
+      colors: {
+        surface: {
+          950: '#09090E',
+          900: '#0F0F14',
+          800: '#15151C',
+          700: '#1C1C26',
+          600: '#24242F',
+          500: '#2E2E3D',
+          400: '#3A3A4D',
+        },
+        accent: {
+          DEFAULT: 'var(--accent)',
+          light:   'var(--accent-light)',
+          muted:   'var(--accent-muted)',
+        },
+        ok:   '#22C55E',
+        warn: '#F59E0B',
+        bad:  '#EF4444',
+        info: '#3B82F6',
+        muted: '#6B7280',
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      borderRadius: {
+        '4xl': '2rem',
+      },
+      animation: {
+        'fade-in':   'fadeIn 0.25s ease-out',
+        'slide-up':  'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)',
+        'scale-in':  'scaleIn 0.2s ease-out',
+        'pulse-dot': 'pulseDot 1.4s ease-in-out infinite',
+      },
+      keyframes: {
+        fadeIn:   { from: { opacity: 0 },                          to: { opacity: 1 } },
+        slideUp:  { from: { opacity: 0, transform: 'translateY(16px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+        scaleIn:  { from: { opacity: 0, transform: 'scale(0.96)' }, to: { opacity: 1, transform: 'scale(1)' } },
+        pulseDot: { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
+      },
+    },
+  },
+  plugins: [],
 }
+```
+
+## Notable Tailwind breakpoints actually in use
+- `sm:` (640px) — `Modal` switches from bottom-sheet to centered dialog.
+- `lg:` (1024px) — `Sidebar` becomes visible (`hidden lg:flex`); this is the SAME breakpoint as the raw `@media (min-width: 1024px)` block in `index.css`, kept numerically consistent on purpose.
+
+## Vite path aliases (relevant for import resolution when reading source)
+```js
+'@'        → src/
+'@modules' → src/modules/
+'@shared'  → src/shared/
+'@ui'      → src/shared/components/ui/
+'@lib'     → src/shared/lib/
+'@store'   → src/shared/store/
+'@hooks'   → src/shared/hooks/
+```
+
+## Stack (from `package.json`)
+React 18.3.1 · Vite 5.4.1 · Tailwind 3.4.9 · @tanstack/react-query 5.56.0 · zustand 4.5.4 · recharts 2.12.7 · date-fns 3.6.0 · lucide-react 0.427.0 · xlsx 0.18.5 · clsx 2.1.1 · vite-plugin-pwa 0.20.1. `react-router-dom` and `react-hook-form`/`zod` are installed but effectively unused (no router; forms use plain `useState`).

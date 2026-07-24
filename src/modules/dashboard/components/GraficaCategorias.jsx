@@ -39,15 +39,15 @@ export default function GraficaCategorias({ transacciones }) {
   const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="card p-4 mb-3">
-      <p className="section-label mb-4">Gastos por categoría</p>
-      <div className="flex items-center gap-4">
-        <div className="flex-shrink-0" style={{ width: 120, height: 120 }}>
+    <div className="card p-4 lg:p-6 mb-3 lg:h-full lg:flex lg:flex-col">
+      <p className="section-label mb-4 lg:mb-6">Gastos por categoría</p>
+      <div className="flex items-center gap-4 lg:gap-8 lg:flex-1 lg:justify-center">
+        <div className="flex-shrink-0 lg:!w-44 lg:!h-44" style={{ width: 120, height: 120 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data} cx="50%" cy="50%"
-                innerRadius={32} outerRadius={54}
+                innerRadius="53%" outerRadius="90%"
                 dataKey="value" stroke="none"
               >
                 {data.map((_, i) => (

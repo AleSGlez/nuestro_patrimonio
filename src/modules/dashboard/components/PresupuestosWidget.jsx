@@ -87,10 +87,10 @@ export default function PresupuestosWidget({ transacciones, persona = null }) {
   const hayExcedidos = items.some((i) => i.disponible < 0)
 
   return (
-    <div className="card p-4 mb-3">
+    <div className="card p-4 lg:p-6 mb-3 lg:h-full">
       {/* Header con selector de vista */}
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-white">Presupuestos</p>
+      <div className="flex items-center justify-between mb-3 lg:mb-6">
+        <p className="text-sm font-semibold text-white lg:text-[10px] lg:text-gray-500 lg:uppercase lg:tracking-[0.12em]">Presupuestos</p>
         <div className="flex items-center gap-2">
           <div className="flex bg-surface-700 rounded-lg p-0.5">
             {VISTAS.map((v) => (

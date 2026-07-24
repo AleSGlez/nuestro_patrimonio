@@ -44,17 +44,19 @@ export default function GraficaFlujo({ transacciones }) {
   const data = buildData(transacciones)
 
   return (
-    <div className="card p-4 mb-3">
-      <p className="section-label mb-4">Flujo últimos 6 meses</p>
-      <ResponsiveContainer width="100%" height={160}>
-        <BarChart data={data} barCategoryGap="25%" barGap={3}>
-          <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis hide />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-          <Bar dataKey="ingresos" name="Ingresos" fill="#10B981" radius={[4,4,0,0]} maxBarSize={24} />
-          <Bar dataKey="gastos"   name="Gastos"   fill="#EF4444" radius={[4,4,0,0]} maxBarSize={24} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="card p-4 lg:p-6 mb-3 lg:h-full lg:flex lg:flex-col">
+      <p className="section-label mb-4 lg:mb-8">Flujo últimos 6 meses</p>
+      <div className="lg:flex-1 lg:min-h-[160px]">
+        <ResponsiveContainer width="100%" height={160} className="lg:!h-full">
+          <BarChart data={data} barCategoryGap="25%" barGap={3}>
+            <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis hide />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Bar dataKey="ingresos" name="Ingresos" fill="#10B981" radius={[4,4,0,0]} maxBarSize={24} />
+            <Bar dataKey="gastos"   name="Gastos"   fill="#EF4444" radius={[4,4,0,0]} maxBarSize={24} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
