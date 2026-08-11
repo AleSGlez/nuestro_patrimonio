@@ -6,7 +6,9 @@ import { diasHasta, calcularFechasCorte } from '../hooks/useTarjetas'
 export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerDesglose, nombres }) {
   const uso = tarjeta.limite > 0 ? Math.min(100, (tarjeta.saldo_total / tarjeta.limite) * 100) : 0
   const disponible = Math.max(0, tarjeta.limite - tarjeta.saldo_total)
-  const personaLabel = { p1: nombres.p1, p2: nombres.p2, ambos: 'Compartida' }[tarjeta.persona]
+  const personaLabel = tarjeta.persona === 'ambos' && tarjeta.titular_principal
+    ? `Titular: ${tarjeta.titular_principal === 'p1' ? nombres.p1 : nombres.p2} · Adicional: ${tarjeta.titular_principal === 'p1' ? nombres.p2 : nombres.p1}`
+    : { p1: nombres.p1, p2: nombres.p2, ambos: 'Compartida' }[tarjeta.persona]
 
   // Fechas siempre en vivo — nunca se guardan ni pueden quedar viejas
   const { corte: fechaCorteProxima, limite: fechaLimiteProxima } =
@@ -60,6 +62,13 @@ export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerD
             />
           </div>
         </div>
+
+        {/* Límite personalizado de la adicional — informativo, la deuda es compartida */}
+        {tarjeta.persona === 'ambos' && tarjeta.limite_adicional > 0 && (
+          <p className="text-xs text-gray-400 -mt-1 mb-3">
+            Límite adicional ({tarjeta.titular_principal === 'p1' ? nombres.p2 : nombres.p1}): {fmt(tarjeta.limite_adicional)}
+          </p>
+        )}
 
         {/* Pago sin intereses */}
         {tarjeta.pago_sin_intereses > 0 && (

@@ -69,6 +69,7 @@ export function usePagarTarjeta() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
       qc.invalidateQueries({ queryKey: ['apartados'] })
     },
@@ -111,6 +112,7 @@ export function useDisposicionEfectivo() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
     },
   })
 }
@@ -218,6 +220,7 @@ export function useEliminarTransferencia() {
       qc.invalidateQueries({ queryKey: ['transferencias-list', parejaId] })
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+      qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
       qc.invalidateQueries({ queryKey: ['apartados'] })
     },

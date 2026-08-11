@@ -57,10 +57,15 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
       label: `${TIPO_EMOJI_CUENTA[c.tipo] || '💳'} ${c.nombre}`,
     })),
     ...apartadosNegocioOpts,
-    ...tarjetasFiltradas.map((t) => ({
-      value: `tarjeta:${t.id}`,
-      label: `💳 ${t.nombre} (crédito)`,
-    })),
+    ...tarjetasFiltradas.map((t) => {
+      // Tarjeta compartida con titular definido: aclarar si se está pagando
+      // con la principal o la adicional según quién es responsable del gasto.
+      let sufijo = 'crédito'
+      if (contexto === 'personal' && t.persona === 'ambos' && t.titular_principal && (persona === 'p1' || persona === 'p2')) {
+        sufijo = persona === t.titular_principal ? 'titular' : 'adicional'
+      }
+      return { value: `tarjeta:${t.id}`, label: `💳 ${t.nombre} (${sufijo})` }
+    }),
   ]
 
   const catOpts = (

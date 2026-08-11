@@ -30,6 +30,11 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
     { value: 'ambos', label: 'Compartida' },
   ]
 
+  const TITULAR_OPTS = [
+    { value: 'p1', label: nombres.p1 },
+    { value: 'p2', label: nombres.p2 },
+  ]
+
   const [nombre, setNombre]           = useState('')
   const [banco, setBanco]             = useState('BBVA')
   const [limite, setLimite]           = useState('')
@@ -39,6 +44,8 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
   const [diaCorte, setDiaCorte]       = useState('')
   const [diaLimite, setDiaLimite]     = useState('')
   const [persona, setPersona]         = useState('p1')
+  const [titularPrincipal, setTitularPrincipal] = useState('p1')
+  const [limiteAdicional, setLimiteAdicional] = useState('')
   const [color, setColor]             = useState(CARD_COLORS[0])
 
   useEffect(() => {
@@ -52,10 +59,13 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
       setDiaCorte(tarjeta.dia_corte ? String(tarjeta.dia_corte) : '')
       setDiaLimite(tarjeta.dia_limite_pago ? String(tarjeta.dia_limite_pago) : '')
       setPersona(tarjeta.persona); setColor(tarjeta.color)
+      setTitularPrincipal(tarjeta.titular_principal || 'p1')
+      setLimiteAdicional(tarjeta.limite_adicional ? String(tarjeta.limite_adicional) : '')
     } else {
       setNombre(''); setBanco('BBVA'); setLimite('')
       setSaldoAnterior(''); setPagoSinIntereses(''); setPagoMinimo('')
       setDiaCorte(''); setDiaLimite(''); setPersona('p1'); setColor(CARD_COLORS[0])
+      setTitularPrincipal('p1'); setLimiteAdicional('')
     }
   }, [open, tarjeta])
 
@@ -81,6 +91,8 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
       dia_corte: diaCorte ? Number(diaCorte) : null,
       dia_limite_pago: diaLimite ? Number(diaLimite) : null,
       persona, color,
+      titular_principal: persona === 'ambos' ? titularPrincipal : null,
+      limite_adicional: persona === 'ambos' && limiteAdicional ? Number(limiteAdicional) : null,
     }
 
     try {
@@ -109,6 +121,31 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
         <Select label="Banco" value={banco} onChange={setBanco} options={BANCOS} className="mb-0" />
         <Select label="Pertenece a" value={persona} onChange={setPersona} options={PERSONA_OPTS} className="mb-0" />
       </div>
+
+      {persona === 'ambos' && (
+        <>
+          <Select
+            label="Titular principal"
+            value={titularPrincipal}
+            onChange={setTitularPrincipal}
+            options={TITULAR_OPTS}
+            className="mt-3 mb-0"
+          />
+          <p className="text-xs text-gray-400 mt-1 mb-3">
+            El otro se muestra como tarjeta adicional al registrar un movimiento.
+          </p>
+
+          <AmountInput
+            label="Límite de la tarjeta adicional (opcional)"
+            value={limiteAdicional}
+            onChange={setLimiteAdicional}
+            placeholder="Igual al límite de crédito"
+          />
+          <p className="text-xs text-gray-400 -mt-3 mb-3">
+            La deuda y el saldo son compartidos — esto es solo un tope informativo para la adicional, algunos bancos lo permiten personalizar.
+          </p>
+        </>
+      )}
 
       <div className="grid grid-cols-2 gap-3 mt-3">
         <AmountInput label="Límite de crédito" value={limite} onChange={setLimite} placeholder="0.00" className="mb-0" />
