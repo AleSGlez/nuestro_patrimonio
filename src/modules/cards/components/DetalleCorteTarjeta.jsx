@@ -193,8 +193,6 @@ export default function DetalleCorteTarjeta({ open, onClose, tarjeta, nombres })
                 description="Aún no hay compras que se vayan a cobrar en el próximo corte."
               />
             )}
-
-            <GraficaGastosPagos tarjeta={tarjeta} nombres={nombres} />
           </>
         )
       ) : (
@@ -206,6 +204,8 @@ export default function DetalleCorteTarjeta({ open, onClose, tarjeta, nombres })
               Compara cada línea contra tu app bancaria — si ves el mismo monto y fecha repetidos, es un movimiento duplicado.
             </p>
           </div>
+
+          <GraficaGastosPagos tarjeta={tarjeta} nombres={nombres} />
 
           {movsPending ? (
             <div className="space-y-2">
