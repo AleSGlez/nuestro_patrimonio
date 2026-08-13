@@ -128,62 +128,6 @@ export function useDesgloseCorteTarjeta(tarjeta, enabled = true) {
   })
 }
 
-// ── Historial de gastos y pagos de una tarjeta ────────────────
-// A diferencia de useDesgloseCorteTarjeta (que solo ve el período de corte
-// vigente), esto trae TODO el historial de la tarjeta para que el usuario
-// pueda auditarlo línea por línea contra su app bancaria — es la forma más
-// directa de detectar un cargo duplicado.
-export function useMovimientosTarjeta(tarjetaId, enabled = true) {
-  const parejaId = useAuthStore((s) => s.pareja?.id)
-
-  return useQuery({
-    queryKey: ['movimientos-tarjeta', tarjetaId],
-    queryFn: async () => {
-      const [gastos, transferencias] = await Promise.all([
-        db.from('transacciones').query(
-          `pareja_id=eq.${parejaId}&tarjeta_id=eq.${tarjetaId}&tipo=eq.gasto&order=fecha.desc,created_at.desc&limit=300`
-        ),
-        db.from('transferencias').query(
-          `pareja_id=eq.${parejaId}&destino_tarjeta_id=eq.${tarjetaId}&order=fecha.desc,created_at.desc&limit=300`
-        ),
-      ])
-
-      const movs = [
-        ...gastos.map((t) => ({
-          id: `tx-${t.id}`,
-          fecha: t.fecha,
-          created_at: t.created_at,
-          tipoMov: 'gasto',
-          monto: Number(t.monto), // suma a la deuda
-          categoria: t.categoria,
-          descripcion: t.descripcion,
-          persona: t.persona,
-          contexto: t.contexto,
-        })),
-        ...transferencias.map((t) => ({
-          id: `tr-${t.id}`,
-          fecha: t.fecha,
-          created_at: t.created_at,
-          tipoMov: t.tipo, // 'pago_tarjeta' | 'disposicion_efectivo'
-          // pago_tarjeta reduce la deuda (negativo); disposición la sube (positivo)
-          monto: t.tipo === 'pago_tarjeta'
-            ? -Number(t.monto)
-            : Number(t.monto) + Number(t.comision || 0),
-          descripcion: t.descripcion,
-        })),
-      ]
-
-      movs.sort((a, b) => {
-        if (a.fecha !== b.fecha) return b.fecha.localeCompare(a.fecha)
-        return new Date(b.created_at) - new Date(a.created_at)
-      })
-      return movs
-    },
-    enabled: enabled && !!parejaId && !!tarjetaId,
-    staleTime: 1000 * 60,
-  })
-}
-
 // ── Gastos y pagos por responsable (p1/p2/negocio) ────────────
 // Para "cuánto gastó" usamos transacciones.persona/contexto, igual que
 // useDesgloseCorteTarjeta. Para "cuánto pagó" NO existe un campo persona en

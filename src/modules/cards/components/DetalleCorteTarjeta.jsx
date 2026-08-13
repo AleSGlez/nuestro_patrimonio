@@ -3,14 +3,8 @@ import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Modal from '@ui/Modal'
 import { EmptyState } from '@ui/Field'
-import { useDesgloseCorteTarjeta, useMovimientosTarjeta, useComparativoTarjeta, diasHasta } from '../hooks/useTarjetas'
-import { fmt, fmtDate, cn, getCatEmoji } from '@lib/utils'
-
-const MOV_INFO = {
-  gasto:                { emoji: null, label: null, signo: '+', color: 'text-bad' },
-  disposicion_efectivo: { emoji: '💵', label: 'Disposición de efectivo', signo: '+', color: 'text-bad' },
-  pago_tarjeta:          { emoji: '✅', label: 'Pago', signo: '−', color: 'text-ok' },
-}
+import { useDesgloseCorteTarjeta, useComparativoTarjeta, diasHasta } from '../hooks/useTarjetas'
+import { fmt, fmtDate, cn } from '@lib/utils'
 
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -30,7 +24,9 @@ const ChartTooltip = ({ active, payload, label }) => {
 // "Este período" usa el mismo rango que el desglose de arriba (próximo
 // corte). "Historial" sí compara cosas de temporalidad distinta a propósito
 // (todo lo gastado vs. todo lo pagado desde siempre) para ver quién ha usado
-// más la tarjeta y quién la ha estado pagando más.
+// más la tarjeta y quién la ha estado pagando más. La tabla de totales
+// exactos solo tiene sentido junto con "Historial" — en "Este período" se
+// oculta para no duplicar lo que ya muestra la gráfica.
 function GraficaGastosPagos({ tarjeta, nombres }) {
   const [periodo, setPeriodo] = useState('periodo') // 'periodo' | 'historial'
   const { data, isPending } = useComparativoTarjeta(tarjeta, periodo, true)
@@ -43,70 +39,72 @@ function GraficaGastosPagos({ tarjeta, nombres }) {
   const hayDatos = chartData.some((d) => d.gasto > 0 || d.pago > 0)
 
   return (
-    <div className="card p-4 mt-3">
-      <div className="flex items-center justify-between mb-3">
-        <p className="section-label">Gastos vs. pagos</p>
-        <div className="flex bg-surface-700 rounded-lg p-0.5">
-          {[['periodo', 'Este período'], ['historial', 'Historial']].map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setPeriodo(id)}
-              className={cn(
-                'px-2.5 py-1 text-[11px] font-medium rounded-md transition-all',
-                periodo === id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
-              )}
-            >
-              {label}
-            </button>
-          ))}
+    <>
+      <div className="card p-4 mt-3">
+        <div className="flex items-center justify-between mb-3">
+          <p className="section-label">Gastos vs. pagos</p>
+          <div className="flex bg-surface-700 rounded-lg p-0.5">
+            {[['periodo', 'Este período'], ['historial', 'Historial']].map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setPeriodo(id)}
+                className={cn(
+                  'px-2.5 py-1 text-[11px] font-medium rounded-md transition-all',
+                  periodo === id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {isPending ? (
+          <div className="skeleton h-40" />
+        ) : !hayDatos ? (
+          <p className="text-xs text-gray-500 py-8 text-center">Sin movimientos en este rango.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={170}>
+            <BarChart data={chartData} barCategoryGap="30%" barGap={3}>
+              <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis hide />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="gasto" name="Gastos" fill="#EF4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="pago"  name="Pagos"  fill="#22C55E" radius={[4, 4, 0, 0]} maxBarSize={28} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
-      {isPending ? (
-        <div className="skeleton h-40" />
-      ) : !hayDatos ? (
-        <p className="text-xs text-gray-500 py-8 text-center">Sin movimientos en este rango.</p>
-      ) : (
-        <ResponsiveContainer width="100%" height={170}>
-          <BarChart data={chartData} barCategoryGap="30%" barGap={3}>
-            <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis hide />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="gasto" name="Gastos" fill="#EF4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
-            <Bar dataKey="pago"  name="Pagos"  fill="#22C55E" radius={[4, 4, 0, 0]} maxBarSize={28} />
-          </BarChart>
-        </ResponsiveContainer>
+      {periodo === 'historial' && !isPending && data && (
+        <div className="card p-4 mt-3">
+          <p className="section-label mb-3">Totales exactos</p>
+          <div className="space-y-3">
+            {[
+              { key: 'p1',      label: nombres.p1, gasto: data.gastos.p1, pago: data.pagos.p1 },
+              { key: 'p2',      label: nombres.p2, gasto: data.gastos.p2, pago: data.pagos.p2 },
+              { key: 'negocio', label: 'Negocio',  gasto: data.gastos.negocio, pago: data.pagos.negocio },
+            ].map((f) => (
+              <div key={f.key} className="flex items-center justify-between">
+                <span className="text-sm text-gray-300">{f.label}</span>
+                <span className="text-xs font-mono">
+                  <span className="text-bad">Gastos {fmt(f.gasto)}</span>
+                  <span className="text-gray-600"> · </span>
+                  <span className="text-ok">Pagos {fmt(f.pago)}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-    </div>
-  )
-}
-
-function FilaMovimiento({ mov }) {
-  const info = MOV_INFO[mov.tipoMov]
-  const emoji = mov.tipoMov === 'gasto' ? getCatEmoji(mov.categoria, 'gasto', mov.contexto) : info.emoji
-  const label = mov.tipoMov === 'gasto' ? (mov.descripcion || mov.categoria) : (mov.descripcion || info.label)
-
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-white/[0.05] last:border-0">
-      <div className="flex items-center gap-2 min-w-0">
-        <span>{emoji}</span>
-        <div className="min-w-0">
-          <p className="text-sm text-gray-200 truncate">{label}</p>
-          <p className="text-[11px] text-gray-500">{fmtDate(mov.fecha, 'medium')}</p>
-        </div>
-      </div>
-      <span className={cn('text-sm font-mono font-semibold shrink-0 pl-2', info.color)}>
-        {info.signo}{fmt(Math.abs(mov.monto))}
-      </span>
-    </div>
+    </>
   )
 }
 
 export default function DetalleCorteTarjeta({ open, onClose, tarjeta, nombres }) {
   const [vista, setVista] = useState('resumen') // 'resumen' | 'movimientos'
   const { data, isPending } = useDesgloseCorteTarjeta(tarjeta, open && vista === 'resumen')
-  const { data: movimientos = [], isPending: movsPending } = useMovimientosTarjeta(tarjeta?.id, open && vista === 'movimientos')
 
   if (!tarjeta) return null
 
@@ -200,27 +198,9 @@ export default function DetalleCorteTarjeta({ open, onClose, tarjeta, nombres })
           <div className="card p-4 mb-4">
             <p className="text-xs text-gray-400 mb-1">Deuda total actual</p>
             <p className="text-2xl font-bold font-mono text-bad">{fmt(tarjeta.saldo_total)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">
-              Compara cada línea contra tu app bancaria — si ves el mismo monto y fecha repetidos, es un movimiento duplicado.
-            </p>
           </div>
 
           <GraficaGastosPagos tarjeta={tarjeta} nombres={nombres} />
-
-          {movsPending ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-12" />)}
-            </div>
-          ) : movimientos.length === 0 ? (
-            <EmptyState
-              emoji="📭" title="Sin movimientos"
-              description="Esta tarjeta todavía no tiene gastos ni pagos registrados."
-            />
-          ) : (
-            <div className="card px-3">
-              {movimientos.map((m) => <FilaMovimiento key={m.id} mov={m} />)}
-            </div>
-          )}
         </>
       )}
     </Modal>
