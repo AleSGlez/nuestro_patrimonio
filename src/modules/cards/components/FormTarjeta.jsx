@@ -95,6 +95,16 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
       limite_adicional: persona === 'ambos' && limiteAdicional ? Number(limiteAdicional) : null,
     }
 
+    // Al editar, "Deuda actual" se mostraba como si corrigiera el saldo real,
+    // pero solo escribía saldo_periodo_anterior — una columna que ya no
+    // alimenta ningún cálculo (saldo_total es lo único que se usa en toda la
+    // app). Si el usuario cambia este campo, desplazamos saldo_total por el
+    // mismo delta para que la corrección sí se refleje.
+    if (isEdit) {
+      const delta = Number(payload.saldo_periodo_anterior) - Number(tarjeta.saldo_periodo_anterior || 0)
+      if (delta !== 0) payload.saldo_total = Number(tarjeta.saldo_total) + delta
+    }
+
     try {
       if (isEdit) {
         await actualizar.mutateAsync({ id: tarjeta.id, data: payload })

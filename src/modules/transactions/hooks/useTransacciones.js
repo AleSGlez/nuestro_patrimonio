@@ -154,6 +154,7 @@ export function useCrearTransaccion() {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['movimientos-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
       qc.invalidateQueries({ queryKey: ['apartados'] })
     },
@@ -183,6 +184,7 @@ export function useActualizarTransaccion() {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['movimientos-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
       qc.invalidateQueries({ queryKey: ['apartados'] })
     },
@@ -204,6 +206,7 @@ export function useEliminarTransaccion() {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['movimientos-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
       qc.invalidateQueries({ queryKey: ['apartados'] })
     },
