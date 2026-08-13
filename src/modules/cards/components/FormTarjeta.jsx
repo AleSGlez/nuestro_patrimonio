@@ -53,7 +53,10 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
     if (tarjeta) {
       setNombre(tarjeta.nombre); setBanco(tarjeta.banco || 'BBVA')
       setLimite(String(tarjeta.limite))
-      setSaldoAnterior(String(tarjeta.saldo_periodo_anterior))
+      // Precargar con saldo_total (el saldo real que se ve en toda la app),
+      // no con saldo_periodo_anterior — ese campo quedó huérfano y mostrarlo
+      // aquí confundía: parecía la deuda actual pero podía ser un número viejo.
+      setSaldoAnterior(String(tarjeta.saldo_total))
       setPagoSinIntereses(String(tarjeta.pago_sin_intereses))
       setPagoMinimo(String(tarjeta.pago_minimo))
       setDiaCorte(tarjeta.dia_corte ? String(tarjeta.dia_corte) : '')
@@ -95,15 +98,11 @@ export default function FormTarjeta({ open, onClose, tarjeta = null }) {
       limite_adicional: persona === 'ambos' && limiteAdicional ? Number(limiteAdicional) : null,
     }
 
-    // Al editar, "Deuda actual" se mostraba como si corrigiera el saldo real,
-    // pero solo escribía saldo_periodo_anterior — una columna que ya no
-    // alimenta ningún cálculo (saldo_total es lo único que se usa en toda la
-    // app). Si el usuario cambia este campo, desplazamos saldo_total por el
-    // mismo delta para que la corrección sí se refleje.
-    if (isEdit) {
-      const delta = Number(payload.saldo_periodo_anterior) - Number(tarjeta.saldo_periodo_anterior || 0)
-      if (delta !== 0) payload.saldo_total = Number(tarjeta.saldo_total) + delta
-    }
+    // "Deuda actual" es, por su propio texto de ayuda, el total que debes
+    // AHORA MISMO — un valor absoluto, no un ajuste. Al editar, reemplaza
+    // saldo_total directamente (que es el campo que usa toda la app: la
+    // tarjeta, el pago, el desglose de corte y el patrimonio).
+    if (isEdit) payload.saldo_total = Number(saldoAnterior) || 0
 
     try {
       if (isEdit) {
