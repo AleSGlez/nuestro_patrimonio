@@ -1,14 +1,85 @@
 // src/modules/cards/components/DetalleCorteTarjeta.jsx
 import { useState } from 'react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Modal from '@ui/Modal'
 import { EmptyState } from '@ui/Field'
-import { useDesgloseCorteTarjeta, useMovimientosTarjeta, diasHasta } from '../hooks/useTarjetas'
+import { useDesgloseCorteTarjeta, useMovimientosTarjeta, useComparativoTarjeta, diasHasta } from '../hooks/useTarjetas'
 import { fmt, fmtDate, cn, getCatEmoji } from '@lib/utils'
 
 const MOV_INFO = {
   gasto:                { emoji: null, label: null, signo: '+', color: 'text-bad' },
   disposicion_efectivo: { emoji: '💵', label: 'Disposición de efectivo', signo: '+', color: 'text-bad' },
   pago_tarjeta:          { emoji: '✅', label: 'Pago', signo: '−', color: 'text-ok' },
+}
+
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-surface-800 border border-white/10 rounded-xl p-3 text-xs">
+      <p className="text-gray-400 mb-1">{label}</p>
+      {payload.map((p) => (
+        <p key={p.dataKey} style={{ color: p.color }} className="font-mono">
+          {p.name}: {fmt(p.value)}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+// ── Gastos vs. pagos por responsable — barras agrupadas ───────
+// "Este período" usa el mismo rango que el desglose de arriba (próximo
+// corte). "Historial" sí compara cosas de temporalidad distinta a propósito
+// (todo lo gastado vs. todo lo pagado desde siempre) para ver quién ha usado
+// más la tarjeta y quién la ha estado pagando más.
+function GraficaGastosPagos({ tarjeta, nombres }) {
+  const [periodo, setPeriodo] = useState('periodo') // 'periodo' | 'historial'
+  const { data, isPending } = useComparativoTarjeta(tarjeta, periodo, true)
+
+  const chartData = data ? [
+    { label: nombres.p1, gasto: data.gastos.p1, pago: data.pagos.p1 },
+    { label: nombres.p2, gasto: data.gastos.p2, pago: data.pagos.p2 },
+    { label: 'Negocio',  gasto: data.gastos.negocio, pago: data.pagos.negocio },
+  ] : []
+  const hayDatos = chartData.some((d) => d.gasto > 0 || d.pago > 0)
+
+  return (
+    <div className="card p-4 mt-3">
+      <div className="flex items-center justify-between mb-3">
+        <p className="section-label">Gastos vs. pagos</p>
+        <div className="flex bg-surface-700 rounded-lg p-0.5">
+          {[['periodo', 'Este período'], ['historial', 'Historial']].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setPeriodo(id)}
+              className={cn(
+                'px-2.5 py-1 text-[11px] font-medium rounded-md transition-all',
+                periodo === id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isPending ? (
+        <div className="skeleton h-40" />
+      ) : !hayDatos ? (
+        <p className="text-xs text-gray-500 py-8 text-center">Sin movimientos en este rango.</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={170}>
+          <BarChart data={chartData} barCategoryGap="30%" barGap={3}>
+            <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis hide />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="gasto" name="Gastos" fill="#EF4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
+            <Bar dataKey="pago"  name="Pagos"  fill="#22C55E" radius={[4, 4, 0, 0]} maxBarSize={28} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  )
 }
 
 function FilaMovimiento({ mov }) {
@@ -122,6 +193,8 @@ export default function DetalleCorteTarjeta({ open, onClose, tarjeta, nombres })
                 description="Aún no hay compras que se vayan a cobrar en el próximo corte."
               />
             )}
+
+            <GraficaGastosPagos tarjeta={tarjeta} nombres={nombres} />
           </>
         )
       ) : (

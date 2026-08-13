@@ -184,6 +184,80 @@ export function useMovimientosTarjeta(tarjetaId, enabled = true) {
   })
 }
 
+// ── Gastos y pagos por responsable (p1/p2/negocio) ────────────
+// Para "cuánto gastó" usamos transacciones.persona/contexto, igual que
+// useDesgloseCorteTarjeta. Para "cuánto pagó" NO existe un campo persona en
+// transferencias — un pago sale de una cuenta o apartado, así que se le
+// atribuye al dueño de esa cuenta/apartado (es_negocio=true → negocio;
+// cuenta.persona='ambos' → mitad y mitad, igual que un gasto compartido).
+export function useComparativoTarjeta(tarjeta, periodo = 'periodo', enabled = true) {
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  const diaCorte = tarjeta?.dia_corte
+
+  return useQuery({
+    queryKey: ['comparativo-tarjeta', tarjeta?.id, periodo, diaCorte],
+    queryFn: async () => {
+      let filtroFecha = ''
+      if (periodo === 'periodo' && diaCorte) {
+        const { inicio, fin } = periodoTarjeta(diaCorte)
+        filtroFecha = `&fecha=gte.${inicio}&fecha=lte.${fin}`
+      }
+
+      const [gastos, pagos, cuentas, apartados] = await Promise.all([
+        db.from('transacciones').query(
+          `pareja_id=eq.${parejaId}&tarjeta_id=eq.${tarjeta.id}&tipo=eq.gasto${filtroFecha}&limit=500`
+        ),
+        db.from('transferencias').query(
+          `pareja_id=eq.${parejaId}&destino_tarjeta_id=eq.${tarjeta.id}&tipo=eq.pago_tarjeta${filtroFecha}&limit=500`
+        ),
+        db.from('cuentas').query(`pareja_id=eq.${parejaId}`),
+        db.from('cuenta_apartados').query(`pareja_id=eq.${parejaId}`),
+      ])
+
+      // Gastos por responsable — mismo criterio que useDesgloseCorteTarjeta:
+      // contexto negocio se atribuye entero a "negocio"; el resto se reparte
+      // por transacciones.persona (ambos = 50/50 vía montoParaPersona).
+      const personales = gastos.filter((t) => t.contexto !== 'negocio')
+      const gastosNegocio = gastos
+        .filter((t) => t.contexto === 'negocio')
+        .reduce((s, t) => s + Number(t.monto), 0)
+      const gastosP1 = personales
+        .filter((t) => t.persona === 'p1' || t.persona === 'ambos')
+        .reduce((s, t) => s + montoParaPersona(t, 'p1'), 0)
+      const gastosP2 = personales
+        .filter((t) => t.persona === 'p2' || t.persona === 'ambos')
+        .reduce((s, t) => s + montoParaPersona(t, 'p2'), 0)
+
+      // Pagos por responsable — atribuidos por la cuenta/apartado de origen.
+      const personaDeCuenta = (cuentaId) => cuentas.find((c) => c.id === cuentaId)?.persona || null
+      const personaDePago = (t) => {
+        if (t.origen_apartado_id) {
+          const ap = apartados.find((a) => a.id === t.origen_apartado_id)
+          if (ap?.es_negocio) return 'negocio'
+          return personaDeCuenta(ap?.cuenta_id)
+        }
+        return personaDeCuenta(t.origen_cuenta_id)
+      }
+
+      const pagosPorPersona = { p1: 0, p2: 0, negocio: 0 }
+      pagos.forEach((t) => {
+        const p = personaDePago(t)
+        const m = Number(t.monto)
+        if (p === 'ambos')                             { pagosPorPersona.p1 += m / 2; pagosPorPersona.p2 += m / 2 }
+        else if (p === 'p1' || p === 'p2' || p === 'negocio') pagosPorPersona[p] += m
+        // si la cuenta/apartado de origen ya no existe (se borró), se omite del desglose
+      })
+
+      return {
+        gastos: { p1: gastosP1, p2: gastosP2, negocio: gastosNegocio },
+        pagos: pagosPorPersona,
+      }
+    },
+    enabled: enabled && !!parejaId && !!tarjeta?.id,
+    staleTime: 1000 * 60,
+  })
+}
+
 // ── Calcular próximas fechas de corte y límite de pago ───────
 export function calcularFechasCorte(diaCorte, diaLimitePago) {
   if (!diaCorte) return { corte: null, limite: null }

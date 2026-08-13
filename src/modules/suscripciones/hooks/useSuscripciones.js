@@ -118,6 +118,7 @@ export function useRegistrarSuscripcion() {
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['movimientos-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
     },
   })
 }

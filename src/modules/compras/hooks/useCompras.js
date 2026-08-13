@@ -142,6 +142,7 @@ export function useCrearLote() {
       qc.invalidateQueries({ queryKey: ['tarjetas', pId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['movimientos-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
     },
   })
 }
@@ -242,6 +243,7 @@ export function useEliminarLote() {
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['movimientos-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
     },
   })
 }
