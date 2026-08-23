@@ -268,7 +268,7 @@ export default function SuscripcionesPage() {
   }
 
   const handleRegistrar = async (sus) => {
-    if (!(await confirmar({ message: `¿Registrar el cargo de ${fmt(sus.monto)} de ${sus.nombre}?` }))) return
+    if (!(await confirmar({ message: `¿Registrar el cargo de ${fmt(sus.monto)} de ${sus.nombre}?`, confirmLabel: 'Registrar', danger: false }))) return
     try {
       await registrar.mutateAsync({ suscripcion: sus, cuentas, tarjetas })
       toast.success('Cargo registrado ✅')

@@ -82,28 +82,31 @@ export function useRegistrarSuscripcion() {
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useMutation({
     mutationFn: async ({ suscripcion, cuentas, tarjetas = [] }) => {
-      // 1. Crear transacción si hay método de pago
-      if (suscripcion.cuenta_id || suscripcion.tarjeta_id) {
-        const [tx] = await db.from('transacciones').insert({
-          pareja_id: parejaId,
-          tipo: 'gasto',
-          monto: suscripcion.monto,
-          categoria: suscripcion.categoria || 'suscripciones',
-          descripcion: suscripcion.nombre,
-          fecha: suscripcion.proxima_fecha,
-          persona: suscripcion.persona,
-          contexto: suscripcion.contexto || 'personal',
-          metodo_pago: suscripcion.cuenta_id
-            ? `cuenta:${suscripcion.cuenta_id}`
-            : `tarjeta:${suscripcion.tarjeta_id}`,
-          cuenta_id: suscripcion.cuenta_id || null,
-          tarjeta_id: suscripcion.tarjeta_id || null,
-        })
-        // Mismo efecto en saldo/deuda que cualquier gasto de la app: descuenta la
-        // cuenta O sube saldo_total de la tarjeta. Antes la tarjeta nunca subía,
-        // pero borrar la tx sí le restaba — asimetría que descuadraba la deuda.
-        await aplicarEfecto(tx, { cuentas, tarjetas })
-      }
+      // 1. Crear transacción siempre (debe aparecer en Movimientos aunque la
+      // suscripción no tenga método de pago asignado — antes se omitía por
+      // completo y solo avanzaba la fecha, dejando el cargo sin registrar).
+      const metodo_pago = suscripcion.cuenta_id
+        ? `cuenta:${suscripcion.cuenta_id}`
+        : suscripcion.tarjeta_id
+        ? `tarjeta:${suscripcion.tarjeta_id}`
+        : null
+      const [tx] = await db.from('transacciones').insert({
+        pareja_id: parejaId,
+        tipo: 'gasto',
+        monto: suscripcion.monto,
+        categoria: suscripcion.categoria || 'suscripciones',
+        descripcion: suscripcion.nombre,
+        fecha: suscripcion.proxima_fecha,
+        persona: suscripcion.persona,
+        contexto: suscripcion.contexto || 'personal',
+        metodo_pago,
+        cuenta_id: suscripcion.cuenta_id || null,
+        tarjeta_id: suscripcion.tarjeta_id || null,
+      })
+      // Mismo efecto en saldo/deuda que cualquier gasto de la app: descuenta la
+      // cuenta O sube saldo_total de la tarjeta. Si no hay método de pago,
+      // aplicarEfecto no hace nada (solo queda el registro en Movimientos).
+      await aplicarEfecto(tx, { cuentas, tarjetas })
       // 2. Avanzar proxima_fecha
       const siguiente = siguienteFecha(suscripcion.proxima_fecha, suscripcion.frecuencia)
       await db.from('suscripciones').update(

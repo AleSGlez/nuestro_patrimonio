@@ -49,7 +49,7 @@ function VistaLote({ lote, onBack, onEditLote }) {
 
   const handleVender = async (producto) => {
     if (producto.cantidad_stock <= 0) { toast.error('Sin stock disponible'); return }
-    if (!(await confirmar({ message: `¿Registrar venta de 1 "${producto.nombre_jp || producto.nombre_en}"?` }))) return
+    if (!(await confirmar({ message: `¿Registrar venta de 1 "${producto.nombre_jp || producto.nombre_en}"?`, confirmLabel: 'Registrar', danger: false }))) return
     try {
       await vender.mutateAsync({ producto, cantidad: 1 })
       toast.success('Venta registrada — stock actualizado')
