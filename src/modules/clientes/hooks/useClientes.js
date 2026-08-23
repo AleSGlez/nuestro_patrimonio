@@ -129,7 +129,7 @@ export async function aplicarMovimientoCliente({ parejaId, cliente, tipo, monto,
     const [creada] = await db.from('transacciones').insert({
       pareja_id: parejaId,
       tipo: 'ingreso', contexto: 'negocio', persona: 'ambos',
-      categoria: 'ventas',
+      categoria: 'ventas', monto: m,
       descripcion: descripcion || `Pago de ${cliente.nombre}`,
       fecha, metodo_pago: metodoPago, cuenta_id: cuentaId, tarjeta_id: null,
     })
