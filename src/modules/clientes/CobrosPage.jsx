@@ -82,12 +82,27 @@ function DetalleCliente({ cliente, onClose }) {
         <div className="space-y-2">
           {movimientos.map((m) => {
             const info = TIPO_INFO[m.tipo]
+            // Cargo del que este pago fue descontado (si aplicó a uno específico
+            // en vez de al saldo general) — se busca en el mismo historial, sin
+            // queries extra.
+            const cargoLigado = m.tipo === 'pago' && m.cargo_id
+              ? movimientos.find((x) => x.id === m.cargo_id)
+              : null
+            const tieneDesglose = m.tipo === 'cargo' && m.saldo_restante != null
             return (
               <div key={m.id} className="flex items-center gap-3 p-3 bg-surface-700 rounded-xl">
                 <span className="text-lg flex-shrink-0">{info.emoji}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white font-medium truncate">{m.descripcion || info.label}</p>
-                  <p className="text-xs text-gray-400">{fmtDate(m.fecha)}</p>
+                  <p className="text-xs text-gray-400">
+                    {fmtDate(m.fecha)}
+                    {cargoLigado && <> · aplicado a "{cargoLigado.descripcion || 'Cargo'}"</>}
+                  </p>
+                  {tieneDesglose && (
+                    <p className={cn('text-[11px] font-medium mt-0.5', Number(m.saldo_restante) === 0 ? 'text-ok' : 'text-warn')}>
+                      {Number(m.saldo_restante) === 0 ? 'Liquidado' : `Restante: ${fmt(m.saldo_restante)}`}
+                    </p>
+                  )}
                 </div>
                 <p className={cn('text-sm font-semibold font-mono flex-shrink-0', info.signo === '+' ? 'text-bad' : 'text-ok')}>
                   {info.signo}{fmt(m.monto)}
