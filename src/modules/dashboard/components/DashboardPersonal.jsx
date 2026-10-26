@@ -9,7 +9,6 @@ import GraficaCategorias from './GraficaCategorias'
 import UltimosMovimientos from './UltimosMovimientos'
 import Sparkline from './Sparkline'
 import PresupuestosWidget from './PresupuestosWidget'
-import MetricSwitchCard from './MetricSwitchCard'
 import { fmt, cn, sumaApartadosPersonales } from '@lib/utils'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -138,6 +137,53 @@ function IngresosGastosCard({ ingresos, gastos }) {
   )
 }
 
+// Veredicto inmediato de qué tan sano viene el mes — antes el usuario tenía
+// que leer 4 números sueltos para sacar esta conclusión. El criterio:
+// flujo negativo = gastando más de lo que entra (rojo); ≥85% de ingresos ya
+// gastado = ajustado (amarillo); si no, va bien (verde).
+function SaludMes({ ingresos, gastos, flujo, nombre }) {
+  const pctGastado = ingresos > 0 ? (gastos / ingresos) * 100 : 0
+
+  let estado
+  if (flujo < 0) {
+    estado = {
+      emoji: '🔴', color: 'text-bad', barColor: 'bg-bad', bg: 'bg-bad/10', borde: 'border-bad/25',
+      veredicto: 'Gastando más de lo que entra',
+      detalle: `Este mes ${nombre} gastó ${fmt(Math.abs(flujo))} más de lo que ingresó.`,
+    }
+  } else if (pctGastado >= 85) {
+    estado = {
+      emoji: '🟡', color: 'text-warn', barColor: 'bg-warn', bg: 'bg-warn/10', borde: 'border-warn/25',
+      veredicto: 'Vas ajustado este mes',
+      detalle: `Te queda ${fmt(flujo)} de margen — ya llevas ${Math.round(pctGastado)}% de tus ingresos gastado.`,
+    }
+  } else {
+    estado = {
+      emoji: '🟢', color: 'text-ok', barColor: 'bg-ok', bg: 'bg-ok/10', borde: 'border-ok/25',
+      veredicto: 'Vas bien este mes',
+      detalle: `Llevas ${fmt(flujo)} de sobrante y solo ${Math.round(pctGastado)}% de tus ingresos gastado.`,
+    }
+  }
+
+  return (
+    <div className={cn('card p-4 lg:p-6 border flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6', estado.bg, estado.borde)}>
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-xl lg:text-2xl">{estado.emoji}</span>
+          <span className={cn('text-sm lg:text-lg font-bold', estado.color)}>{estado.veredicto}</span>
+        </div>
+        <p className="text-xs lg:text-sm text-gray-300 leading-relaxed">{estado.detalle}</p>
+      </div>
+      <div className="w-full sm:w-40 lg:w-56 flex-shrink-0">
+        <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-1.5">
+          <div className={cn('h-full rounded-full', estado.barColor)} style={{ width: `${Math.min(pctGastado, 100)}%` }} />
+        </div>
+        <p className="text-[11px] text-gray-400 text-right">{Math.round(pctGastado)}% de ingresos gastado</p>
+      </div>
+    </div>
+  )
+}
+
 // ── Vista Pareja (todo personal combinado) ────────────────────
 function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados }) {
   const tx        = txMesData.filter((t) => t.contexto !== 'negocio')
@@ -162,16 +208,20 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados 
   const deltaIngresos = pctVsAnterior(ingresos, ingresosAnterior)
   const deltaGastos   = pctVsAnterior(gastos, gastosAnterior)
 
-  const metrics = [
-    { id: 'patrimonio', label: 'Patrimonio', valor: patrimonio, deltaPct: deltaPatrimonio, sparkData: sparkPatrim, color: patrimonio >= 0 ? '#22C55E' : '#EF4444', valorBad: patrimonio < 0 },
-    { id: 'flujo',      label: 'Flujo',      valor: flujo,      deltaPct: deltaFlujo,      sparkData: sparkFlujo,  color: flujo >= 0 ? '#22C55E' : '#EF4444',      valorBad: flujo < 0 },
-    { id: 'ingresos',   label: 'Ingresos',   valor: ingresos,   deltaPct: deltaIngresos,   sparkData: sparkIngresos, color: '#22C55E', valorBad: false },
-    { id: 'gastos',     label: 'Gastos',     valor: gastos,     deltaPct: deltaGastos,     sparkData: sparkGastos,   color: '#EF4444', valorBad: false },
+  const metricsGrid = [
+    { label: 'Patrimonio',    valor: patrimonio, positivo: patrimonio >= 0, sufijo: patrimonio >= 0 ? 'activo' : 'déficit', deltaPct: deltaPatrimonio, sparkData: sparkPatrim },
+    { label: 'Flujo del mes', valor: flujo,      positivo: flujo >= 0,      sufijo: flujo >= 0 ? 'positivo' : 'negativo',   deltaPct: deltaFlujo,      sparkData: sparkFlujo },
+    { label: 'Ingresos',      valor: ingresos,   positivo: true,            sufijo: 'recibido',                            deltaPct: deltaIngresos,   sparkData: sparkIngresos },
+    { label: 'Gastos',        valor: gastos,     positivo: false,           sufijo: 'gastado',                             deltaPct: deltaGastos,     sparkData: sparkGastos },
   ]
 
   return (
     <div className="space-y-3 lg:space-y-6">
-      <MetricSwitchCard metrics={metrics} />
+      <SaludMes ingresos={ingresos} gastos={gastos} flujo={flujo} nombre="la pareja" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        {metricsGrid.map((m) => <MetricaCard key={m.label} {...m} />)}
+      </div>
+      {txHist.length > 0 && <GraficaFlujo transacciones={txHist} />}
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
         <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
         <PresupuestosWidget transacciones={txMesData} />
@@ -203,16 +253,29 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
 
   const sparkFlujo  = useMemo(() => buildSparklineData(tx, 14), [tx])
   const sparkPatrim = useMemo(() => buildSparklineData(txHist, 30), [txHist])
+  const sparkIngresos = useMemo(() => buildCumulativoMes(tx, 'ingreso'), [tx])
+  const sparkGastos   = useMemo(() => buildCumulativoMes(tx, 'gasto'), [tx])
 
   const flujoAnterior = useMemo(() => flujoMesAnterior(txHist), [txHist])
   const deltaFlujo     = pctVsAnterior(flujo, flujoAnterior)
   const deltaPatrimonio = pctVsAnterior(patrimonio, patrimonio - flujo)
+  const ingresosAnterior = useMemo(() => montoMesAnterior(txHist, 'ingreso'), [txHist])
+  const gastosAnterior   = useMemo(() => montoMesAnterior(txHist, 'gasto'), [txHist])
+  const deltaIngresos = pctVsAnterior(ingresos, ingresosAnterior)
+  const deltaGastos   = pctVsAnterior(gastos, gastosAnterior)
+
+  const metricsGrid = [
+    { label: `Patrimonio de ${nombre}`, valor: patrimonio, positivo: patrimonio >= 0, sufijo: patrimonio >= 0 ? 'activo' : 'déficit', deltaPct: deltaPatrimonio, sparkData: sparkPatrim },
+    { label: 'Flujo del mes',           valor: flujo,      positivo: flujo >= 0,      sufijo: flujo >= 0 ? 'positivo' : 'negativo',   deltaPct: deltaFlujo,      sparkData: sparkFlujo },
+    { label: 'Ingresos',                valor: ingresos,   positivo: true,            sufijo: 'recibido',                            deltaPct: deltaIngresos,   sparkData: sparkIngresos },
+    { label: 'Gastos',                  valor: gastos,     positivo: false,           sufijo: 'gastado',                             deltaPct: deltaGastos,     sparkData: sparkGastos },
+  ]
 
   return (
     <div className="space-y-3 lg:space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:gap-6">
-        <MetricaCard label={`Patrimonio de ${nombre}`} valor={patrimonio} sufijo={patrimonio >= 0 ? 'activo' : 'déficit'} sparkData={sparkPatrim} deltaPct={deltaPatrimonio} />
-        <MetricaCard label="Flujo mes" valor={flujo} positivo={flujo >= 0} sufijo={flujo >= 0 ? 'positivo' : 'negativo'} sparkData={sparkFlujo} deltaPct={deltaFlujo} />
+      <SaludMes ingresos={ingresos} gastos={gastos} flujo={flujo} nombre={nombre} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        {metricsGrid.map((m) => <MetricaCard key={m.label} {...m} />)}
       </div>
 
       {cuentasPersona.length > 0 && (
@@ -237,21 +300,12 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
         </Colapsable>
       )}
 
-      <div className="lg:grid lg:grid-cols-12 lg:gap-6 space-y-3 lg:space-y-0">
-        <div className="lg:col-span-7">
-          {txHist.length > 0
-            ? <GraficaFlujo transacciones={txHist} />
-            : <div className="card p-4 flex items-center justify-center h-20"><p className="text-xs text-gray-400">Sin movimientos para graficar</p></div>
-          }
-        </div>
-        <div className="lg:col-span-5">
-          <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
-        </div>
-      </div>
+      {txHist.length > 0 && <GraficaFlujo transacciones={txHist} />}
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
+        <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
         <PresupuestosWidget transacciones={txMesData} persona={persona} />
-        {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       </div>
+      {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
     </div>
   )
