@@ -41,9 +41,17 @@ export default function AccountsPage() {
   ]
 
   const cuentasFiltradas = useMemo(() => {
-    if (filtroPersona === 'todas') return cuentas.filter((c) => c.persona !== 'negocio')
-    if (filtroPersona === 'negocio') return cuentas.filter((c) => c.persona === 'negocio')
-    return cuentas.filter((c) => c.persona === filtroPersona || c.persona === 'ambos')
+    let lista
+    if (filtroPersona === 'todas') lista = cuentas.filter((c) => c.persona !== 'negocio')
+    else if (filtroPersona === 'negocio') lista = cuentas.filter((c) => c.persona === 'negocio')
+    else lista = cuentas.filter((c) => c.persona === filtroPersona || c.persona === 'ambos')
+
+    // Solo se ordena por saldo en los filtros de una persona/negocio — en
+    // "Todas" se respeta el orden en que el usuario las capturó.
+    if (filtroPersona !== 'todas') {
+      lista = [...lista].sort((a, b) => Number(b.saldo) - Number(a.saldo))
+    }
+    return lista
   }, [cuentas, filtroPersona])
 
   // Apartados marcados como negocio que viven en cuentas personales
@@ -82,84 +90,96 @@ export default function AccountsPage() {
 
   return (
     <>
-      <div className="top-header flex-col items-stretch !h-auto pb-3">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="section-label">
-              {filtroPersona === 'todas' ? 'Total' : filtroPersona === 'negocio' ? 'Total negocio' : `Total de ${FILTROS.find((f) => f.value === filtroPersona)?.label}`}
-            </p>
-            <p className="text-xl font-bold font-mono text-white">{fmt(totalMostrado)}</p>
-            {filtroPersona === 'negocio' && totalApartadosNegocio > 0 && (
-              <p className="text-[11px] text-[var(--accent)] mt-0.5">
-                + {fmt(totalApartadosNegocio)} en apartados personales
+      <div className="top-header flex-col items-stretch !h-auto pb-3 lg:px-10 lg:pt-8 lg:pb-6 lg:border-b-0">
+        <div className="lg:max-w-6xl lg:w-full">
+          <div className="flex items-end justify-between mb-3 lg:mb-6 gap-3 flex-wrap">
+            <div>
+              <p className="section-label lg:text-[10px] lg:text-gray-500 lg:tracking-[0.1em]">
+                {filtroPersona === 'todas' ? 'Total' : filtroPersona === 'negocio' ? 'Total negocio' : `Total de ${FILTROS.find((f) => f.value === filtroPersona)?.label}`}
               </p>
-            )}
-          </div>
-          <button onClick={() => setTransfOpen(true)} className="btn-ghost px-3 py-2 text-xs flex-shrink-0">
-            <ArrowLeftRight size={14} /> Transferir
-          </button>
-        </div>
-
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-          {FILTROS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFiltroPersona(f.value)}
-              className={cn(
-                'px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex-shrink-0',
-                filtroPersona === f.value ? 'bg-[var(--accent)] text-white' : 'bg-surface-700 text-gray-400'
+              <p className="text-xl lg:text-5xl font-bold font-mono text-white lg:tracking-tight">{fmt(totalMostrado)}</p>
+              {filtroPersona === 'negocio' && totalApartadosNegocio > 0 && (
+                <p className="text-[11px] lg:text-sm text-[var(--accent)] mt-0.5 lg:mt-2">
+                  + {fmt(totalApartadosNegocio)} en apartados personales
+                </p>
               )}
-            >
-              {f.label}
-            </button>
-          ))}
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar lg:gap-1 lg:bg-surface-900 lg:border lg:border-white/[0.06] lg:rounded-xl lg:p-1">
+                {FILTROS.map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setFiltroPersona(f.value)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex-shrink-0',
+                      'lg:px-4 lg:rounded-lg lg:text-sm',
+                      filtroPersona === f.value ? 'bg-[var(--accent)] text-white lg:font-semibold' : 'bg-surface-700 text-gray-400 lg:bg-transparent'
+                    )}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setTransfOpen(true)} className="btn-ghost px-3 py-2 text-xs lg:text-sm lg:px-4 lg:py-2.5 flex-shrink-0">
+                <ArrowLeftRight size={14} /> Transferir
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="page px-4 pt-4">
-        {isPending ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[1,2,3,4].map((i) => <div key={i} className="skeleton h-24" />)}
-          </div>
-        ) : (
-          <>
-            {cuentasFiltradas.length === 0 && apartadosNegocioEnPersonal.length === 0 ? (
-              <EmptyState emoji="🏦" title="Sin cuentas" description="Agrega tu primera cuenta bancaria o efectivo" />
-            ) : (
-              <>
-                {cuentasFiltradas.length > 0 && (
-                  <div className="grid grid-cols-2 gap-3">
-                    {cuentasFiltradas.map((c) => (
-                      <CuentaCardCompact key={c.id} cuenta={c} onTap={setDetalleCuenta} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Sección de referencia: apartados de negocio en cuentas personales */}
-                {apartadosNegocioEnPersonal.length > 0 && (
-                  <div className="mt-5">
-                    <p className="section-label mb-2 flex items-center gap-1.5">
-                      📌 Apartados de negocio en cuentas personales
-                    </p>
-                    <p className="text-[11px] text-gray-400 mb-3">
-                      Este dinero está guardado en cuentas personales pero es del negocio
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {apartadosNegocioEnPersonal.map(({ apartado, cuenta }) => (
-                        <ApartadoNegocioRef
-                          key={apartado.id}
-                          apartado={apartado}
-                          cuenta={cuenta}
-                          onTap={setDetalleCuenta}
-                        />
+      <div className="page px-4 pt-4 lg:px-10 lg:pt-6">
+        <div className="lg:max-w-6xl">
+          {isPending ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+              {[1,2,3,4].map((i) => <div key={i} className="skeleton h-24 lg:h-32" />)}
+            </div>
+          ) : (
+            <>
+              {cuentasFiltradas.length === 0 && apartadosNegocioEnPersonal.length === 0 ? (
+                <EmptyState
+                  emoji="🏦"
+                  title={filtroPersona === 'todas' ? 'Sin cuentas' : `Sin cuentas de ${FILTROS.find((f) => f.value === filtroPersona)?.label}`}
+                  description={filtroPersona === 'todas'
+                    ? 'Agrega tu primera cuenta bancaria o efectivo'
+                    : `Aquí aparecerán cuando agregues una cuenta de ${FILTROS.find((f) => f.value === filtroPersona)?.label}`}
+                />
+              ) : (
+                <>
+                  {cuentasFiltradas.length > 0 && (
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+                      {cuentasFiltradas.map((c) => (
+                        <CuentaCardCompact key={c.id} cuenta={c} onTap={setDetalleCuenta} />
                       ))}
                     </div>
-                  </div>
-                )}
-              </>
-            )}
-          </>
-        )}
+                  )}
+
+                  {/* Sección de referencia: apartados de negocio en cuentas personales */}
+                  {apartadosNegocioEnPersonal.length > 0 && (
+                    <div className="mt-5 lg:mt-8">
+                      <p className="section-label mb-2 lg:mb-3 flex items-center gap-1.5">
+                        📌 Apartados de negocio en cuentas personales
+                      </p>
+                      <p className="text-[11px] lg:text-sm text-gray-400 mb-3 lg:mb-4 lg:max-w-xl">
+                        Este dinero está guardado en cuentas personales pero es del negocio
+                      </p>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+                        {apartadosNegocioEnPersonal.map(({ apartado, cuenta }) => (
+                          <ApartadoNegocioRef
+                            key={apartado.id}
+                            apartado={apartado}
+                            cuenta={cuenta}
+                            onTap={setDetalleCuenta}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <button onClick={() => { setEditCuenta(null); setFormOpen(true) }} className="fab">
