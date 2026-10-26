@@ -1,11 +1,16 @@
 // src/modules/cards/components/TarjetaCard.jsx
-import { CreditCard, Pencil, Trash2, PieChart } from 'lucide-react'
+import { CreditCard, Pencil, Trash2, PieChart, Layers } from 'lucide-react'
 import { fmt, cn } from '@lib/utils'
 import { diasHasta, calcularFechasCorte } from '../hooks/useTarjetas'
 
-export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerDesglose, nombres }) {
-  const uso = tarjeta.limite > 0 ? Math.min(100, (tarjeta.saldo_total / tarjeta.limite) * 100) : 0
-  const disponible = Math.max(0, tarjeta.limite - tarjeta.saldo_total)
+export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerDesglose, onVerMSI, nombres, comprometidoMSI = 0 }) {
+  // El banco reserva contra el límite el total comprometido en MSI desde el
+  // día de la compra, aunque saldo_total (lo ya facturado) todavía no lo
+  // incluya — ver montoRestante en useMSI.js. Se suma aquí solo para
+  // mostrar un disponible realista, sin tocar saldo_total ni el corte.
+  const usoTotal = Number(tarjeta.saldo_total) + comprometidoMSI
+  const uso = tarjeta.limite > 0 ? Math.min(100, (usoTotal / tarjeta.limite) * 100) : 0
+  const disponible = Math.max(0, tarjeta.limite - usoTotal)
   const personaLabel = tarjeta.persona === 'ambos' && tarjeta.titular_principal
     ? `Titular: ${tarjeta.titular_principal === 'p1' ? nombres.p1 : nombres.p2} · Adicional: ${tarjeta.titular_principal === 'p1' ? nombres.p2 : nombres.p1}`
     : { p1: nombres.p1, p2: nombres.p2, ambos: 'Compartida' }[tarjeta.persona]
@@ -48,6 +53,12 @@ export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerD
             <p className="text-lg font-bold font-mono text-ok">{fmt(disponible)}</p>
           </div>
         </div>
+
+        {comprometidoMSI > 0 && (
+          <p className="text-[11px] text-gray-500 -mt-1.5 mb-3">
+            Incluye {fmt(comprometidoMSI)} comprometidos en MSI
+          </p>
+        )}
 
         <div className="mb-3">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
@@ -112,6 +123,13 @@ export default function TarjetaCard({ tarjeta, onEdit, onDelete, onPagar, onVerD
             )}
           </div>
         )}
+
+        <button
+          onClick={() => onVerMSI(tarjeta)}
+          className="w-full mt-2 py-2 rounded-xl text-xs font-semibold border border-white/10 text-gray-300 hover:bg-white/[0.06] transition-all flex items-center justify-center gap-1.5"
+        >
+          <Layers size={13} /> Meses sin intereses
+        </button>
       </div>
     </div>
   )

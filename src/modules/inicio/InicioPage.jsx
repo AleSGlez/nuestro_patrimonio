@@ -1,14 +1,32 @@
 // src/modules/inicio/InicioPage.jsx
-import { LogOut, Settings, TrendingUp, TrendingDown, AlertCircle, ArrowRight } from 'lucide-react'
+import { useState } from 'react'
+import { LogOut, Settings, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
 import { useAuthStore } from '@store/authStore'
 import { useAppStore } from '@store/appStore'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
-import { useTarjetas, useAlertasTarjetas } from '@modules/cards/hooks/useTarjetas'
+import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { usePersonas } from '@modules/personas/hooks/usePersonas'
 import { useDashboardData } from '@modules/dashboard/hooks/useDashboard'
 import AccesosRapidosSection from '@modules/accesosRapidos/components/AccesosRapidosSection'
-import { fmt, cn, sumaApartadosPersonales } from '@lib/utils'
+import NotificacionesPanel from '@modules/notificaciones/components/NotificacionesPanel'
+import { fmt, cn, sumaApartadosPersonales, CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO } from '@lib/utils'
+
+const FILTROS_ACTIVIDAD = [
+  { id: 'todos',   label: 'Todos' },
+  { id: 'ingreso', label: '↓ Ingresos' },
+  { id: 'gasto',   label: '↑ Gastos' },
+]
+
+// Categoría + emoji de una transacción, consciente de contexto — una misma
+// clave ('servicios') existe tanto en CAT_GASTO como en CAT_NEGOCIO_INGRESO
+// con significados distintos, así que no se puede buscar en una sola lista.
+function catDeTx(tx) {
+  const lista = tx.contexto === 'negocio'
+    ? (tx.tipo === 'ingreso' ? CAT_NEGOCIO_INGRESO : CAT_NEGOCIO_GASTO)
+    : (tx.tipo === 'ingreso' ? CAT_INGRESO : CAT_GASTO)
+  return lista.find((c) => c.value === tx.categoria) || { emoji: '📦', label: tx.categoria }
+}
 
 function EspacioCard({ emoji, titulo, subtitulo, valor, estado, onClick, badge }) {
   return (
@@ -82,10 +100,30 @@ export default function InicioPage({ onNavegar }) {
   const susTarjetas   = tarjetas.filter((t) => t.persona === suPersona).reduce((s, t) => s + Number(t.saldo_total), 0)
   const suPatrimonio  = susCuentas - susTarjetas
 
-  // Solo alertas de tarjetas — personas ya aparece en el grid
-  const alertas = useAlertasTarjetas()
+  const [filtroActividad, setFiltroActividad] = useState('todos')
+  const actividadBase = filtroActividad === 'todos'
+    ? txMesData
+    : txMesData.filter((t) => t.tipo === filtroActividad)
+  const ultimos = [...actividadBase].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5)
 
-  const ultimos = [...txMesData].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5)
+  const [filtroGastos, setFiltroGastos] = useState('todos')
+  const FILTROS_GASTOS = [
+    { id: 'todos',   label: 'Todos' },
+    { id: 'p1',      label: nombres.p1 },
+    { id: 'p2',      label: nombres.p2 },
+    { id: 'ambos',   label: 'Ambos' },
+    { id: 'negocio', label: 'Negocio' },
+  ]
+  const gastosBase = txMesData.filter((t) => t.tipo === 'gasto')
+  // A diferencia de DashboardPersonal.jsx (donde 'ambos' cuenta para los dos),
+  // aquí cada filtro es exclusivo: p1/p2 son SOLO sus gastos individuales,
+  // 'ambos' es su propio filtro — así no se duplica el mismo gasto en dos lados.
+  const gastosFiltrados = filtroGastos === 'todos' ? gastosBase
+    : filtroGastos === 'negocio' ? gastosBase.filter((t) => t.contexto === 'negocio')
+    : gastosBase.filter((t) => t.contexto !== 'negocio' && t.persona === filtroGastos)
+  const mayoresGastos = [...gastosFiltrados]
+    .sort((a, b) => Number(b.monto) - Number(a.monto))
+    .slice(0, 5)
 
   return (
     <>
@@ -98,6 +136,7 @@ export default function InicioPage({ onNavegar }) {
               <h1 className="text-xl lg:text-3xl font-bold text-white lg:tracking-tight">{miNombre} 👋</h1>
             </div>
             <div className="flex items-center gap-1 lg:gap-3">
+              <NotificacionesPanel />
               <button onClick={() => onNavegar('mas')} aria-label="Configuración" className="icon-btn lg:w-11 lg:h-11 lg:bg-surface-800 text-gray-500 hover:text-white">
                 <Settings size={18} />
               </button>
@@ -131,20 +170,7 @@ export default function InicioPage({ onNavegar }) {
             <AccesosRapidosSection />
           </div>
 
-          {alertas.length > 0 && (
-            <div className="space-y-2 lg:hidden">
-              {alertas.map((a, i) => (
-                <div key={i} className={cn('flex items-center gap-2.5 p-3 rounded-xl',
-                  a.tipo === 'warn' ? 'bg-warn/10 border border-warn/20' : 'bg-[var(--accent-muted)] border border-[var(--accent)]/20'
-                )}>
-                  <AlertCircle size={14} className={a.tipo === 'warn' ? 'text-warn' : 'text-[var(--accent)]'} />
-                  <p className="text-xs text-gray-200">{a.msg}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <p className="section-label mb-3 hidden lg:block">Mis espacios</p>
+          <p className="section-label mb-3">Mis espacios</p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             <EspacioCard emoji="👤" titulo={miNombre} subtitulo="Mi patrimonio"
               valor={fmt(miPatrimonio)}
@@ -163,41 +189,113 @@ export default function InicioPage({ onNavegar }) {
               onClick={() => onNavegar('personas')} />
           </div>
 
-          {ultimos.length > 0 && (
-            <div className="card px-3 lg:px-0 lg:overflow-hidden">
-              <div className="flex items-center justify-between py-3 lg:py-4 px-0 lg:px-5 border-b border-white/[0.06]">
-                <p className="text-sm font-semibold lg:font-bold text-white lg:uppercase lg:tracking-wider">Actividad reciente</p>
-                <button onClick={() => onNavegar('finanzas', 'movimientos')} className="text-xs font-medium lg:font-semibold text-[var(--accent)]">
-                  Ver todo
-                </button>
-              </div>
-              {ultimos.map((tx) => {
-                const isIngreso = tx.tipo === 'ingreso'
-                return (
-                  <div key={tx.id} className="flex items-center gap-3 lg:gap-4 py-2.5 lg:py-4 px-0 lg:px-5 border-b border-white/[0.04] last:border-0">
-                    <div className={cn(
-                      'w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center text-sm flex-shrink-0',
-                      isIngreso ? 'bg-ok/10' : 'bg-bad/10'
-                    )}>
-                      {isIngreso
-                        ? <TrendingUp size={15} className="text-ok" />
-                        : <TrendingDown size={15} className="text-bad" />
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs lg:text-sm text-white truncate">{tx.descripcion || tx.categoria}</p>
-                      <p className="text-[10px] lg:text-xs text-gray-400 lg:text-gray-500">
-                        {tx.fecha} · {tx.persona === 'p1' ? nombres.p1 : tx.persona === 'p2' ? nombres.p2 : 'Ambos'}
-                      </p>
-                    </div>
-                    <p className={cn('text-xs lg:text-sm font-mono font-semibold lg:font-bold flex-shrink-0',
-                      isIngreso ? 'text-ok' : 'text-bad')}>
-                      {isIngreso ? '+' : '-'}{fmt(tx.monto)}
-                    </p>
+          {txMesData.length > 0 && (
+            <>
+              <p className="section-label mb-3 pt-2">Actividad financiera</p>
+              <div className="lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start space-y-3 lg:space-y-0">
+                <div className="card px-3 lg:px-0 lg:overflow-hidden">
+                  <div className="flex items-center justify-between py-3 lg:py-4 px-0 lg:px-5 border-b border-white/[0.06]">
+                    <p className="text-sm font-semibold lg:font-bold text-white lg:uppercase lg:tracking-wider">Actividad reciente</p>
+                    <button onClick={() => onNavegar('finanzas', 'movimientos')} className="text-xs font-medium lg:font-semibold text-[var(--accent)]">
+                      Ver todo
+                    </button>
                   </div>
-                )
-              })}
-            </div>
+                  <div className="flex gap-1.5 py-2.5 px-0 lg:px-5 border-b border-white/[0.04]">
+                    {FILTROS_ACTIVIDAD.map((f) => (
+                      <button
+                        key={f.id} onClick={() => setFiltroActividad(f.id)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-xl text-[11px] lg:text-xs font-medium lg:font-semibold transition-all',
+                          filtroActividad === f.id ? 'bg-[var(--accent)] text-white' : 'bg-surface-700 text-gray-400'
+                        )}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  {ultimos.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-6">
+                      Sin {filtroActividad === 'ingreso' ? 'ingresos' : 'gastos'} este mes
+                    </p>
+                  ) : ultimos.map((tx) => {
+                    const isIngreso = tx.tipo === 'ingreso'
+                    return (
+                      <div key={tx.id} className="flex items-center gap-3 lg:gap-4 py-2.5 lg:py-4 px-0 lg:px-5 border-b border-white/[0.04] last:border-0">
+                        <div className={cn(
+                          'w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center text-sm flex-shrink-0',
+                          isIngreso ? 'bg-ok/10' : 'bg-bad/10'
+                        )}>
+                          {isIngreso
+                            ? <TrendingUp size={15} className="text-ok" />
+                            : <TrendingDown size={15} className="text-bad" />
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs lg:text-sm text-white line-clamp-2">{tx.descripcion || tx.categoria}</p>
+                          <p className="text-[10px] lg:text-xs text-gray-400 lg:text-gray-500">
+                            {tx.fecha} · {tx.persona === 'p1' ? nombres.p1 : tx.persona === 'p2' ? nombres.p2 : 'Ambos'}
+                          </p>
+                        </div>
+                        <p className={cn('text-xs lg:text-sm font-mono font-semibold lg:font-bold flex-shrink-0',
+                          isIngreso ? 'text-ok' : 'text-bad')}>
+                          {isIngreso ? '+' : '-'}{fmt(tx.monto)}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {gastosBase.length > 0 && (
+                  <div className="card px-3 lg:px-0 lg:overflow-hidden">
+                    <div className="flex items-center justify-between py-3 lg:py-4 px-0 lg:px-5 border-b border-white/[0.06]">
+                      <p className="text-sm font-semibold lg:font-bold text-white lg:uppercase lg:tracking-wider">Mayores gastos del mes</p>
+                      <button onClick={() => onNavegar('finanzas', 'movimientos')} className="text-xs font-medium lg:font-semibold text-[var(--accent)]">
+                        Ver todo
+                      </button>
+                    </div>
+                    <div className="flex gap-1.5 py-2.5 px-0 lg:px-5 border-b border-white/[0.04] overflow-x-auto no-scrollbar">
+                      {FILTROS_GASTOS.map((f) => (
+                        <button
+                          key={f.id} onClick={() => setFiltroGastos(f.id)}
+                          className={cn(
+                            'px-3 py-1.5 rounded-xl text-[11px] lg:text-xs font-medium lg:font-semibold transition-all whitespace-nowrap flex-shrink-0',
+                            filtroGastos === f.id ? 'bg-[var(--accent)] text-white' : 'bg-surface-700 text-gray-400'
+                          )}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                    {mayoresGastos.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-6">
+                        Sin gastos de {FILTROS_GASTOS.find((f) => f.id === filtroGastos)?.label} este mes
+                      </p>
+                    ) : mayoresGastos.map((tx, i) => {
+                      const cat = catDeTx(tx)
+                      return (
+                        <div key={tx.id} className="flex items-center gap-3 lg:gap-4 py-2.5 lg:py-4 px-0 lg:px-5 border-b border-white/[0.04] last:border-0">
+                          <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center text-sm flex-shrink-0 bg-bad/10 relative">
+                            <span className="text-base">{cat.emoji}</span>
+                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-surface-600 text-[9px] font-bold text-gray-200 flex items-center justify-center border border-surface-900">
+                              {i + 1}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs lg:text-sm text-white line-clamp-2">{tx.descripcion || cat.label}</p>
+                            <p className="text-[10px] lg:text-xs text-gray-400 lg:text-gray-500">
+                              {tx.fecha} · {tx.persona === 'p1' ? nombres.p1 : tx.persona === 'p2' ? nombres.p2 : 'Ambos'}
+                            </p>
+                          </div>
+                          <p className="text-xs lg:text-sm font-mono font-semibold lg:font-bold flex-shrink-0 text-bad">
+                            -{fmt(tx.monto)}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
