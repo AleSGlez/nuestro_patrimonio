@@ -31,8 +31,13 @@ export default function SubNav({ tabs, active, onChange, titulo }) {
         </button>
       </div>
 
-      {/* Desktop: tira de tabs subrayados */}
-      <div className="hidden lg:flex gap-1 overflow-x-auto no-scrollbar border-b border-white/[0.06]">
+      {/* Desktop: tabs subrayados — con flex-wrap en vez de scroll horizontal.
+          Con 8-9 secciones (Finanzas) no caben en una sola fila a ningún
+          ancho razonable; antes se recortaban detrás de una barra de scroll
+          horizontal (fea en Windows/Chrome y, peor, escondía tabs que nadie
+          volvía a usar por no ser obvio que seguían ahí). Al envolver a una
+          segunda fila, las 9 quedan siempre a la vista, sin scroll. */}
+      <div className="hidden lg:flex lg:flex-wrap gap-1 border-b border-white/[0.06]">
         {tabs.map((tab) => (
           <button
             key={tab.id}
