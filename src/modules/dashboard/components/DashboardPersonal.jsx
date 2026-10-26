@@ -62,33 +62,31 @@ function MetricaCard({ label, valor, positivo, sparkData, sufijo, deltaPct }) {
   const hayDelta = deltaPct !== null && deltaPct !== undefined
   const deltaPos = deltaPct >= 0
   return (
-    <div className="card p-3.5 lg:p-6 flex flex-col">
-      <div className="flex items-start justify-between mb-1 lg:mb-4">
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide lg:text-gray-500 lg:tracking-[0.12em] lg:font-semibold">{label}</p>
-        <div className="flex items-center gap-1.5">
-          <div className="hidden lg:flex items-center gap-0.5 text-[10px] font-medium text-gray-500">
-            {hayDelta ? (
-              <>
-                {deltaPos ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
-                {Math.round(Math.abs(deltaPct))}% vs mes ant.
-              </>
-            ) : (
-              <span>sin dato anterior</span>
-            )}
-          </div>
-          <div className={cn('flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full lg:font-bold',
-            isPos ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
-          )}>
-            {isPos ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
-            {sufijo}
-          </div>
+    <div className="card p-3.5 lg:p-5 flex flex-col min-w-0">
+      <div className="flex items-center justify-between gap-1.5 mb-1 lg:mb-2.5">
+        <p className="text-[10px] text-gray-400 uppercase tracking-wide lg:text-gray-500 lg:tracking-[0.1em] lg:font-semibold truncate min-w-0">{label}</p>
+        <div className={cn('flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full lg:font-bold flex-shrink-0',
+          isPos ? 'bg-ok/10 text-ok' : 'bg-bad/10 text-bad'
+        )}>
+          {isPos ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+          {sufijo}
         </div>
       </div>
-      <p className={cn('text-xl lg:text-4xl font-bold font-mono leading-tight mb-2 lg:mb-4', isPos ? 'text-white' : 'text-bad')}>
+      <p className={cn('text-xl lg:text-2xl font-bold font-mono leading-tight mb-1 lg:mb-1.5 truncate', isPos ? 'text-white' : 'text-bad')}>
         {fmt(Math.abs(valor))}
       </p>
+      <div className="hidden lg:flex items-center gap-1 text-[10px] font-medium text-gray-500 whitespace-nowrap mb-2">
+        {hayDelta ? (
+          <>
+            {deltaPos ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+            {Math.round(Math.abs(deltaPct))}% vs mes ant.
+          </>
+        ) : (
+          <span>sin dato anterior</span>
+        )}
+      </div>
       {sparkData && sparkData.length >= 2 && (
-        <div className="mt-auto -mx-1 lg:h-12">
+        <div className="mt-auto -mx-1 lg:h-10">
           <Sparkline data={sparkData} color={isPos ? '#10B981' : '#EF4444'} height={32} />
         </div>
       )}
