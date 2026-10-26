@@ -31,6 +31,7 @@
 html {
   height: 100%;
   overflow: hidden;
+  background: #0F0F14;
   /* Prevent font scaling on iOS rotation */
   -webkit-text-size-adjust: 100%;
 }
@@ -49,8 +50,6 @@ body {
 }
 
 #root {
-  /* Use svh for iOS Safari — accounts for browser chrome */
-  height: 100svh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -148,7 +147,7 @@ body {
   /* ── Page wrapper ── */
   .page {
     @apply flex-1 overflow-y-auto overflow-x-hidden;
-    padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px) + 8px);
+    padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 8px);
   }
 
   /* ── Dashboard shell (app autenticada) ──
@@ -177,8 +176,8 @@ body {
     transform: translateX(-50%);
     width: 100%;
     max-width: 430px;
-    height: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px));
-    padding-bottom: env(safe-area-inset-bottom, 34px);
+    height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-top: 4px;
     @apply bg-surface-900/95 backdrop-blur-md border-t border-white/[0.06];
     z-index: 40;
@@ -203,7 +202,7 @@ body {
   .fab {
     position: fixed;
     right: 16px;
-    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px) + 12px);
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 12px);
     @apply w-14 h-14 rounded-2xl bg-[var(--accent)] text-white shadow-lg
            flex items-center justify-center
            hover:brightness-110 active:scale-95 transition-all;

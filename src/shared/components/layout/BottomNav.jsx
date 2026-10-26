@@ -41,7 +41,7 @@ export default function BottomNav({ active, onChange, onAccion }) {
       {menuOpen && (
         <div className="fixed z-50 bottom-nav-menu"
           style={{
-            bottom: 'calc(var(--nav-height) + env(safe-area-inset-bottom, 34px) + 12px)',
+            bottom: 'calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 12px)',
             left: '50%', transform: 'translateX(-50%)',
             width: 'calc(100% - 32px)', maxWidth: '398px',
           }}
