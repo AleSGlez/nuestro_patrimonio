@@ -10,6 +10,7 @@ import PersonasHubPage  from '@modules/personas-hub/PersonasHubPage'
 import NegocioHubPage   from '@modules/negocio-hub/NegocioHubPage'
 import MasPage          from '@modules/mas/MasPage'
 import CalendarioPage   from '@modules/calendario/CalendarioPage'
+import ReportesPage     from '@modules/reportes/ReportesPage'
 import FormTransaccion  from '@modules/transactions/components/FormTransaccion'
 import FormTransferencia from '@modules/accounts/components/FormTransferencia'
 import { FormSuscripcionGlobal } from '@modules/suscripciones/SuscripcionesPage'
@@ -41,6 +42,7 @@ export default function DashboardPage() {
     switch (tab) {
       case 'inicio':      return <InicioPage onNavegar={handleNavegar} />
       case 'finanzas':    return <FinanzasPage subTab={finanzasSubTab} />
+      case 'reportes':    return <ReportesPage />
       case 'personas':    return <PersonasHubPage />
       case 'negocio':     return <NegocioHubPage />
       case 'calendario':  return <CalendarioPage />

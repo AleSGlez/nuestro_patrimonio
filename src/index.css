@@ -209,6 +209,18 @@ body {
     z-index: 50;
     box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
   }
+
+  /* ── Selector de color nativo (acento personalizado, MasPage) ── */
+  .np-color-input {
+    -webkit-appearance: none;
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+  }
+  .np-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+  .np-color-input::-webkit-color-swatch { border: none; border-radius: 999px; }
+  .np-color-input::-moz-color-swatch { border: none; border-radius: 999px; }
 }
 
 /* ── Utilidades ─────────────────────────────────────────────── */

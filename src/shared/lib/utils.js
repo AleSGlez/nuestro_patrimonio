@@ -118,6 +118,50 @@ export const PALETTE = [
   '#EF4444','#F97316','#84CC16','#14B8A6',
 ]
 
+// Dado un color de acento elegido a mano (hex), calcula --accent-light y
+// --accent-muted igual que los 4 temas predefinidos los tienen fijos en
+// index.css — así el color de acento "Personalizado" (MasPage) no depende
+// de que alguien defina a mano las 3 variantes de cada color posible.
+export function computeAccentVariants(hex) {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substr(0, 2), 16)
+  const g = parseInt(h.substr(2, 2), 16)
+  const b = parseInt(h.substr(4, 2), 16)
+
+  const rn = r / 255, gn = g / 255, bn = b / 255
+  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn)
+  const light = (max + min) / 2
+  let hue = 0, sat = 0
+  if (max !== min) {
+    const d = max - min
+    sat = light > 0.5 ? d / (2 - max - min) : d / (max + min)
+    if (max === rn) hue = (gn - bn) / d + (gn < bn ? 6 : 0)
+    else if (max === gn) hue = (bn - rn) / d + 2
+    else hue = (rn - gn) / d + 4
+    hue /= 6
+  }
+
+  const l2 = Math.min(0.85, light + 0.18)
+  const c = (1 - Math.abs(2 * l2 - 1)) * sat
+  const x = c * (1 - Math.abs(((hue * 6) % 2) - 1))
+  const m = l2 - c / 2
+  const hp = hue * 6
+  let r1, g1, b1
+  if (hp < 1) { r1 = c; g1 = x; b1 = 0 }
+  else if (hp < 2) { r1 = x; g1 = c; b1 = 0 }
+  else if (hp < 3) { r1 = 0; g1 = c; b1 = x }
+  else if (hp < 4) { r1 = 0; g1 = x; b1 = c }
+  else if (hp < 5) { r1 = x; g1 = 0; b1 = c }
+  else { r1 = c; g1 = 0; b1 = x }
+  const toHex = (v) => Math.round((v + m) * 255).toString(16).padStart(2, '0')
+
+  return {
+    accent: hex,
+    accentLight: '#' + toHex(r1) + toHex(g1) + toHex(b1),
+    accentMuted: `rgba(${r},${g},${b},0.14)`,
+  }
+}
+
 // ── Condiciones carta Pokémon ────────────────────────────────
 export const CONDICIONES = [
   { value: 'M',   label: 'Mint',           color: '#10B981' },

@@ -1,5 +1,5 @@
 // src/modules/couple/hooks/usePareja.js
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
 
@@ -42,4 +42,19 @@ export function useInvalidatePareja() {
     qc.invalidateQueries({ queryKey: ['pareja'] })
     qc.invalidateQueries({ queryKey: ['perfiles'] })
   }
+}
+
+// Guarda tema/accent_hex en la BD — hasta ahora MasPage solo los guardaba en
+// localStorage (via appStore), así que cada recarga los pisaba con el valor
+// viejo con el que se creó la pareja (AuthedApp en App.jsx sincroniza
+// pareja.tema → appStore en cada carga). Con esto el valor real vive en la
+// BD y se ve igual en ambos dispositivos de la pareja.
+export function useActualizarTema() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  return useMutation({
+    mutationFn: ({ tema, accent_hex = null }) =>
+      db.from('parejas').update({ tema, accent_hex }, { id: parejaId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pareja'] }),
+  })
 }
