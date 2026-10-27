@@ -5,9 +5,11 @@ import Modal from '@ui/Modal'
 import { Input, AmountInput, Select } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
-import { useCrearPresupuesto, useActualizarPresupuesto } from '../hooks/usePresupuestos'
+import { usePresupuestos, useCrearPresupuesto, useActualizarPresupuesto,
+         calcularDisponible, tieneEtiquetas, personasSeTraslapan } from '../hooks/usePresupuestos'
+import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
-import { today, fmt } from '@lib/utils'
+import { today, fmt, cn, CAT_GASTO } from '@lib/utils'
 
 const TIPOS = [
   { value: 'diario',   label: '📅 Diario' },
@@ -37,6 +39,10 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
   const [montoBase, setMontoBase]   = useState('')
   const [persona, setPersona]       = useState('ambos')
   const [fechaInicio, setFechaInicio] = useState(today())
+  const [categorias, setCategorias] = useState([])
+
+  const { data: presupuestos = [] } = usePresupuestos()
+  const { data: transacciones = [] } = useTransacciones()
 
   useEffect(() => {
     if (!open) return
@@ -44,20 +50,41 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
       setNombre(presupuesto.nombre); setEmoji(presupuesto.emoji)
       setTipo(presupuesto.tipo); setMontoBase(String(presupuesto.monto_base))
       setPersona(presupuesto.persona); setFechaInicio(presupuesto.fecha_inicio)
+      setCategorias(presupuesto.categorias || [])
     } else {
       setNombre(''); setEmoji('💰'); setTipo('diario')
       setMontoBase(''); setPersona('ambos'); setFechaInicio(today())
+      setCategorias([])
     }
   }, [open, presupuesto])
+
+  // Una categoría pertenece a un solo presupuesto (entre los que comparten persona)
+  const tomadas = {}
+  presupuestos
+    .filter((p) => p.id !== presupuesto?.id && (!p.contexto || p.contexto === 'personal'))
+    .filter((p) => tieneEtiquetas(p) && personasSeTraslapan(p.persona, persona))
+    .forEach((p) => p.categorias.forEach((c) => { tomadas[c] = p.nombre }))
+
+  const toggleCategoria = (c) => setCategorias((sel) =>
+    sel.includes(c) ? sel.filter((x) => x !== c) : [...sel, c]
+  )
+
+  // Efecto en vivo de las etiquetas elegidas
+  const efecto = Number(montoBase) > 0 && fechaInicio
+    ? calcularDisponible({ tipo, persona, fecha_inicio: fechaInicio, monto_base: montoBase, categorias }, transacciones)
+    : null
 
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
     if (!montoBase || Number(montoBase) <= 0) { toast.error('Ingresa el monto'); return }
+    const choque = categorias.find((c) => tomadas[c])
+    if (choque) { toast.error(`Esa categoría ya está en "${tomadas[choque]}"`); return }
 
     const payload = {
       nombre: nombre.trim(), emoji, tipo,
       monto_base: Number(montoBase),
       persona, fecha_inicio: fechaInicio,
+      categorias: categorias.length > 0 ? categorias : null,
     }
 
     try {
@@ -118,10 +145,67 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
         </div>
       )}
 
+      <div className="mb-4">
+        <label className="label">Categorías que cuentan aquí</label>
+        <p className="text-[11px] text-gray-400 -mt-0.5 mb-2.5 leading-relaxed">
+          Solo los gastos de estas categorías se descuentan de este presupuesto. Una categoría pertenece a un solo presupuesto.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {CAT_GASTO.map((c) => {
+            const activa = categorias.includes(c.value)
+            const dueno = !activa && tomadas[c.value]
+            return (
+              <button
+                key={c.value} type="button"
+                onClick={() => toggleCategoria(c.value)}
+                disabled={Boolean(dueno)} aria-pressed={activa}
+                className={cn(
+                  'inline-flex items-center gap-1 min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                  activa ? 'bg-[var(--accent-muted)] border-[var(--accent)]/50 text-[var(--accent-light)]'
+                  : dueno ? 'bg-white/[0.02] border-white/[0.06] text-gray-400'
+                  : 'bg-surface-700 border-white/10 text-gray-200'
+                )}
+              >
+                {c.emoji} {c.label}
+                {activa && <Check size={13} strokeWidth={3} />}
+                {dueno && <span className="text-[10px] text-gray-400">· {dueno}</span>}
+              </button>
+            )
+          })}
+        </div>
+        {categorias.length === 0 && (
+          <p className="text-[11px] text-warn mt-2">Sin categorías: cuentan todos los gastos</p>
+        )}
+      </div>
+
+      {efecto && (
+        <div className="bg-surface-700 border border-white/[0.08] rounded-2xl p-3 mb-4">
+          <p className="section-label mb-2">Con estas etiquetas</p>
+          <div className="flex justify-between text-[11px] mb-1">
+            <span className="text-gray-300">
+              Acumulado · {efecto.periodos} {tipo === 'diario' ? 'días' : tipo === 'semanal' ? 'semanas' : 'meses'} × {fmt(montoBase)}
+            </span>
+            <span className="font-mono text-white">{fmt(efecto.presupuestoAcumulado)}</span>
+          </div>
+          <div className="flex justify-between text-[11px] mb-2">
+            <span className="text-gray-300">
+              Gastado en {categorias.length === 0 ? 'todas las categorías' : categorias.length === 1 ? '1 categoría' : `${categorias.length} categorías`}
+            </span>
+            <span className="font-mono text-white">{fmt(efecto.gastado)}</span>
+          </div>
+          <div className="flex justify-between items-baseline pt-2 border-t border-white/[0.08]">
+            <span className="text-xs font-semibold text-gray-200">{efecto.disponible < 0 ? 'Excedido' : 'Disponible acumulado'}</span>
+            <span className={cn('font-mono text-lg font-bold', efecto.disponible < 0 ? 'text-bad' : 'text-ok')}>
+              {efecto.disponible < 0 ? '-' : '+'}{fmt(Math.abs(efecto.disponible))}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="mb-5">
         <label className="label">Fecha de inicio</label>
         <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="input" />
-        <p className="text-[11px] text-gray-400 mt-1">Los gastos desde esta fecha cuentan contra el presupuesto</p>
+        <p className="text-[11px] text-gray-400 mt-1">Los gastos de estas categorías desde esta fecha cuentan contra el presupuesto</p>
       </div>
 
       <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold">

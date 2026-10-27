@@ -54,6 +54,36 @@ export function useEliminarPresupuesto() {
 //
 // gastado_desde_inicio = suma de transacciones con contexto=personal
 //   desde fecha_inicio del presupuesto hasta hoy
+//
+// Etiquetas: si el presupuesto tiene `categorias`, solo cuentan los gastos de
+// esas categorías. Sin `categorias` (presupuestos viejos) cuentan todos.
+
+export function tieneEtiquetas(presupuesto) {
+  return Array.isArray(presupuesto.categorias) && presupuesto.categorias.length > 0
+}
+
+// ¿Esta transacción se descuenta de este presupuesto?
+export function cuentaEnPresupuesto(presupuesto, t) {
+  if (t.tipo !== 'gasto') return false
+  if (t.contexto === 'negocio') return false
+  if (presupuesto.persona !== 'ambos' && t.persona !== presupuesto.persona && t.persona !== 'ambos') return false
+  if (tieneEtiquetas(presupuesto) && !presupuesto.categorias.includes(t.categoria)) return false
+  return t.fecha >= presupuesto.fecha_inicio
+}
+
+// Dos presupuestos compiten por un gasto si sus personas se traslapan
+export function personasSeTraslapan(a, b) {
+  return a === 'ambos' || b === 'ambos' || a === b
+}
+
+// Presupuestos personales que se llevarían un gasto de esta categoría/persona
+export function presupuestosDeGasto(presupuestos, categoria, persona) {
+  return presupuestos.filter((p) =>
+    (!p.contexto || p.contexto === 'personal') &&
+    personasSeTraslapan(p.persona, persona) &&
+    (!tieneEtiquetas(p) || p.categorias.includes(categoria))
+  )
+}
 
 export function calcularDisponible(presupuesto, transacciones) {
   const inicio = parseISO(presupuesto.fecha_inicio)
@@ -76,14 +106,8 @@ export function calcularDisponible(presupuesto, transacciones) {
 
   // Filtrar transacciones de gasto desde fecha_inicio
   // Si el presupuesto es de una persona específica, los gastos 'ambos' cuentan al 50%
-  const gastado = transacciones
-    .filter((t) => {
-      if (t.tipo !== 'gasto') return false
-      if (t.contexto === 'negocio') return false
-      if (presupuesto.persona !== 'ambos' && t.persona !== presupuesto.persona && t.persona !== 'ambos') return false
-      const fechaTx = t.fecha
-      return fechaTx >= presupuesto.fecha_inicio
-    })
+  const movimientos = transacciones.filter((t) => cuentaEnPresupuesto(presupuesto, t))
+  const gastado = movimientos
     .reduce((s, t) => s + montoParaPersona(t, presupuesto.persona === 'ambos' ? null : presupuesto.persona), 0)
 
   const disponible = presupuestoAcumulado - gastado
@@ -93,6 +117,7 @@ export function calcularDisponible(presupuesto, transacciones) {
     presupuestoAcumulado,
     gastado,
     periodos,
+    movimientos,
     pctUsado: presupuestoAcumulado > 0
       ? Math.round((gastado / presupuestoAcumulado) * 100)
       : 0,

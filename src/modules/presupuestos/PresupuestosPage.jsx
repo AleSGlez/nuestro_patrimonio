@@ -1,14 +1,21 @@
 // src/modules/presupuestos/PresupuestosPage.jsx
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { usePresupuestos, useEliminarPresupuesto, calcularDisponible, calcularDesglose, labelPeriodo } from './hooks/usePresupuestos'
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Minus, Tag, ChevronRight, AlertTriangle } from 'lucide-react'
+import { usePresupuestos, useEliminarPresupuesto, calcularDisponible, calcularDesglose, labelPeriodo,
+         tieneEtiquetas, presupuestosDeGasto } from './hooks/usePresupuestos'
 import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormPresupuesto from './components/FormPresupuesto'
-import { fmt, cn } from '@lib/utils'
+import DetallePresupuesto from './components/DetallePresupuesto'
+import { fmt, cn, currentMonth, CAT_GASTO } from '@lib/utils'
+
+const catLabel = (value) => {
+  const c = CAT_GASTO.find((x) => x.value === value)
+  return c ? `${c.emoji} ${c.label}` : `📦 ${value || 'Sin categoría'}`
+}
 
 const TIPO_LABEL = { diario: 'Diario', semanal: 'Semanal', mensual: 'Mensual' }
 const TABS = [
@@ -18,8 +25,8 @@ const TABS = [
   { id: 'mensual',  label: '📆 Mensual' },
 ]
 
-function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete }) {
-  const { disponible, presupuestoAcumulado, gastado, periodos, pctUsado } = calcularDisponible(presupuesto, transacciones)
+function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete, onDetalle }) {
+  const { disponible, presupuestoAcumulado, gastado, periodos, pctUsado, movimientos } = calcularDisponible(presupuesto, transacciones)
   const desglose    = calcularDesglose(presupuesto)
   const excedido    = disponible < 0
   const personaLabel = presupuesto.persona === 'ambos' ? 'Pareja'
@@ -59,6 +66,18 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
             <Trash2 size={13} />
           </button>
         </div>
+      </div>
+
+      {/* Etiquetas: las categorías que cuentan contra este presupuesto */}
+      <div className="flex items-center gap-1.5 flex-wrap px-2.5 py-2 mb-3 bg-white/[0.025] border border-dashed border-white/10 rounded-xl">
+        <Tag size={13} className="text-gray-400 flex-shrink-0" />
+        {tieneEtiquetas(presupuesto) ? presupuesto.categorias.map((c) => (
+          <span key={c} className="text-[11px] font-medium text-[var(--accent-light)] bg-[var(--accent-muted)] border border-[var(--accent)]/40 px-2 py-0.5 rounded-full whitespace-nowrap">
+            {catLabel(c)}
+          </span>
+        )) : (
+          <span className="text-[11px] text-gray-400">Todas las categorías</span>
+        )}
       </div>
 
       {/* Disponible */}
@@ -127,6 +146,43 @@ function PresupuestoCard({ presupuesto, transacciones, nombres, onEdit, onDelete
           · {fmt(presupuesto.monto_base)}/{presupuesto.tipo === 'diario' ? 'día' : presupuesto.tipo === 'semanal' ? 'sem' : 'mes'} base
         </p>
       )}
+
+      <button
+        onClick={() => onDetalle(presupuesto)}
+        className="w-full flex items-center justify-between min-h-[44px] mt-1 pt-2 border-t border-white/[0.06] text-xs font-medium text-[var(--accent-light)]"
+      >
+        <span>Ver {movimientos.length} {movimientos.length === 1 ? 'gasto' : 'gastos'}{tieneEtiquetas(presupuesto) ? ' etiquetados' : ''}</span>
+        <ChevronRight size={15} />
+      </button>
+    </div>
+  )
+}
+
+// Gastos personales del mes cuya categoría no cae en ningún presupuesto
+function GastosSinPresupuesto({ sinPresupuesto, onEtiquetar }) {
+  const total = sinPresupuesto.reduce((s, g) => s + g.total, 0)
+  const n = sinPresupuesto.reduce((s, g) => s + g.n, 0)
+  return (
+    <div className="bg-warn/[0.08] border border-warn/30 rounded-2xl p-3.5 mb-3">
+      <div className="flex items-center gap-2 mb-1.5">
+        <AlertTriangle size={16} className="text-warn flex-shrink-0" />
+        <p className="text-[13px] font-semibold text-warn">
+          {n} {n === 1 ? 'gasto' : 'gastos'} sin presupuesto este mes · {fmt(total)}
+        </p>
+      </div>
+      <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
+        Estas categorías no están etiquetadas en ningún presupuesto, así que sus gastos no se descuentan de ninguno.
+      </p>
+      <div className="flex gap-1.5 flex-wrap mb-1">
+        {sinPresupuesto.map((g) => (
+          <span key={g.cat} className="text-[11px] text-gray-200 bg-white/[0.06] border border-white/10 px-2 py-1 rounded-full">
+            {catLabel(g.cat)} · {fmt(g.total)}
+          </span>
+        ))}
+      </div>
+      <button onClick={onEtiquetar} className="inline-flex items-center gap-1 min-h-[44px] text-xs font-semibold text-warn">
+        Etiquetar categorías <ChevronRight size={14} />
+      </button>
     </div>
   )
 }
@@ -142,15 +198,45 @@ export default function PresupuestosPage() {
   const [formOpen, setFormOpen]     = useState(false)
   const [editPresup, setEditPresup] = useState(null)
   const [tabActivo, setTabActivo]   = useState('todos')
+  const [detalleId, setDetalleId]   = useState(null)
 
-  const items = useMemo(() => presupuestos
-    .filter((p) => !p.contexto || p.contexto === 'personal')
-    .map((p) => ({
+  const personales = useMemo(
+    () => presupuestos.filter((p) => !p.contexto || p.contexto === 'personal'),
+    [presupuestos]
+  )
+  const items = useMemo(() => personales.map((p) => ({
     ...p, ...calcularDisponible(p, transacciones),
-  })), [presupuestos, transacciones])
+  })), [personales, transacciones])
 
   const excedidos = items.filter((i) => i.disponible < 0)
   const enRegla   = items.filter((i) => i.disponible >= 0)
+
+  // Gastos personales de este mes que no se descuentan de ningún presupuesto
+  const sinPresupuesto = useMemo(() => {
+    if (personales.length === 0) return []
+    const mes = currentMonth()
+    const porCat = {}
+    transacciones
+      .filter((t) => t.tipo === 'gasto' && t.contexto !== 'negocio' && t.fecha?.startsWith(mes))
+      .filter((t) => presupuestosDeGasto(personales, t.categoria, t.persona).length === 0)
+      .forEach((t) => {
+        porCat[t.categoria] = porCat[t.categoria] || { cat: t.categoria, total: 0, n: 0 }
+        porCat[t.categoria].total += Number(t.monto)
+        porCat[t.categoria].n += 1
+      })
+    return Object.values(porCat).sort((a, b) => b.total - a.total)
+  }, [personales, transacciones])
+  const totalSinPresupuesto = sinPresupuesto.reduce((s, g) => s + g.total, 0)
+
+  const detalle = detalleId && personales.find((p) => p.id === detalleId)
+  if (detalle) {
+    return (
+      <DetallePresupuesto
+        presupuesto={detalle} transacciones={transacciones} nombres={nombres}
+        onBack={() => setDetalleId(null)}
+      />
+    )
+  }
 
   const filtrados = tabActivo === 'todos'
     ? items
@@ -169,7 +255,7 @@ export default function PresupuestosPage() {
       <div className="top-header flex-col items-stretch !h-auto pb-3">
         {/* Resumen rápido */}
         {items.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="grid grid-cols-3 gap-2 mb-3">
             <div className={cn('rounded-xl p-3', excedidos.length > 0 ? 'bg-bad/10 border border-bad/20' : 'bg-ok/10 border border-ok/20')}>
               <p className="text-[10px] text-gray-400 mb-0.5">Excedidos</p>
               <p className={cn('text-lg font-bold', excedidos.length > 0 ? 'text-bad' : 'text-ok')}>
@@ -179,6 +265,12 @@ export default function PresupuestosPage() {
             <div className="bg-surface-700 rounded-xl p-3">
               <p className="text-[10px] text-gray-400 mb-0.5">En regla</p>
               <p className="text-lg font-bold text-white">{enRegla.length} / {items.length}</p>
+            </div>
+            <div className={cn('rounded-xl p-3', totalSinPresupuesto > 0 ? 'bg-warn/10 border border-warn/20' : 'bg-surface-700')}>
+              <p className="text-[10px] text-gray-400 mb-0.5">Sin etiqueta</p>
+              <p className={cn('text-lg font-bold font-mono truncate', totalSinPresupuesto > 0 ? 'text-warn' : 'text-white')}>
+                {fmt(totalSinPresupuesto)}
+              </p>
             </div>
           </div>
         )}
@@ -220,12 +312,19 @@ export default function PresupuestosPage() {
           />
         ) : (
           <div className="space-y-3">
+            {sinPresupuesto.length > 0 && (
+              <GastosSinPresupuesto
+                sinPresupuesto={sinPresupuesto}
+                onEtiquetar={() => { setEditPresup(null); setFormOpen(true) }}
+              />
+            )}
             {/* Excedidos primero */}
             {filtrados.filter((i) => i.disponible < 0).map((p) => (
               <PresupuestoCard key={p.id} presupuesto={p} transacciones={transacciones}
                 nombres={nombres}
                 onEdit={(p) => { setEditPresup(p); setFormOpen(true) }}
                 onDelete={handleDelete}
+                onDetalle={(p) => setDetalleId(p.id)}
               />
             ))}
             {/* Luego los en regla */}
@@ -234,6 +333,7 @@ export default function PresupuestosPage() {
                 nombres={nombres}
                 onEdit={(p) => { setEditPresup(p); setFormOpen(true) }}
                 onDelete={handleDelete}
+                onDetalle={(p) => setDetalleId(p.id)}
               />
             ))}
           </div>

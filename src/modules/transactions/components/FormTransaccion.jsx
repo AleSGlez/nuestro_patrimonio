@@ -10,6 +10,7 @@ import { useTodosLosApartados } from '@modules/accounts/hooks/useApartados'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useCrearTransaccion, useActualizarTransaccion, parsearMetodoPago } from '../hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
+import EtiquetaPresupuesto from '@modules/presupuestos/components/EtiquetaPresupuesto'
 import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, cn,
          filtrarCuentasPorContexto, filtrarTarjetasPorContexto, opcionesApartadosNegocio,
          TIPO_EMOJI_CUENTA } from '@lib/utils'
@@ -193,6 +194,10 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
       </div>
 
       <Select label="Categoría" value={categoria} onChange={setCategoria} options={catOpts} placeholder="Selecciona categoría" />
+
+      {tipo === 'gasto' && contexto === 'personal' && (
+        <EtiquetaPresupuesto categoria={categoria} persona={persona} monto={monto} fecha={fecha} txId={tx?.id} />
+      )}
 
       <Input
         label="Descripción (opcional)" value={descripcion}

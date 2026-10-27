@@ -3,13 +3,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
 
-// Lista de transacciones con filtros opcionales
+// Primer y último día de un mes 'YYYY-MM' — 'fecha' es columna DATE y like.*
+// no funciona sobre DATE en PostgREST, así que se filtra con rango gte/lte.
+export function rangoDeMes(mes) {
+  const [año, mesNum] = mes.split('-').map(Number)
+  const ultimoDia = new Date(año, mesNum, 0).getDate() // día 0 del mes siguiente = último día de este mes
+  return { desde: `${mes}-01`, hasta: `${mes}-${String(ultimoDia).padStart(2, '0')}` }
+}
+
+// Lista de transacciones con filtros opcionales: `mes` ('YYYY-MM') o un rango
+// `desde`/`hasta` ('YYYY-MM-DD', cualquiera de los dos puede faltar)
 export function useTransacciones(filtros = {}) {
   const parejaId = useAuthStore((s) => s.pareja?.id)
   const { contexto, mes } = filtros
+  const { desde, hasta } = mes ? rangoDeMes(mes) : filtros
 
   return useQuery({
-    queryKey: ['transacciones', parejaId, contexto, mes],
+    queryKey: ['transacciones', parejaId, contexto, mes, desde, hasta],
     queryFn: () => {
       const params = {
         pareja_id: `eq.${parejaId}`,
@@ -18,17 +28,13 @@ export function useTransacciones(filtros = {}) {
       }
       if (contexto) params.contexto = `eq.${contexto}`
 
-      // 'fecha' es columna DATE — like.* no funciona sobre DATE en PostgREST.
-      // Se usa rango gte/lte del primer al último día del mes.
-      if (mes) {
-        const [año, mesNum] = mes.split('-').map(Number)
-        const inicio = `${mes}-01`
-        const ultimoDia = new Date(año, mesNum, 0).getDate() // día 0 del mes siguiente = último día de este mes
-        const fin = `${mes}-${String(ultimoDia).padStart(2, '0')}`
+      if (desde || hasta) {
         // PostgREST no permite dos condiciones en el mismo campo como params planos,
-        // así que se arma como string raw con 'and'
+        // así que se arma como string raw
         return db.from('transacciones').query(
-          `pareja_id=eq.${parejaId}&fecha=gte.${inicio}&fecha=lte.${fin}` +
+          `pareja_id=eq.${parejaId}` +
+          (desde ? `&fecha=gte.${desde}` : '') +
+          (hasta ? `&fecha=lte.${hasta}` : '') +
           (contexto ? `&contexto=eq.${contexto}` : '') +
           `&order=fecha.desc,created_at.desc&limit=500`
         )
