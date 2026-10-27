@@ -1,403 +1,130 @@
 // src/modules/metas/MetasPage.jsx
-import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Check, Target, TrendingUp, ChevronRight } from 'lucide-react'
-import { useMetas, useCrearMeta, useActualizarMeta, useEliminarMeta, useAportar, useAportaciones, useEliminarAportacion, calcularMeta } from './hooks/useMetas'
-import { useCuentas } from '@modules/accounts/hooks/useCuentas'
+import { useState, useMemo } from 'react'
+import { Plus } from 'lucide-react'
+import { useMetas, useEliminarMeta, useTodasAportaciones, calcularMeta, calcularRitmo, ESTADO_META, fmtMesAño } from './hooks/useMetas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
-import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
-import Modal from '@ui/Modal'
-import Spinner from '@ui/Spinner'
-import { fmt, cn, today } from '@lib/utils'
-import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { EmptyState } from '@ui/Field'
+import AnilloMeta from './components/AnilloMeta'
+import FormMeta from './components/FormMeta'
+import FormAportacion from './components/FormAportacion'
+import DetalleMeta from './components/DetalleMeta'
+import { fmt, fmtDate, cn, currentMonth, PALETTE } from '@lib/utils'
 
-const EMOJIS = ['🎯','✈️','🏠','💍','👶','🚗','💻','🏖️','🎓','🐕','💰','🌎']
-const COLORES = ['#7C6EFA','#10B981','#F59E0B','#EF4444','#3B82F6','#EC4899','#F97316']
-
-// ── Formulario de meta ────────────────────────────────────────
-function FormMeta({ open, onClose, meta = null }) {
-  const toast = useToast()
-  const { nombres } = useAppStore()
-  const { data: cuentas = [] } = useCuentas()
-  const crear = useCrearMeta()
-  const actualizar = useActualizarMeta()
-  const isEdit = Boolean(meta)
-  const loading = crear.isPending || actualizar.isPending
-
-  const [nombre, setNombre]       = useState('')
-  const [emoji, setEmoji]         = useState('🎯')
-  const [descripcion, setDesc]    = useState('')
-  const [objetivo, setObjetivo]   = useState('')
-  const [fechaObj, setFechaObj]   = useState('')
-  const [persona, setPersona]     = useState('ambos')
-  const [cuentasIds, setCuentasIds] = useState([])
-  const [color, setColor]         = useState('#7C6EFA')
-
-  // Repoblar (o resetear) al abrir — el form vive montado todo el tiempo,
-  // así que sin este efecto los useState de arriba solo se leen una vez y
-  // el segundo "Editar" de una meta distinta dejaba los campos con los
-  // datos de la anterior.
-  useEffect(() => {
-    if (!open) return
-    if (meta) {
-      setNombre(meta.nombre || '')
-      setEmoji(meta.emoji || '🎯')
-      setDesc(meta.descripcion || '')
-      setObjetivo(meta.monto_objetivo ? String(meta.monto_objetivo) : '')
-      setFechaObj(meta.fecha_objetivo || '')
-      setPersona(meta.persona || 'ambos')
-      setCuentasIds(meta.cuenta_id ? [meta.cuenta_id] : [])
-      setColor(meta.color || '#7C6EFA')
-    } else {
-      setNombre(''); setEmoji('🎯'); setDesc(''); setObjetivo('')
-      setFechaObj(''); setPersona('ambos'); setCuentasIds([]); setColor('#7C6EFA')
-    }
-  }, [open, meta])
-
-  const PERSONA_OPTS = [
-    { value: 'ambos', label: '👫 Pareja' },
-    { value: 'p1',    label: nombres.p1 },
-    { value: 'p2',    label: nombres.p2 },
-  ]
-
-  const cuentaOpts = [
-    { value: '', label: 'Sin cuenta vinculada (solo visual)' },
-    ...cuentas.map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` })),
-  ]
-
-  const handleSave = async () => {
-    if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
-    if (!objetivo || Number(objetivo) <= 0) { toast.error('Ingresa el monto objetivo'); return }
-    const payload = {
-      nombre: nombre.trim(), emoji,
-      descripcion: descripcion.trim() || null,
-      monto_objetivo: Number(objetivo),
-      fecha_objetivo: fechaObj || null,
-      persona, cuenta_id: cuentasIds[0] || null,
-    }
-    try {
-      if (isEdit) {
-        await actualizar.mutateAsync({ id: meta.id, data: payload })
-        toast.success('Meta actualizada')
-      } else {
-        await crear.mutateAsync(payload)
-        toast.success('Meta creada ✅')
-      }
-      onClose()
-    } catch (e) { toast.error(e.message) }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar meta' : 'Nueva meta de ahorro'}>
-      {/* Emoji */}
-      <div className="mb-4">
-        <label className="label">Emoji</label>
-        <div className="flex gap-2 flex-wrap">
-          {EMOJIS.map((e) => (
-            <button key={e} onClick={() => setEmoji(e)}
-              className={cn('w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all',
-                emoji === e ? 'ring-2 ring-[var(--accent)] bg-[var(--accent-muted)]' : 'bg-surface-700'
-              )}>{e}</button>
-          ))}
-        </div>
-      </div>
-
-      <Input label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)}
-        placeholder="Ej: Viaje a Japón, Boda, Fondo emergencia" autoFocus />
-      <Input label="Descripción (opcional)" value={descripcion} onChange={(e) => setDesc(e.target.value)}
-        placeholder="Detalle de la meta" />
-
-      <div className="grid grid-cols-2 gap-3">
-        <AmountInput label="Monto objetivo" value={objetivo} onChange={setObjetivo}
-          placeholder="0.00" className="mb-0" />
-        <div>
-          <label className="label">Fecha objetivo</label>
-          <input type="date" value={fechaObj} onChange={(e) => setFechaObj(e.target.value)} className="input" />
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <label className="label">Cuentas de ahorro (hasta 5)</label>
-        <p className="text-[11px] text-gray-400 mb-2">Al aportar podrás elegir entre estas cuentas.</p>
-        <div className="space-y-2 max-h-40 overflow-y-auto">
-          {cuentas.map((c) => {
-            const selected = cuentasIds.includes(c.id)
-            return (
-              <button key={c.id} onClick={() => {
-                if (selected) {
-                  setCuentasIds((prev) => prev.filter((id) => id !== c.id))
-                } else if (cuentasIds.length < 5) {
-                  setCuentasIds((prev) => [...prev, c.id])
-                }
-              }}
-                className={cn('w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all',
-                  selected ? 'border-[var(--accent)] bg-[var(--accent-muted)]' : 'border-white/10'
-                )}>
-                <div className={cn('w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0',
-                  selected ? 'bg-[var(--accent)] border-[var(--accent)]' : 'border-white/20'
-                )}>
-                  {selected && <Check size={12} className="text-white" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white">{c.nombre}</p>
-                  <p className="text-[10px] text-gray-400">{fmt(c.saldo)}</p>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-        {cuentasIds.length === 5 && (
-          <p className="text-[11px] text-warn mt-1">Máximo 5 cuentas</p>
-        )}
-      </div>
-
-      <div className="flex gap-2 mb-4">
-        {['ambos','p1','p2'].map((v) => (
-          <button key={v} onClick={() => setPersona(v)}
-            className={cn('flex-1 py-2 rounded-xl text-xs font-medium border transition-all',
-              persona === v ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-white/10 text-gray-400'
-            )}>
-            {v === 'ambos' ? '👫 Pareja' : v === 'p1' ? nombres.p1 : nombres.p2}
-          </button>
-        ))}
-      </div>
-
-      <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold">
-        {loading ? <Spinner size="sm" /> : <><Check size={16} />{isEdit ? 'Guardar' : 'Crear meta'}</>}
-      </button>
-    </Modal>
-  )
-}
-
-// ── Formulario de aportación ──────────────────────────────────
-function FormAportacion({ open, onClose, meta }) {
-  const toast = useToast()
-  const { data: cuentas = [] } = useCuentas()
-  const aportar = useAportar()
-
-  const [monto, setMonto]     = useState('')
-  const [fecha, setFecha]     = useState(today())
-  const [nota, setNota]       = useState('')
-  const [cuentaId, setCuenta] = useState('')
-
-  // Resetear cada vez que se abre — evita que quede el monto/nota/cuenta
-  // de la última aportación (de esta u otra meta) al volver a abrir.
-  useEffect(() => {
-    if (!open) return
-    setMonto(''); setFecha(today()); setNota('')
-    setCuenta(meta?.cuenta_id || '')
-  }, [open, meta])
-
-  const cuentaOpts = [
-    { value: '', label: 'No descontar de ninguna cuenta' },
-    ...(meta?.cuenta_id
-      ? cuentas.filter((c) => c.id === meta.cuenta_id || !meta.cuenta_id)
-      : cuentas
-    ).map((c) => ({ value: c.id, label: `${c.nombre} — ${fmt(c.saldo)}` })),
-  ]
-
-  const { faltante, aportacionMensual, aportacionQuincenal } = calcularMeta(meta || { monto_objetivo: 0, monto_actual: 0 })
-
-  const handleAportar = async () => {
-    if (!monto || Number(monto) <= 0) { toast.error('Ingresa el monto'); return }
-    try {
-      await aportar.mutateAsync({ meta, monto, fecha, nota, cuentaId, cuentas })
-      toast.success('Aportación registrada ✅')
-      setMonto(''); setNota(''); onClose()
-    } catch (e) { toast.error(e.message) }
-  }
-
-  if (!meta) return null
-
-  return (
-    <Modal open={open} onClose={onClose} title={`Aportar a: ${meta.emoji} ${meta.nombre}`}>
-      {/* Sugerencias */}
-      {aportacionMensual && (
-        <div className="bg-[var(--accent-muted)] border border-[var(--accent)]/20 rounded-xl p-3 mb-4">
-          <p className="text-xs text-gray-300 mb-2">💡 Para llegar a tiempo:</p>
-          <div className="flex gap-3">
-            <button onClick={() => setMonto(String(Math.ceil(aportacionQuincenal)))}
-              className="flex-1 bg-surface-700 rounded-lg p-2 text-center">
-              <p className="text-[10px] text-gray-400">Por quincena</p>
-              <p className="text-sm font-bold text-[var(--accent)]">{fmt(aportacionQuincenal)}</p>
-            </button>
-            <button onClick={() => setMonto(String(Math.ceil(aportacionMensual)))}
-              className="flex-1 bg-surface-700 rounded-lg p-2 text-center">
-              <p className="text-[10px] text-gray-400">Por mes</p>
-              <p className="text-sm font-bold text-[var(--accent)]">{fmt(aportacionMensual)}</p>
-            </button>
-            <button onClick={() => setMonto(String(Math.ceil(faltante)))}
-              className="flex-1 bg-surface-700 rounded-lg p-2 text-center">
-              <p className="text-[10px] text-gray-400">Todo ya</p>
-              <p className="text-sm font-bold text-white">{fmt(faltante)}</p>
-            </button>
-          </div>
-        </div>
-      )}
-
-      <AmountInput label="Monto a aportar" value={monto} onChange={setMonto} placeholder="0.00" />
-
-      <Select label="Descontar de cuenta" value={cuentaId} onChange={setCuenta} options={cuentaOpts} />
-
-      <div className="mb-4">
-        <label className="label">Fecha</label>
-        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="input" />
-      </div>
-
-      <Input label="Nota (opcional)" value={nota} onChange={(e) => setNota(e.target.value)}
-        placeholder="Quincena de junio, bono, etc." />
-
-      <button onClick={handleAportar} disabled={aportar.isPending}
-        className="btn-primary w-full py-3.5 text-sm font-semibold mt-2">
-        {aportar.isPending ? <Spinner size="sm" /> : <><TrendingUp size={16} /> Registrar aportación</>}
-      </button>
-    </Modal>
-  )
-}
+// Color de la meta: el guardado, o uno de la paleta según su posición
+const colorDeMeta = (meta, i) => meta.color || PALETTE[(i + 4) % PALETTE.length]
 
 // ── Card de meta ──────────────────────────────────────────────
-function MetaCard({ meta, onEdit, onDelete, onAportar, onDetalle }) {
-  const { objetivo, actual, faltante, pct, diasRestantes, aportacionMensual } = calcularMeta(meta)
-  const completada = meta.completada || pct >= 100
+function MetaCard({ meta, color, aportaciones, nombres, onDetalle, onAportar }) {
+  const { objetivo, actual, faltante, pct } = calcularMeta(meta)
+  const { estado, fechaEstimada, necesarioQuincenal } = calcularRitmo(meta, aportaciones)
+  const est = ESTADO_META[estado]
+  const completada = estado === 'completada'
+  const personaLabel = meta.persona === 'ambos' ? 'Pareja' : meta.persona === 'p1' ? nombres.p1 : nombres.p2
+
+  const linea = [
+    personaLabel,
+    meta.fecha_objetivo ? `para el ${fmtDate(meta.fecha_objetivo, 'medium')}` : 'sin fecha',
+    !completada && `faltan ${fmt(faltante)}`,
+  ].filter(Boolean).join(' · ')
+
+  const sugerencia =
+    estado === 'sin_fecha'
+      ? (fechaEstimada ? `A este ritmo llegan en ${fmtMesAño(fechaEstimada)}` : 'Agrega una fecha para saber el ritmo')
+      : estado === 'atrasada'
+        ? `${fmt(necesarioQuincenal)} por quincena · van atrasados`
+        : `${fmt(necesarioQuincenal)} por quincena para llegar`
 
   return (
-    <div className={cn('card p-4', completada && 'border border-ok/30')}>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <button onClick={() => onDetalle(meta)} className="flex items-center gap-2.5 flex-1 text-left">
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
-            style={{ backgroundColor: `${meta.color}20` }}>
-            {meta.emoji}
+    <div className={cn('card overflow-hidden', estado === 'atrasada' && 'border border-warn/35')}>
+      <button onClick={() => onDetalle(meta)} className="w-full flex items-center gap-3 px-3.5 pt-3 pb-2.5 text-left active:bg-white/[0.02]">
+        <AnilloMeta pct={pct} color={completada ? '#22C55E' : color}>
+          <span className="text-xl">{meta.emoji}</span>
+        </AnilloMeta>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 mb-0.5">
+            <p className="text-[15px] font-semibold text-white truncate">{meta.nombre}</p>
+            <span className={cn('flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full', est.className)}>{est.label}</span>
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-semibold text-white">{meta.nombre}</p>
-              {completada && <span className="text-[10px] bg-ok/10 text-ok px-1.5 py-0.5 rounded-full">✅ Completada</span>}
-            </div>
-            <p className="text-[11px] text-gray-400">
-              {meta.persona === 'ambos' ? 'Pareja' : meta.persona}
-              {meta.fecha_objetivo && ` · ${format(parseISO(meta.fecha_objetivo), "d MMM yyyy", { locale: es })}`}
-            </p>
+          <div className="flex items-baseline gap-1.5 mb-0.5">
+            <span className="text-[15px] font-bold font-mono text-white">{fmt(actual)}</span>
+            <span className="text-[11px] text-gray-400">de {fmt(objetivo)} · {pct}%</span>
           </div>
-        </button>
-        <div className="flex gap-1">
-          <button onClick={() => onEdit(meta)} aria-label="Editar meta" className="icon-btn text-gray-500 hover:text-white">
-            <Pencil size={13} />
-          </button>
-          <button onClick={() => onDelete(meta)} aria-label="Eliminar meta" className="icon-btn text-gray-500 hover:text-bad">
-            <Trash2 size={13} />
-          </button>
+          <p className="text-[11px] text-gray-400 truncate">{linea}</p>
         </div>
-      </div>
-
-      {/* Progreso */}
-      <div className="flex items-end justify-between mb-2">
-        <div>
-          <p className="text-2xl font-bold font-mono text-white">{fmt(actual)}</p>
-          <p className="text-[11px] text-gray-400">de {fmt(objetivo)}</p>
-        </div>
-        <div className="text-right">
-          <p className={cn('text-2xl font-bold', completada ? 'text-ok' : 'text-[var(--accent)]')}>{pct}%</p>
-          {!completada && <p className="text-[11px] text-gray-400">Falta {fmt(faltante)}</p>}
-        </div>
-      </div>
-
-      {/* Barra */}
-      <div className="h-2.5 bg-surface-500 rounded-full overflow-hidden mb-3">
-        <div className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: completada ? '#10B981' : meta.color }} />
-      </div>
-
-      {/* Info fecha y aportación sugerida */}
-      {!completada && meta.fecha_objetivo && (
-        <div className="flex gap-2 mb-3">
-          <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-            <p className="text-[10px] text-gray-400">Días restantes</p>
-            <p className={cn('text-sm font-bold', diasRestantes < 30 ? 'text-warn' : 'text-white')}>
-              {diasRestantes > 0 ? diasRestantes : '¡Ya venció!'}
-            </p>
-          </div>
-          {aportacionMensual && (
-            <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-              <p className="text-[10px] text-gray-400">Ahorrar/mes</p>
-              <p className="text-sm font-bold text-[var(--accent)]">{fmt(aportacionMensual)}</p>
-            </div>
-          )}
-        </div>
-      )}
+      </button>
 
       {!completada && (
-        <button onClick={() => onAportar(meta)}
-          className="w-full py-2.5 rounded-xl border border-[var(--accent)]/30 text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-all">
-          + Registrar aportación
-        </button>
+        <div className="flex items-center gap-2.5 pb-3 pr-3.5 pl-[86px]">
+          <p className="flex-1 text-[11px] text-gray-300">{sugerencia}</p>
+          <button
+            onClick={() => onAportar(meta)}
+            className="flex-shrink-0 inline-flex items-center gap-1 min-h-[36px] px-3 rounded-xl text-xs font-semibold bg-[var(--accent-muted)] border border-[var(--accent)]/40 text-[var(--accent-light)]"
+          >
+            <Plus size={13} strokeWidth={2.6} /> Aportar
+          </button>
+        </div>
       )}
     </div>
   )
 }
 
-// ── Detalle con historial ─────────────────────────────────────
-function DetalleMetaModal({ meta, onClose }) {
-  const toast = useToast()
-  const confirmar = useConfirm()
-  const { data: aportaciones = [] } = useAportaciones(meta?.id)
-  const { data: cuentas = [] } = useCuentas()
-  const eliminarAportacion = useEliminarAportacion()
-  if (!meta) return null
+// ── Resumen: total ahorrado, reparto por meta y aportes del mes ──
+function ResumenMetas({ activas, colores, aportaciones, metas, nombres }) {
+  const totalObjetivo = activas.reduce((s, m) => s + Number(m.monto_objetivo), 0)
+  const totalActual   = activas.reduce((s, m) => s + Number(m.monto_actual), 0)
+  const pctGeneral    = totalObjetivo > 0 ? Math.round((totalActual / totalObjetivo) * 100) : 0
 
-  const { pct } = calcularMeta(meta)
-
-  const handleEliminarAportacion = async (a) => {
-    if (!(await confirmar({
-      message: `¿Eliminar la aportación de ${fmt(a.monto)}? La meta bajará ese monto${a.cuenta_id ? ' y el dinero regresará a la cuenta' : ''}.`,
-    }))) return
-    try {
-      await eliminarAportacion.mutateAsync({ aportacion: a, meta, cuentas })
-      toast.success('Aportación eliminada — meta y cuenta restauradas')
-    } catch (e) { toast.error(e.message) }
-  }
+  // Aportes de este mes, por quién aportó (las viejas sin persona: la de su meta)
+  const mes = currentMonth()
+  const personaDeMeta = Object.fromEntries(metas.map((m) => [m.id, m.persona]))
+  const delMes = aportaciones.filter((a) => a.fecha.startsWith(mes))
+  const porPersona = { p1: 0, p2: 0, ambos: 0 }
+  delMes.forEach((a) => {
+    const p = a.persona || personaDeMeta[a.meta_id] || 'ambos'
+    porPersona[p] = (porPersona[p] || 0) + Number(a.monto)
+  })
+  const totalMes = delMes.reduce((s, a) => s + Number(a.monto), 0)
+  const desglose = [['p1', nombres.p1], ['p2', nombres.p2], ['ambos', 'Ambos']]
+    .filter(([p]) => porPersona[p] > 0)
+    .map(([p, label]) => `${label} ${fmt(porPersona[p])}`)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
-      <div className="w-full max-w-[430px] mx-auto bg-surface-800 rounded-t-3xl p-5 border-t border-white/10 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}>
-        <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-3xl">{meta.emoji}</span>
-          <div>
-            <p className="text-base font-bold text-white">{meta.nombre}</p>
-            <p className="text-xs text-gray-400">{pct}% completado · {fmt(Number(meta.monto_actual))} de {fmt(Number(meta.monto_objetivo))}</p>
-          </div>
-        </div>
+    <div className="card p-4 mb-3.5">
+      <p className="section-label mb-1">Ahorrado en metas</p>
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-[28px] font-bold font-mono text-white leading-tight">{fmt(totalActual)}</span>
+        <span className="text-xs text-gray-400">de {fmt(totalObjetivo)}</span>
+      </div>
 
-        <p className="section-label mb-2">Historial de aportaciones</p>
-        {aportaciones.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-4">Sin aportaciones registradas</p>
-        ) : (
-          <div className="space-y-2">
-            {aportaciones.map((a) => (
-              <div key={a.id} className="flex items-center justify-between p-2.5 bg-surface-700 rounded-xl">
-                <div>
-                  <p className="text-xs text-white font-medium">{fmt(a.monto)}</p>
-                  <p className="text-[10px] text-gray-400">{a.fecha}{a.nota && ` · ${a.nota}`}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-ok text-xs font-mono">+{fmt(a.monto)}</p>
-                  <button
-                    onClick={() => handleEliminarAportacion(a)}
-                    aria-label="Eliminar aportación"
-                    className="icon-btn text-gray-500 hover:text-bad"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <button onClick={onClose} className="btn-ghost w-full py-2.5 text-sm mt-4">Cerrar</button>
+      {/* Barra segmentada: el tramo de cada meta sobre el objetivo total */}
+      <div className="flex gap-0.5 h-2.5 rounded-full overflow-hidden bg-surface-500 mb-2.5">
+        {activas.map((m) => (
+          <div key={m.id} style={{
+            width: `${totalObjetivo > 0 ? (Number(m.monto_actual) / totalObjetivo) * 100 : 0}%`,
+            backgroundColor: colores[m.id],
+          }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3">
+        {activas.map((m) => (
+          <span key={m.id} className="inline-flex items-center gap-1.5 text-[11px] text-gray-300">
+            <span className="w-2 h-2 rounded-[3px]" style={{ backgroundColor: colores[m.id] }} />
+            {m.nombre}
+          </span>
+        ))}
+        <span className="ml-auto text-[11px] font-semibold text-white">{pctGeneral}%</span>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06]">
+        <span className="text-xs text-gray-300 flex-shrink-0">Este mes aportaron</span>
+        <span className="text-xs text-gray-400 text-right">
+          <span className={cn('font-mono font-bold', totalMes > 0 ? 'text-ok' : 'text-gray-400')}>
+            {totalMes > 0 ? '+' : ''}{fmt(totalMes)}
+          </span>
+          {desglose.length > 0 && ` · ${desglose.join(' · ')}`}
+        </span>
       </div>
     </div>
   )
@@ -407,104 +134,114 @@ function DetalleMetaModal({ meta, onClose }) {
 export default function MetasPage() {
   const toast = useToast()
   const confirmar = useConfirm()
+  const { nombres } = useAppStore()
   const { data: metas = [], isPending } = useMetas()
-  const { data: cuentas = [] }          = useCuentas()
+  const { data: aportaciones = [] } = useTodasAportaciones()
   const eliminar = useEliminarMeta()
 
-  const [formOpen, setFormOpen]         = useState(false)
-  const [editMeta, setEditMeta]         = useState(null)
-  const [aportarMeta, setAportarMeta]   = useState(null)
-  const [detalleMeta, setDetalleMeta]   = useState(null)
+  const [formOpen, setFormOpen]       = useState(false)
+  const [editMeta, setEditMeta]       = useState(null)
+  const [aportarId, setAportarId]     = useState(null)
+  const [detalleId, setDetalleId]     = useState(null)
+  const [tab, setTab]                 = useState('activas')
 
-  const activas    = metas.filter((m) => !m.completada)
-  const completadas = metas.filter((m) => m.completada)
+  const colores = useMemo(
+    () => Object.fromEntries(metas.map((m, i) => [m.id, colorDeMeta(m, i)])),
+    [metas]
+  )
+  const esCompletada = (m) => m.completada || Number(m.monto_actual) >= Number(m.monto_objetivo)
+  const activas     = metas.filter((m) => !esCompletada(m))
+  const completadas = metas.filter(esCompletada)
+  const lista       = tab === 'activas' ? activas : completadas
 
-  const totalObjetivo = activas.reduce((s, m) => s + Number(m.monto_objetivo), 0)
-  const totalActual   = activas.reduce((s, m) => s + Number(m.monto_actual), 0)
-  const pctGeneral    = totalObjetivo > 0 ? Math.round((totalActual / totalObjetivo) * 100) : 0
+  // Se guardan ids para que el detalle/aportar lean siempre la meta recién refrescada
+  const aportarMeta = metas.find((m) => m.id === aportarId) || null
+  const detalle     = metas.find((m) => m.id === detalleId) || null
 
+  const abrirEditar = (m) => { setEditMeta(m); setFormOpen(true) }
   const handleDelete = async (m) => {
     if (!(await confirmar({ message: `¿Eliminar la meta "${m.nombre}"?` }))) return
-    try { await eliminar.mutateAsync(m.id); toast.success('Meta eliminada') }
-    catch (e) { toast.error(e.message) }
+    try {
+      await eliminar.mutateAsync(m.id)
+      setDetalleId(null)
+      toast.success('Meta eliminada')
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const modales = (
+    <>
+      <FormMeta open={formOpen} onClose={() => { setFormOpen(false); setEditMeta(null) }} meta={editMeta} />
+      <FormAportacion open={!!aportarMeta} onClose={() => setAportarId(null)} meta={aportarMeta} />
+    </>
+  )
+
+  if (detalle) {
+    return (
+      <>
+        <DetalleMeta
+          meta={detalle} color={colores[detalle.id]}
+          onBack={() => setDetalleId(null)}
+          onEdit={abrirEditar}
+          onDelete={handleDelete}
+          onAportar={(m) => setAportarId(m.id)}
+        />
+        {modales}
+      </>
+    )
   }
 
   return (
     <>
-      <div className="top-header flex-col items-stretch !h-auto pb-3">
-        {metas.length > 0 && (
-          <>
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <div className="bg-surface-700 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-gray-400">Metas activas</p>
-                <p className="text-lg font-bold text-white">{activas.length}</p>
-              </div>
-              <div className="bg-surface-700 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-gray-400">Ahorrado</p>
-                <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(totalActual)}</p>
-              </div>
-              <div className="bg-surface-700 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-gray-400">Objetivo</p>
-                <p className="text-sm font-bold font-mono text-white">{fmt(totalObjetivo)}</p>
-              </div>
-            </div>
-            <div className="h-2 bg-surface-500 rounded-full overflow-hidden">
-              <div className="h-full bg-[var(--accent)] rounded-full transition-all" style={{ width: `${pctGeneral}%` }} />
-            </div>
-            <p className="text-[10px] text-gray-400 text-right mt-1">{pctGeneral}% del total</p>
-          </>
-        )}
-      </div>
-
       <div className="page px-4 pt-4">
         {isPending ? (
-          <div className="space-y-3">{[1,2].map((i) => <div key={i} className="skeleton h-48" />)}</div>
+          <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="skeleton h-32" />)}</div>
         ) : metas.length === 0 ? (
           <EmptyState emoji="🎯" title="Sin metas de ahorro"
             description="Crea tu primera meta: viaje, boda, fondo de emergencia..." />
         ) : (
-          <div className="space-y-4">
-            {/* Activas */}
+          <>
             {activas.length > 0 && (
-              <div className="space-y-3">
-                {activas.map((m) => (
-                  <MetaCard key={m.id} meta={m}
-                    onEdit={(m) => { setEditMeta(m); setFormOpen(true) }}
-                    onDelete={handleDelete}
-                    onAportar={setAportarMeta}
-                    onDetalle={setDetalleMeta}
+              <ResumenMetas activas={activas} colores={colores} aportaciones={aportaciones} metas={metas} nombres={nombres} />
+            )}
+
+            {/* Activas / Completadas */}
+            <div className="flex gap-1 bg-surface-700 rounded-xl p-1 mb-3">
+              {[['activas', `Activas ${activas.length}`], ['completadas', `Completadas ${completadas.length}`]].map(([id, label]) => (
+                <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id}
+                  className={cn('flex-1 min-h-[38px] rounded-lg text-xs font-semibold transition-all',
+                    tab === id ? 'bg-surface-500 text-white' : 'text-gray-400'
+                  )}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {lista.length === 0 ? (
+              <EmptyState
+                emoji={tab === 'activas' ? '🎯' : '🏁'}
+                title={tab === 'activas' ? 'Sin metas activas' : 'Aún no completan ninguna'}
+                description={tab === 'activas' ? 'Crea una meta nueva con el botón +' : 'Aquí aparecerán las metas que alcancen'}
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {lista.map((m) => (
+                  <MetaCard key={m.id} meta={m} color={colores[m.id]}
+                    aportaciones={aportaciones} nombres={nombres}
+                    onDetalle={(m) => setDetalleId(m.id)}
+                    onAportar={(m) => setAportarId(m.id)}
                   />
                 ))}
               </div>
             )}
-
-            {/* Completadas */}
-            {completadas.length > 0 && (
-              <div>
-                <p className="section-label mb-3">✅ Completadas</p>
-                <div className="space-y-3">
-                  {completadas.map((m) => (
-                    <MetaCard key={m.id} meta={m}
-                      onEdit={(m) => { setEditMeta(m); setFormOpen(true) }}
-                      onDelete={handleDelete}
-                      onAportar={setAportarMeta}
-                      onDetalle={setDetalleMeta}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
 
-      <button onClick={() => { setEditMeta(null); setFormOpen(true) }} className="fab">
+      <button onClick={() => { setEditMeta(null); setFormOpen(true) }} aria-label="Nueva meta" className="fab">
         <Plus size={24} />
       </button>
 
-      <FormMeta open={formOpen} onClose={() => { setFormOpen(false); setEditMeta(null) }} meta={editMeta} />
-      <FormAportacion open={!!aportarMeta} onClose={() => setAportarMeta(null)} meta={aportarMeta} />
-      {detalleMeta && <DetalleMetaModal meta={detalleMeta} onClose={() => setDetalleMeta(null)} />}
+      {modales}
     </>
   )
 }
