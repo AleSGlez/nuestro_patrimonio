@@ -9,6 +9,9 @@ import GraficaCategorias from './GraficaCategorias'
 import UltimosMovimientos from './UltimosMovimientos'
 import Sparkline from './Sparkline'
 import PresupuestosWidget from './PresupuestosWidget'
+import TarjetasResumen from './TarjetasResumen'
+import MetasResumen from './MetasResumen'
+import PatrimonioDesglose from './PatrimonioDesglose'
 import { fmt, cn, sumaApartadosPersonales } from '@lib/utils'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -182,6 +185,19 @@ function SaludMes({ ingresos, gastos, flujo, nombre }) {
   )
 }
 
+// Cuentas vs inversiones del patrimonio (apartados personales cuentan como cuentas).
+// cuentas + inversiones − deuda = patrimonio, igual que la regla de negocio.
+function desglosePatrimonio(cuentasFiltradas, apartados, predCuenta, deudaTarjetas) {
+  const inversiones = cuentasFiltradas
+    .filter((c) => c.tipo === 'inversion')
+    .reduce((s, c) => s + Number(c.saldo), 0)
+  const cuentasSaldo = cuentasFiltradas
+    .filter((c) => c.tipo !== 'inversion')
+    .reduce((s, c) => s + Number(c.saldo), 0)
+    + sumaApartadosPersonales(apartados, cuentasFiltradas, predCuenta)
+  return { cuentas: cuentasSaldo, inversiones, deuda: deudaTarjetas }
+}
+
 // ── Vista Pareja (todo personal combinado) ────────────────────
 function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados }) {
   const tx        = txMesData.filter((t) => t.contexto !== 'negocio')
@@ -192,6 +208,11 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados 
   const ingresos  = tx.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
   const gastos    = tx.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
   const flujo     = ingresos - gastos
+  const cuentasPareja = cuentas.filter((c) => c.persona !== 'negocio')
+  const desglose  = desglosePatrimonio(
+    cuentasPareja, apartados, () => true,
+    tarjetas.reduce((s, t) => s + Number(t.saldo_total), 0)
+  )
 
   const sparkFlujo   = useMemo(() => buildSparklineData(tx, 14), [tx])
   const sparkPatrim  = useMemo(() => buildSparklineData(txHist, 30), [txHist])
@@ -219,10 +240,15 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {metricsGrid.map((m) => <MetricaCard key={m.label} {...m} />)}
       </div>
+      <PatrimonioDesglose {...desglose} />
       {txHist.length > 0 && <GraficaFlujo transacciones={txHist} />}
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
         <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
         <PresupuestosWidget transacciones={txMesData} />
+      </div>
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
+        <TarjetasResumen tarjetas={tarjetas} />
+        <MetasResumen />
       </div>
       {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
@@ -248,6 +274,7 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
   const ingresos = tx.filter((t) => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0)
   const gastos   = tx.filter((t) => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0)
   const flujo    = ingresos - gastos
+  const desglose = desglosePatrimonio(cuentasPersona, apartados, () => true, deudaTarjetas)
 
   const sparkFlujo  = useMemo(() => buildSparklineData(tx, 14), [tx])
   const sparkPatrim = useMemo(() => buildSparklineData(txHist, 30), [txHist])
@@ -275,6 +302,7 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {metricsGrid.map((m) => <MetricaCard key={m.label} {...m} />)}
       </div>
+      <PatrimonioDesglose {...desglose} />
 
       {cuentasPersona.length > 0 && (
         <Colapsable titulo={`Cuentas de ${nombre}`}>
@@ -302,6 +330,10 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
         <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
         <PresupuestosWidget transacciones={txMesData} persona={persona} />
+      </div>
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
+        <TarjetasResumen tarjetas={tarjetasPersona} />
+        <MetasResumen persona={persona} />
       </div>
       {tx.filter((t) => t.tipo === 'gasto').length > 0 && <GraficaCategorias transacciones={tx} />}
       <UltimosMovimientos transacciones={[...tx].reverse()} />
