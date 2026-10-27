@@ -92,6 +92,7 @@ function invalidarTodo(qc, parejaId) {
   qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
   qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
   qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+  qc.invalidateQueries({ queryKey: ['movimientos-periodo-tarjeta'] })
   qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
 }
 

@@ -45,6 +45,7 @@ export function useActualizarTarjeta() {
       // saldo_total puede cambiar aquí (corrección manual de deuda) — el
       // desglose de corte lo usa y no se refresca solo con lo de arriba.
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['movimientos-periodo-tarjeta'] })
     },
   })
 }
@@ -124,6 +125,26 @@ export function useDesgloseCorteTarjeta(tarjeta, enabled = true) {
       }
     },
     enabled: enabled && !!parejaId && !!tarjeta?.id && !!diaCorte,
+    staleTime: 1000 * 60,
+  })
+}
+
+// ── Últimos movimientos del período vigente de una tarjeta ────
+// Mismo rango que useDesgloseCorteTarjeta (periodoTarjeta), pero devuelve
+// las transacciones en sí, más recientes primero, para listarlas en escritorio.
+export function useMovimientosPeriodoTarjeta(tarjeta, limite = 6) {
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  const diaCorte = tarjeta?.dia_corte
+
+  return useQuery({
+    queryKey: ['movimientos-periodo-tarjeta', tarjeta?.id, diaCorte, limite],
+    queryFn: () => {
+      const { inicio, fin } = periodoTarjeta(diaCorte)
+      return db.from('transacciones').query(
+        `pareja_id=eq.${parejaId}&tarjeta_id=eq.${tarjeta.id}&fecha=gte.${inicio}&fecha=lte.${fin}&order=fecha.desc,created_at.desc&limit=${limite}`
+      )
+    },
+    enabled: !!parejaId && !!tarjeta?.id && !!diaCorte,
     staleTime: 1000 * 60,
   })
 }

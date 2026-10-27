@@ -70,6 +70,7 @@ export function usePagarTarjeta() {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['movimientos-periodo-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
       qc.invalidateQueries({ queryKey: ['apartados'] })
@@ -114,6 +115,7 @@ export function useDisposicionEfectivo() {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['movimientos-periodo-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
     },
   })
@@ -223,6 +225,7 @@ export function useEliminarTransferencia() {
       qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
       qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
       qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+      qc.invalidateQueries({ queryKey: ['movimientos-periodo-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
       qc.invalidateQueries({ queryKey: ['apartados-todos', parejaId] })
       qc.invalidateQueries({ queryKey: ['apartados'] })
