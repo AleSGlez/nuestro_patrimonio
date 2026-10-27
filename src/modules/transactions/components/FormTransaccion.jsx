@@ -15,7 +15,9 @@ import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, 
          filtrarCuentasPorContexto, filtrarTarjetasPorContexto, opcionesApartadosNegocio,
          TIPO_EMOJI_CUENTA } from '@lib/utils'
 
-export default function FormTransaccion({ open, onClose, tx = null, contextoInicial = 'personal', tipoInicial = 'gasto' }) {
+// `plantilla`: un movimiento existente para "Repetir" — se copian sus datos
+// como un movimiento NUEVO con fecha de hoy
+export default function FormTransaccion({ open, onClose, tx = null, plantilla = null, contextoInicial = 'personal', tipoInicial = 'gasto' }) {
   const { nombres } = useAppStore()
   const toast = useToast()
   const { data: cuentas = [] } = useCuentas()
@@ -85,13 +87,14 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
   useEffect(() => {
     if (!open) return
     inicializando.current = true
-    if (tx) {
-      setTipo(tx.tipo); setContexto(tx.contexto); setMonto(String(tx.monto))
-      setCategoria(tx.categoria); setDesc(tx.descripcion || ''); setFecha(tx.fecha)
-      setPersona(tx.persona)
+    const base = tx || plantilla
+    if (base) {
+      setTipo(base.tipo); setContexto(base.contexto); setMonto(String(base.monto))
+      setCategoria(base.categoria); setDesc(base.descripcion || ''); setFecha(tx ? tx.fecha : today())
+      setPersona(base.persona)
       // Parsear con la misma lógica que aplicar/revertirEfecto — cubre los
       // formatos "tarjeta:UUID"/"cuenta:UUID"/"apartado:UUID:cuentaUUID" y el legacy
-      const metodo = parsearMetodoPago(tx.metodo_pago, tx.cuenta_id, tx.tarjeta_id)
+      const metodo = parsearMetodoPago(base.metodo_pago, base.cuenta_id, base.tarjeta_id)
       if (metodo?.tipo === 'tarjeta')       setMetodoValor(`tarjeta:${metodo.id}`)
       else if (metodo?.tipo === 'cuenta')   setMetodoValor(`cuenta:${metodo.id}`)
       else if (metodo?.tipo === 'apartado') setMetodoValor(`apartado:${metodo.apartadoId}:${metodo.cuentaId}`)
@@ -102,7 +105,7 @@ export default function FormTransaccion({ open, onClose, tx = null, contextoInic
       setPersona(contextoInicial === 'negocio' ? 'ambos' : 'p1')
       setMetodoValor('')
     }
-  }, [open, tx, contextoInicial, tipoInicial])
+  }, [open, tx, plantilla, contextoInicial, tipoInicial])
 
   // Si cambia persona/contexto y el método seleccionado ya no aplica, se limpia.
   // En modo nuevo se auto-selecciona el primero disponible; al EDITAR se deja
