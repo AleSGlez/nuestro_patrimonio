@@ -22,7 +22,7 @@ export default function Modal({ open, onClose, title, children, className }) {
       <div className={cn(
         'relative w-full sm:max-w-md bg-surface-800 border border-white/[0.08]',
         'rounded-t-3xl sm:rounded-3xl animate-slide-up',
-        'max-h-[92svh] flex flex-col',
+        'max-h-[calc(100svh-env(safe-area-inset-top,0px)-12px)] flex flex-col',
         className
       )}>
         {/* Handle */}

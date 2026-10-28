@@ -64,6 +64,19 @@ body {
   margin: 0 auto;
 }
 
+/* App instalada (PWA): en iOS 26 el viewport de `position: fixed` termina antes
+   del borde inferior, y todo lo anclado con `bottom: 0` queda "volando".
+   Se ancla desde arriba con 100lvh, que sí mide la pantalla completa. Solo en
+   standalone: en el navegador 100lvh ignora las barras y taparía la nav. */
+@media (display-mode: standalone) {
+  html, body { height: 100lvh; }
+  #root,
+  .fixed.inset-0 {
+    bottom: auto;
+    height: 100lvh;
+  }
+}
+
 /* On wider screens, show subtle border */
 @media (min-width: 431px) {
   body { background: #07070A; }
@@ -182,6 +195,20 @@ body {
     @apply bg-surface-900/95 backdrop-blur-md border-t border-white/[0.06];
     z-index: 40;
   }
+  @media (display-mode: standalone) {
+    .bottom-nav {
+      bottom: auto;
+      top: calc(100lvh - var(--nav-height) - env(safe-area-inset-bottom, 0px));
+    }
+    .fab {
+      bottom: auto;
+      top: calc(100lvh - var(--nav-height) - env(safe-area-inset-bottom, 0px) - 12px - 3.5rem);
+    }
+  }
+
+  /* Debajo de una SubNav (Finanzas, Negocio) la Dynamic Island ya está cubierta:
+     los top-header de esas páginas no deben volver a sumar el safe area. */
+  .hub-contenido { --sat: 0px; }
 
   /* ── Top header ── */
   .top-header {
