@@ -63,19 +63,24 @@ export default function DetalleMeta({ meta, color, onBack, onEdit, onDelete, onA
 
   return (
     <>
-      <div className="top-header !h-auto pb-1 justify-between">
-        <button onClick={onBack} aria-label="Volver a metas" className="icon-btn -ml-2 text-gray-200">
-          <ChevronLeft size={20} />
-        </button>
-        <p className="text-[15px] font-bold text-white truncate px-2">{meta.nombre}</p>
-        <button onClick={() => onEdit(meta)} aria-label="Editar meta" className="icon-btn -mr-2 text-gray-400 hover:text-white">
-          <Pencil size={16} />
-        </button>
+      <div className="top-header !h-auto pb-1 lg:px-10 lg:pt-8 lg:pb-4 lg:border-b-0">
+        <div className="w-full lg:max-w-6xl flex items-center justify-between gap-2">
+          <button onClick={onBack} aria-label="Volver a metas" className="icon-btn -ml-2 text-gray-200">
+            <ChevronLeft size={20} />
+          </button>
+          <p className="text-[15px] lg:text-[26px] font-bold lg:font-extrabold text-white truncate px-2 lg:px-0 lg:flex-1">{meta.nombre}</p>
+          <button onClick={() => onEdit(meta)} aria-label="Editar meta" className="icon-btn -mr-2 text-gray-400 hover:text-white">
+            <Pencil size={16} />
+          </button>
+        </div>
       </div>
 
-      <div className="page px-4 pt-2">
+      <div className="page px-4 pt-2 lg:px-10">
+        <div className="lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-6 lg:items-start">
+        {/* Columna izquierda en escritorio: anillo, aportar y ritmo */}
+        <div className="lg:sticky lg:top-0">
         {/* Anillo grande */}
-        <div className="flex flex-col items-center text-center mb-4">
+        <div className="flex flex-col items-center text-center mb-4 lg:bg-surface-800 lg:border lg:border-white/[0.06] lg:rounded-2xl lg:p-6 lg:mb-3">
           <AnilloMeta pct={pct} color={completada ? '#22C55E' : color} size={156} grosor={12} label={`${pct}% de la meta`}>
             <span className="text-[26px] leading-none">{meta.emoji}</span>
             <span className="text-[26px] font-bold text-white mt-1">{pct}%</span>
@@ -145,10 +150,13 @@ export default function DetalleMeta({ meta, color, onBack, onEdit, onDelete, onA
             </div>
           </div>
         )}
+        </div>
 
+        {/* Columna derecha en escritorio: aportes por mes e historial */}
+        <div className="min-w-0">
         {/* Aportado por mes */}
         {hayAportesRecientes && (
-          <div className="card p-3.5 mb-4">
+          <div className="card p-3.5 mb-4 lg:p-5">
             <div className="flex justify-between items-baseline mb-3">
               <p className="section-label">Aportado por mes</p>
               {necesarioMes && (
@@ -158,7 +166,7 @@ export default function DetalleMeta({ meta, color, onBack, onEdit, onDelete, onA
                 </span>
               )}
             </div>
-            <div className="relative h-28 flex items-end gap-2.5 pb-[18px]">
+            <div className="relative h-28 flex items-end gap-2.5 lg:gap-6 pb-[18px]">
               {necesarioMes && (
                 <div
                   className="absolute inset-x-0 border-t-2 border-dashed border-[var(--accent-light)] opacity-70"
@@ -229,6 +237,8 @@ export default function DetalleMeta({ meta, color, onBack, onEdit, onDelete, onA
         <button onClick={() => onDelete(meta)} className="w-full min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-semibold text-bad mb-2">
           <Trash2 size={13} /> Eliminar meta
         </button>
+        </div>
+        </div>
       </div>
     </>
   )

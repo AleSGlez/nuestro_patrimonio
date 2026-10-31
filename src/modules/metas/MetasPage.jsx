@@ -37,7 +37,7 @@ function MetaCard({ meta, color, aportaciones, nombres, onDetalle, onAportar }) 
         : `${fmt(necesarioQuincenal)} por quincena para llegar`
 
   return (
-    <div className={cn('card overflow-hidden', estado === 'atrasada' && 'border border-warn/35')}>
+    <div className={cn('card overflow-hidden flex flex-col', estado === 'atrasada' && 'border border-warn/35')}>
       <button onClick={() => onDetalle(meta)} className="w-full flex items-center gap-3 px-3.5 pt-3 pb-2.5 text-left active:bg-white/[0.02]">
         <AnilloMeta pct={pct} color={completada ? '#22C55E' : color}>
           <span className="text-xl">{meta.emoji}</span>
@@ -56,7 +56,7 @@ function MetaCard({ meta, color, aportaciones, nombres, onDetalle, onAportar }) 
       </button>
 
       {!completada && (
-        <div className="flex items-center gap-2.5 pb-3 pr-3.5 pl-[86px]">
+        <div className="mt-auto flex items-center gap-2.5 pb-3 pr-3.5 pl-[86px]">
           <p className="flex-1 text-[11px] text-gray-300">{sugerencia}</p>
           <button
             onClick={() => onAportar(meta)}
@@ -91,10 +91,11 @@ function ResumenMetas({ activas, colores, aportaciones, metas, nombres }) {
     .map(([p, label]) => `${label} ${fmt(porPersona[p])}`)
 
   return (
-    <div className="card p-4 mb-3.5">
+    <div className="card p-4 mb-3.5 lg:p-6 lg:mb-5 lg:flex lg:gap-8">
+      <div className="lg:flex-1 lg:min-w-0">
       <p className="section-label mb-1">Ahorrado en metas</p>
       <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-[28px] font-bold font-mono text-white leading-tight">{fmt(totalActual)}</span>
+        <span className="text-[28px] lg:text-[34px] font-bold font-mono text-white leading-tight">{fmt(totalActual)}</span>
         <span className="text-xs text-gray-400">de {fmt(totalObjetivo)}</span>
       </div>
 
@@ -107,17 +108,34 @@ function ResumenMetas({ activas, colores, aportaciones, metas, nombres }) {
           }} />
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 lg:mb-0">
         {activas.map((m) => (
-          <span key={m.id} className="inline-flex items-center gap-1.5 text-[11px] text-gray-300">
+          <span key={m.id} className="inline-flex items-center gap-1.5 text-[11px] lg:text-xs text-gray-300">
             <span className="w-2 h-2 rounded-[3px]" style={{ backgroundColor: colores[m.id] }} />
             {m.nombre}
           </span>
         ))}
-        <span className="ml-auto text-[11px] font-semibold text-white">{pctGeneral}%</span>
+        <span className="ml-auto text-[11px] lg:text-xs font-semibold text-white">{pctGeneral}%</span>
+      </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06]">
+      {/* Escritorio: aportes del mes en su propia columna */}
+      <div className="hidden lg:flex flex-col justify-center w-[260px] flex-shrink-0 pl-8 border-l border-white/[0.06]">
+        <p className="section-label mb-1">Este mes aportaron</p>
+        <p className={cn('text-2xl font-mono font-bold mb-2', totalMes > 0 ? 'text-ok' : 'text-gray-400')}>
+          {totalMes > 0 ? '+' : ''}{fmt(totalMes)}
+        </p>
+        {[['p1', nombres.p1], ['p2', nombres.p2], ['ambos', 'Ambos']]
+          .filter(([p]) => porPersona[p] > 0)
+          .map(([p, label]) => (
+            <div key={p} className="flex justify-between text-xs py-0.5">
+              <span className="text-gray-400">{label}</span>
+              <span className="font-mono text-gray-200">{fmt(porPersona[p])}</span>
+            </div>
+          ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06] lg:hidden">
         <span className="text-xs text-gray-300 flex-shrink-0">Este mes aportaron</span>
         <span className="text-xs text-gray-400 text-right">
           <span className={cn('font-mono font-bold', totalMes > 0 ? 'text-ok' : 'text-gray-400')}>
@@ -192,7 +210,23 @@ export default function MetasPage() {
 
   return (
     <>
-      <div className="page px-4 pt-4">
+      <div className="page px-4 pt-4 lg:px-10 lg:pt-8">
+        <div className="lg:max-w-6xl">
+        {/* Encabezado de escritorio (en móvil el título lo da la SubNav y "+" es el FAB) */}
+        <div className="hidden lg:flex items-end justify-between gap-4 mb-5">
+          <div>
+            <p className="text-[26px] font-extrabold text-white leading-tight">Metas</p>
+            {!isPending && metas.length > 0 && (
+              <p className="text-sm text-gray-400 mt-0.5">
+                {activas.length} {activas.length === 1 ? 'activa' : 'activas'} · {completadas.length} {completadas.length === 1 ? 'completada' : 'completadas'}
+              </p>
+            )}
+          </div>
+          <button onClick={() => { setEditMeta(null); setFormOpen(true) }} className="btn-primary px-4 py-2.5 text-sm font-semibold">
+            <Plus size={16} /> Nueva meta
+          </button>
+        </div>
+
         {isPending ? (
           <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="skeleton h-32" />)}</div>
         ) : metas.length === 0 ? (
@@ -205,10 +239,10 @@ export default function MetasPage() {
             )}
 
             {/* Activas / Completadas */}
-            <div className="flex gap-1 bg-surface-700 rounded-xl p-1 mb-3">
+            <div className="flex lg:inline-flex gap-1 bg-surface-700 rounded-xl p-1 mb-3 lg:mb-4">
               {[['activas', `Activas ${activas.length}`], ['completadas', `Completadas ${completadas.length}`]].map(([id, label]) => (
                 <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id}
-                  className={cn('flex-1 min-h-[38px] rounded-lg text-xs font-semibold transition-all',
+                  className={cn('flex-1 lg:flex-none lg:px-5 min-h-[38px] rounded-lg text-xs lg:text-sm font-semibold transition-all',
                     tab === id ? 'bg-surface-500 text-white' : 'text-gray-400'
                   )}>
                   {label}
@@ -223,7 +257,7 @@ export default function MetasPage() {
                 description={tab === 'activas' ? 'Crea una meta nueva con el botón +' : 'Aquí aparecerán las metas que alcancen'}
               />
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3.5">
                 {lista.map((m) => (
                   <MetaCard key={m.id} meta={m} color={colores[m.id]}
                     aportaciones={aportaciones} nombres={nombres}
@@ -235,9 +269,10 @@ export default function MetasPage() {
             )}
           </>
         )}
+        </div>
       </div>
 
-      <button onClick={() => { setEditMeta(null); setFormOpen(true) }} aria-label="Nueva meta" className="fab">
+      <button onClick={() => { setEditMeta(null); setFormOpen(true) }} aria-label="Nueva meta" className="fab lg:hidden">
         <Plus size={24} />
       </button>
 
