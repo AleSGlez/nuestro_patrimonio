@@ -1,13 +1,13 @@
 // src/modules/transactions/components/FiltrosMovimientos.jsx
-// Filtros de Movimientos en chips: fecha, quién, contexto, cuenta y categoría.
+// Filtros de Movimientos en chips: fecha, método de pago, quién, contexto, cuenta y categoría.
 // Se aplican en vivo; el botón de abajo solo cierra.
 import { Check } from 'lucide-react'
 import { format, subMonths } from 'date-fns'
 import Modal from '@ui/Modal'
-import { TODAS_CATEGORIAS } from '../movimientos'
+import { TODAS_CATEGORIAS, TIPOS_PAGO } from '../movimientos'
 import { cn, currentMonth, today, TIPO_EMOJI_CUENTA } from '@lib/utils'
 
-export const FILTROS_VACIOS = { personas: [], contextos: [], cuentas: [], categorias: [] }
+export const FILTROS_VACIOS = { pagos: [], personas: [], contextos: [], cuentas: [], categorias: [] }
 
 function Chip({ activo, onClick, children }) {
   return (
@@ -34,10 +34,9 @@ function Grupo({ titulo, children }) {
   )
 }
 
-export default function FiltrosMovimientos({
-  open, onClose, periodo, setPeriodo, filtros, setFiltros, onLimpiar,
-  cuentas, tarjetas, nombres, totalResultados,
-}) {
+// Contenido de los filtros: va dentro del Modal en celular y como panel
+// fijo a la izquierda en computadora
+export function PanelFiltros({ periodo, setPeriodo, filtros, setFiltros, cuentas, tarjetas, nombres }) {
   const mesActual  = currentMonth()
   const mesPasado  = format(subMonths(new Date(), 1), 'yyyy-MM')
   const periodoId  = periodo.tipo === 'mes'
@@ -59,13 +58,7 @@ export default function FiltrosMovimientos({
   }))
 
   return (
-    <Modal open={open} onClose={onClose} title="Filtros">
-      <div className="flex justify-end -mt-2 mb-1">
-        <button onClick={onLimpiar} className="min-h-[44px] px-1 text-[13px] font-semibold text-[var(--accent-light)]">
-          Limpiar todo
-        </button>
-      </div>
-
+    <>
       {/* Fecha: un solo periodo a la vez */}
       <div className="mb-5">
         <p className="label mb-2">Fecha</p>
@@ -89,6 +82,12 @@ export default function FiltrosMovimientos({
           </div>
         )}
       </div>
+
+      <Grupo titulo="Método de pago">
+        {TIPOS_PAGO.map((p) => (
+          <Chip key={p.value} activo={filtros.pagos.includes(p.value)} onClick={() => toggle('pagos', p.value)}>{p.label}</Chip>
+        ))}
+      </Grupo>
 
       <Grupo titulo="De quién">
         {[['p1', nombres.p1], ['p2', nombres.p2], ['ambos', 'Ambos']].map(([v, label]) => (
@@ -124,6 +123,20 @@ export default function FiltrosMovimientos({
           </Chip>
         ))}
       </Grupo>
+    </>
+  )
+}
+
+export default function FiltrosMovimientos({ open, onClose, onLimpiar, totalResultados, ...panel }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Filtros">
+      <div className="flex justify-end -mt-2 mb-1">
+        <button onClick={onLimpiar} className="min-h-[44px] px-1 text-[13px] font-semibold text-[var(--accent-light)]">
+          Limpiar todo
+        </button>
+      </div>
+
+      <PanelFiltros {...panel} />
 
       <button onClick={onClose} className="btn-primary w-full py-3.5 text-sm font-semibold">
         Ver {totalResultados} {totalResultados === 1 ? 'movimiento' : 'movimientos'}

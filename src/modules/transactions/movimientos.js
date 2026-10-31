@@ -22,6 +22,26 @@ export function claveMetodo(tx) {
   return `${m.tipo}:${m.id}`
 }
 
+// Método de pago a grandes rasgos: tarjeta de crédito, cuenta (débito) o efectivo
+export const TIPOS_PAGO = [
+  { value: 'credito',  label: '💳 Tarjeta de crédito', corto: 'Crédito',  barra: 'bg-warn' },
+  { value: 'debito',   label: '🏦 Débito / cuenta',    corto: 'Débito',   barra: 'bg-info' },
+  { value: 'efectivo', label: '💵 Efectivo',           corto: 'Efectivo', barra: 'bg-ok' },
+]
+
+export function tipoPago(tx, cuentasMap) {
+  const m = parsearMetodoPago(tx.metodo_pago, tx.cuenta_id, tx.tarjeta_id)
+  if (!m) return null
+  if (m.tipo === 'tarjeta') return 'credito'
+  return cuentasMap[m.tipo === 'apartado' ? m.cuentaId : m.id]?.tipo === 'efectivo' ? 'efectivo' : 'debito'
+}
+
+// Una transferencia toma el tipo de donde sale el dinero
+export function tipoPagoTransferencia(t, cuentasMap) {
+  if (t.tipo === 'disposicion_efectivo') return 'credito'
+  return cuentasMap[t.origen_cuenta_id]?.tipo === 'efectivo' ? 'efectivo' : 'debito'
+}
+
 // "🏦 BBVA Ale" / "💳 BBVA Azul" / "🏦 BBVA Ale (apartado)"
 export function etiquetaMetodo(tx, cuentasMap, tarjetasMap) {
   const m = parsearMetodoPago(tx.metodo_pago, tx.cuenta_id, tx.tarjeta_id)

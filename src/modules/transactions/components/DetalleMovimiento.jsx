@@ -1,7 +1,7 @@
 // src/modules/transactions/components/DetalleMovimiento.jsx
 // Bottom sheet al tocar un movimiento: todos sus datos + Editar / Repetir / Eliminar.
 // `item` = { kind: 'tx' | 'transfer', data }
-import { Pencil, Copy, Trash2, ArrowLeftRight } from 'lucide-react'
+import { Pencil, Copy, Trash2, ArrowLeftRight, X } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import Modal from '@ui/Modal'
@@ -42,12 +42,25 @@ function PresupuestosDelGasto({ tx }) {
   )
 }
 
+// En celular el detalle es un Modal; en computadora, un panel a la derecha de la lista
+function Contenedor({ enPanel, onClose, children }) {
+  if (!enPanel) return <Modal open onClose={onClose}>{children}</Modal>
+  return (
+    <div className="relative bg-surface-800 border border-white/[0.06] rounded-2xl p-5">
+      <button onClick={onClose} aria-label="Cerrar detalle" className="icon-btn absolute top-2 right-2 text-gray-400 hover:text-white">
+        <X size={16} />
+      </button>
+      {children}
+    </div>
+  )
+}
+
 const fechaLarga = (fecha) => {
   const s = format(parseISO(fecha), "EEEE d 'de' MMMM", { locale: es })
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-export default function DetalleMovimiento({ item, onClose, nombres, cuentasMap, tarjetasMap, onEditar, onRepetir, onEliminar }) {
+export default function DetalleMovimiento({ item, onClose, nombres, cuentasMap, tarjetasMap, onEditar, onRepetir, onEliminar, enPanel = false }) {
   if (!item) return null
   const { kind, data } = item
 
@@ -55,7 +68,7 @@ export default function DetalleMovimiento({ item, onClose, nombres, cuentasMap, 
     const info = TIPO_TRANSFERENCIA[data.tipo] || { emoji: '🔄', label: data.tipo }
     const { origen, destino } = extremosTransferencia(data, cuentasMap, tarjetasMap)
     return (
-      <Modal open onClose={onClose}>
+      <Contenedor enPanel={enPanel} onClose={onClose}>
         <div className="flex flex-col items-center text-center mb-4">
           <div className="w-14 h-14 rounded-2xl bg-info/15 text-blue-300 flex items-center justify-center mb-2.5">
             <ArrowLeftRight size={24} />
@@ -73,7 +86,7 @@ export default function DetalleMovimiento({ item, onClose, nombres, cuentasMap, 
         <button onClick={() => onEliminar(item)} className="w-full min-h-[46px] flex items-center justify-center gap-1.5 text-[13px] font-semibold text-bad">
           <Trash2 size={14} /> Eliminar transferencia
         </button>
-      </Modal>
+      </Contenedor>
     )
   }
 
@@ -84,7 +97,7 @@ export default function DetalleMovimiento({ item, onClose, nombres, cuentasMap, 
   const personaLabel = tx.persona === 'p1' ? nombres.p1 : tx.persona === 'p2' ? nombres.p2 : 'Ambos'
 
   return (
-    <Modal open onClose={onClose}>
+    <Contenedor enPanel={enPanel} onClose={onClose}>
       <div className="flex flex-col items-center text-center mb-4">
         <div className="w-14 h-14 rounded-2xl bg-surface-700 flex items-center justify-center text-[26px] mb-2.5">{cat.emoji}</div>
         <p className="text-[15px] font-semibold text-white mb-1">{tx.descripcion || cat.label}</p>
@@ -121,6 +134,6 @@ export default function DetalleMovimiento({ item, onClose, nombres, cuentasMap, 
       <button onClick={() => onEliminar(item)} className="w-full min-h-[46px] flex items-center justify-center gap-1.5 text-[13px] font-semibold text-bad">
         <Trash2 size={14} /> Eliminar movimiento
       </button>
-    </Modal>
+    </Contenedor>
   )
 }

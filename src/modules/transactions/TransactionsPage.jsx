@@ -15,23 +15,29 @@ import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState } from '@ui/Field'
 import FormTransaccion from './components/FormTransaccion'
 import TransferRow, { TIPO_TRANSFERENCIA, extremosTransferencia } from './components/TransferRow'
-import FiltrosMovimientos, { FILTROS_VACIOS } from './components/FiltrosMovimientos'
+import FiltrosMovimientos, { FILTROS_VACIOS, PanelFiltros } from './components/FiltrosMovimientos'
 import DetalleMovimiento from './components/DetalleMovimiento'
-import { getCatInfo, claveMetodo, etiquetaMetodo, PERSONA_PILL, rangoDePeriodo, PERIODO_INICIAL, tituloDia } from './movimientos'
+import { getCatInfo, claveMetodo, etiquetaMetodo, PERSONA_PILL, rangoDePeriodo, PERIODO_INICIAL, tituloDia,
+         TIPOS_PAGO, tipoPago, tipoPagoTransferencia } from './movimientos'
+import { useEsEscritorio } from '@hooks/useEsEscritorio'
 import { fmt, cn, currentMonth } from '@lib/utils'
 
 const TIPOS = [['todo', 'Todo'], ['gasto', 'Gastos'], ['ingreso', 'Ingresos'], ['transfer', 'Transferencias']]
 
-function TxRow({ tx, nombres, cuentasMap, tarjetasMap, onOpen }) {
+const PUNTO_PAGO = Object.fromEntries(TIPOS_PAGO.map((p) => [p.value, p.barra]))
+
+function TxRow({ tx, nombres, cuentasMap, tarjetasMap, onOpen, activo = false }) {
   const isIngreso = tx.tipo === 'ingreso'
   const cat = getCatInfo(tx.categoria)
   const metodo = etiquetaMetodo(tx, cuentasMap, tarjetasMap)
+  const pago = tipoPago(tx, cuentasMap)
   const personaLabel = tx.persona === 'p1' ? nombres.p1 : tx.persona === 'p2' ? nombres.p2 : 'Ambos'
 
   return (
     <button
       onClick={() => onOpen(tx)}
-      className="w-full flex items-center gap-3 min-h-[60px] px-3 py-2 text-left border-t border-white/[0.05] first:border-0 active:bg-white/[0.03]"
+      className={cn('w-full flex items-center gap-3 min-h-[60px] lg:min-h-[52px] px-3 py-2 text-left border-t border-white/[0.05] first:border-0 active:bg-white/[0.03] lg:hover:bg-white/[0.03]',
+        activo && 'lg:bg-[var(--accent-muted)] lg:hover:bg-[var(--accent-muted)]')}
     >
       <div className={cn('w-[38px] h-[38px] rounded-xl flex items-center justify-center text-[17px] flex-shrink-0',
         isIngreso ? 'bg-ok/[0.12]' : 'bg-surface-700')}>
@@ -44,8 +50,14 @@ function TxRow({ tx, nombres, cuentasMap, tarjetasMap, onOpen }) {
             <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wide text-warn bg-warn/[0.14] px-1.5 py-0.5 rounded-md">Negocio</span>
           )}
         </div>
-        <p className="text-[11px] text-gray-400 truncate mt-0.5">{cat.label}{tx.subcategoria && ` › ${tx.subcategoria}`}{metodo && ` · ${metodo}`}</p>
+        <p className="text-[11px] text-gray-400 truncate mt-0.5 lg:hidden">{cat.label}{tx.subcategoria && ` › ${tx.subcategoria}`}{metodo && ` · ${metodo}`}</p>
       </div>
+      {/* Columnas de computadora: categoría y método de pago */}
+      <p className="hidden lg:block w-[26%] text-[13px] text-gray-300 truncate">{cat.label}{tx.subcategoria && ` › ${tx.subcategoria}`}</p>
+      <p className="hidden lg:flex items-center gap-1.5 w-[22%] text-[13px] text-gray-300 min-w-0">
+        {pago && <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', PUNTO_PAGO[pago])} />}
+        <span className="truncate">{metodo || 'Sin cuenta'}</span>
+      </p>
       <div className="flex-shrink-0 flex flex-col items-end gap-1">
         <span className={cn('text-sm font-semibold font-mono', isIngreso ? 'text-ok' : 'text-white')}>
           {isIngreso ? '+' : '-'}{fmt(tx.monto)}
@@ -55,6 +67,32 @@ function TxRow({ tx, nombres, cuentasMap, tarjetasMap, onOpen }) {
         </span>
       </div>
     </button>
+  )
+}
+
+// Solo computadora: qué parte de lo gastado fue a crédito, débito o efectivo
+function ResumenMetodos({ txs, cuentasMap }) {
+  const gastos = txs.filter((t) => t.tipo === 'gasto')
+  const total = gastos.reduce((s, t) => s + Number(t.monto), 0)
+  const partes = TIPOS_PAGO.map((p) => {
+    const monto = gastos.filter((t) => tipoPago(t, cuentasMap) === p.value).reduce((s, t) => s + Number(t.monto), 0)
+    return { ...p, monto, pct: total > 0 ? Math.round((monto / total) * 100) : 0 }
+  })
+  return (
+    <div className="hidden lg:block card p-3.5 mb-3">
+      <p className="section-label mb-2">Gastos por método de pago</p>
+      <div className="flex h-2 rounded-full overflow-hidden bg-surface-600 mb-2.5">
+        {partes.map((p) => <div key={p.value} className={p.barra} style={{ width: `${p.pct}%` }} />)}
+      </div>
+      <div className="space-y-1">
+        {partes.map((p) => (
+          <div key={p.value} className="flex items-center justify-between text-[12px]">
+            <span className="flex items-center gap-1.5 text-gray-300"><span className={cn('w-2 h-2 rounded-full', p.barra)} />{p.corto} · {p.pct}%</span>
+            <span className="font-mono text-white">{fmt(p.monto)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -109,6 +147,7 @@ export default function TransactionsPage() {
   const [formOpen, setFormOpen]     = useState(false)
   const [editTx, setEditTx]         = useState(null)
   const [plantilla, setPlantilla]   = useState(null)
+  const esEscritorio = useEsEscritorio()
 
   const { desde, hasta, titulo } = rangoDePeriodo(periodo)
   const { data: transacciones = [], isPending: txPending } = useTransacciones({ desde, hasta })
@@ -127,6 +166,7 @@ export default function TransactionsPage() {
       if (filtros.contextos.length && !filtros.contextos.includes(t.contexto)) return false
       if (filtros.categorias.length && !filtros.categorias.includes(t.categoria)) return false
       if (filtros.cuentas.length && !filtros.cuentas.includes(claveMetodo(t))) return false
+      if (filtros.pagos.length && !filtros.pagos.includes(tipoPago(t, cuentasMap))) return false
       if (q) {
         const texto = [t.descripcion, getCatInfo(t.categoria).label, t.subcategoria, nombrePersona(t.persona),
           etiquetaMetodo(t, cuentasMap, tarjetasMap)].join(' ').toLowerCase()
@@ -142,6 +182,7 @@ export default function TransactionsPage() {
     if (filtros.personas.length || filtros.contextos.length || filtros.categorias.length) return []
     const q = search.toLowerCase().trim()
     return transferencias.filter((t) => {
+      if (filtros.pagos.length && !filtros.pagos.includes(tipoPagoTransferencia(t, cuentasMap))) return false
       if (filtros.cuentas.length) {
         const claves = [
           t.origen_cuenta_id && `cuenta:${t.origen_cuenta_id}`,
@@ -193,7 +234,7 @@ export default function TransactionsPage() {
   const mesActual = currentMonth()
   const esPorMes = periodo.tipo === 'mes'
   const moverMes = (n) => setPeriodo({ tipo: 'mes', mes: format(addMonths(parseISO(`${periodo.mes}-01`), n), 'yyyy-MM') })
-  const nFiltros = filtros.personas.length + filtros.contextos.length + filtros.cuentas.length + filtros.categorias.length
+  const nFiltros = filtros.pagos.length + filtros.personas.length + filtros.contextos.length + filtros.cuentas.length + filtros.categorias.length
     + (esPorMes && periodo.mes === mesActual ? 0 : 1)
   const cargando = txPending || transfPending
 
@@ -223,7 +264,7 @@ export default function TransactionsPage() {
 
   return (
     <>
-      <div className="top-header flex-col items-stretch !h-auto pb-3">
+      <div className="top-header flex-col items-stretch !h-auto pb-3 lg:px-10 lg:pt-5">
         {/* Periodo: flechas por mes, o el periodo elegido en Filtros */}
         <div className="flex items-center justify-between mb-2">
           {esPorMes ? (
@@ -247,7 +288,10 @@ export default function TransactionsPage() {
           )}
         </div>
 
-        <ResumenPeriodo gastos={totales.gastos} ingresos={totales.ingresos} />
+        <div className="lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-3">
+          <ResumenPeriodo gastos={totales.gastos} ingresos={totales.ingresos} />
+          <ResumenMetodos txs={txFiltradas} cuentasMap={cuentasMap} />
+        </div>
 
         {/* Búsqueda + filtros */}
         <div className="flex gap-2 mb-2.5">
@@ -268,7 +312,7 @@ export default function TransactionsPage() {
           <button
             onClick={() => setFiltrosOpen(true)}
             aria-label={nFiltros > 0 ? `Filtros, ${nFiltros} activos` : 'Filtros'}
-            className={cn('relative w-11 h-11 flex-shrink-0 rounded-xl border flex items-center justify-center',
+            className={cn('lg:hidden relative w-11 h-11 flex-shrink-0 rounded-xl border flex items-center justify-center',
               nFiltros > 0 ? 'bg-[var(--accent-muted)] border-[var(--accent)]/40 text-[var(--accent-light)]' : 'bg-surface-700 border-white/[0.08] text-gray-300')}
           >
             <SlidersHorizontal size={17} />
@@ -293,7 +337,23 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="page px-4">
+      <div className="page px-4 lg:px-10 lg:flex lg:gap-5 lg:items-start">
+        {/* Computadora: filtros siempre visibles */}
+        <aside className="hidden lg:block w-60 flex-shrink-0 sticky top-3.5 mt-3.5 bg-surface-800 border border-white/[0.06] rounded-2xl p-4 max-h-[calc(100%-28px)] overflow-y-auto no-scrollbar">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-white">Filtros</p>
+            {nFiltros > 0 && (
+              <button onClick={limpiarTodo} className="text-xs font-semibold text-[var(--accent-light)] min-h-[32px]">Limpiar</button>
+            )}
+          </div>
+          <PanelFiltros
+            periodo={periodo} setPeriodo={setPeriodo}
+            filtros={filtros} setFiltros={setFiltros}
+            cuentas={cuentas} tarjetas={tarjetas} nombres={nombres}
+          />
+        </aside>
+
+        <div className="lg:flex-1 lg:min-w-0">
         {cargando ? (
           <div className="space-y-3 mt-4">
             {[1, 2, 3].map((i) => <div key={i} className="skeleton h-40" />)}
@@ -330,7 +390,7 @@ export default function TransactionsPage() {
                   {lista.map((it) => it.kind === 'tx' ? (
                     <TxRow key={it.data.id} tx={it.data} nombres={nombres}
                       cuentasMap={cuentasMap} tarjetasMap={tarjetasMap}
-                      onOpen={(tx) => setDetalle({ kind: 'tx', data: tx })} />
+                      onOpen={(tx) => setDetalle({ kind: 'tx', data: tx })} activo={detalle?.data?.id === it.data.id} />
                   ) : (
                     <TransferRow key={it.data.id} transferencia={it.data}
                       cuentasMap={cuentasMap} tarjetasMap={tarjetasMap}
@@ -341,9 +401,27 @@ export default function TransactionsPage() {
             )
           })
         )}
+        </div>
+
+        {/* Computadora: detalle a un lado de la lista */}
+        <aside className="hidden lg:block w-80 flex-shrink-0 sticky top-3.5 mt-3.5">
+          {esEscritorio && detalle ? (
+            <DetalleMovimiento
+              enPanel item={detalle} onClose={() => setDetalle(null)}
+              nombres={nombres} cuentasMap={cuentasMap} tarjetasMap={tarjetasMap}
+              onEditar={(tx) => abrirForm({ tx })}
+              onRepetir={(tx) => abrirForm({ base: tx })}
+              onEliminar={handleEliminar}
+            />
+          ) : (
+            <div className="border border-dashed border-white/10 rounded-2xl p-6 text-center text-sm text-gray-400">
+              Elige un movimiento para ver su detalle
+            </div>
+          )}
+        </aside>
       </div>
 
-      <button onClick={() => abrirForm()} aria-label="Nuevo movimiento" className="fab">
+      <button onClick={() => abrirForm()} aria-label="Nuevo movimiento" className="fab lg:hidden">
         <Plus size={24} />
       </button>
 
@@ -355,13 +433,13 @@ export default function TransactionsPage() {
         totalResultados={tipo === 'todo' ? conteos.todo : conteos[tipo]}
       />
 
-      <DetalleMovimiento
+      {!esEscritorio && <DetalleMovimiento
         item={detalle} onClose={() => setDetalle(null)}
         nombres={nombres} cuentasMap={cuentasMap} tarjetasMap={tarjetasMap}
         onEditar={(tx) => abrirForm({ tx })}
         onRepetir={(tx) => abrirForm({ base: tx })}
         onEliminar={handleEliminar}
-      />
+      />}
 
       <FormTransaccion
         open={formOpen}
