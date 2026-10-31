@@ -12,6 +12,7 @@ import PresupuestosWidget from './PresupuestosWidget'
 import TarjetasResumen from './TarjetasResumen'
 import MetasResumen from './MetasResumen'
 import PatrimonioDesglose from './PatrimonioDesglose'
+import { useDeudaPorPersona } from '../hooks/useDeudaPorPersona'
 import { fmt, cn, sumaApartadosPersonales } from '@lib/utils'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -199,7 +200,7 @@ function desglosePatrimonio(cuentasFiltradas, apartados, predCuenta, deudaTarjet
 }
 
 // ── Vista Pareja (todo personal combinado) ────────────────────
-function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados }) {
+function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados, deuda, nombres }) {
   const tx        = txMesData.filter((t) => t.contexto !== 'negocio')
   const txHist    = txHistoricoData.filter((t) => t.contexto !== 'negocio')
   const patrimonio = cuentas.filter((c) => c.persona !== 'negocio').reduce((s, c) => s + Number(c.saldo), 0)
@@ -240,7 +241,7 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {metricsGrid.map((m) => <MetricaCard key={m.label} {...m} />)}
       </div>
-      <PatrimonioDesglose {...desglose} />
+      <PatrimonioDesglose {...desglose} detalleDeuda={`Ambos ${fmt(deuda.ambos)} · ${nombres.p1} ${fmt(deuda.p1)} · ${nombres.p2} ${fmt(deuda.p2)}`} />
       {txHist.length > 0 && <GraficaFlujo transacciones={txHist} />}
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
         <IngresosGastosCard ingresos={ingresos} gastos={gastos} />
@@ -257,14 +258,15 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados 
 }
 
 // ── Vista individual de una persona ──────────────────────────
-function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, tarjetas, apartados }) {
+function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, tarjetas, apartados, deuda }) {
   // Solo cuentas propias (no compartidas, no negocio)
   const cuentasPersona = cuentas.filter((c) => c.persona === persona)
   const tarjetasPersona = tarjetas.filter((t) => t.persona === persona)
 
   const saldoCuentas  = cuentasPersona.reduce((s, c) => s + Number(c.saldo), 0)
     + sumaApartadosPersonales(apartados, cuentas, (c) => c.persona === persona)
-  const deudaTarjetas = tarjetasPersona.reduce((s, t) => s + Number(t.saldo_total), 0)
+  // Lo que le toca de la deuda de tarjetas según SUS gastos (sin los de Ambos)
+  const deudaTarjetas = deuda[persona]
   const patrimonio    = saldoCuentas - deudaTarjetas
 
   // Movimientos de esta persona (contexto personal)
@@ -302,7 +304,7 @@ function VistaPersona({ persona, nombre, txMesData, txHistoricoData, cuentas, ta
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {metricsGrid.map((m) => <MetricaCard key={m.label} {...m} />)}
       </div>
-      <PatrimonioDesglose {...desglose} />
+      <PatrimonioDesglose {...desglose} detalleDeuda="Según sus gastos con tarjeta" />
 
       {cuentasPersona.length > 0 && (
         <Colapsable titulo={`Cuentas de ${nombre}`}>
@@ -347,6 +349,7 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
   const { data: cuentas = [] }  = useCuentas()
   const { data: tarjetas = [] } = useTarjetas()
   const { data: apartados = [] } = useTodosLosApartados()
+  const deuda = useDeudaPorPersona(tarjetas)
 
   const SUB_TABS = [
     { id: 'pareja', label: '👫 Pareja' },
@@ -379,21 +382,21 @@ export default function DashboardPersonal({ txMesData, txHistoricoData, nombres 
           {subVista === 'pareja' && (
             <VistaPareja
               txMesData={txMesData} txHistoricoData={txHistoricoData}
-              cuentas={cuentas} tarjetas={tarjetas} apartados={apartados}
+              cuentas={cuentas} tarjetas={tarjetas} apartados={apartados} deuda={deuda} nombres={nombres}
             />
           )}
           {subVista === 'p1' && (
             <VistaPersona
               persona="p1" nombre={nombres.p1}
               txMesData={txMesData} txHistoricoData={txHistoricoData}
-              cuentas={cuentas} tarjetas={tarjetas} apartados={apartados}
+              cuentas={cuentas} tarjetas={tarjetas} apartados={apartados} deuda={deuda}
             />
           )}
           {subVista === 'p2' && (
             <VistaPersona
               persona="p2" nombre={nombres.p2}
               txMesData={txMesData} txHistoricoData={txHistoricoData}
-              cuentas={cuentas} tarjetas={tarjetas} apartados={apartados}
+              cuentas={cuentas} tarjetas={tarjetas} apartados={apartados} deuda={deuda}
             />
           )}
         </div>

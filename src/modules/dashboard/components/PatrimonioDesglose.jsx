@@ -4,11 +4,12 @@ import { fmt } from '@lib/utils'
 // De qué está hecho el patrimonio: cuentas + inversiones − deuda en tarjetas.
 // Cuadra con la regla de negocio del patrimonio personal, así que
 // cuentas + inversiones − deuda = el número grande de la tarjeta Patrimonio.
-export default function PatrimonioDesglose({ cuentas, inversiones, deuda }) {
+// `detalleDeuda`: línea chica bajo la deuda (de quién son los gastos)
+export default function PatrimonioDesglose({ cuentas, inversiones, deuda, detalleDeuda = null }) {
   const items = [
     { label: 'Cuentas', valor: fmt(cuentas), clase: 'text-white' },
     { label: 'Inversiones', valor: fmt(inversiones), clase: 'text-white' },
-    { label: 'Deuda en tarjetas', valor: `-${fmt(deuda)}`, clase: deuda > 0 ? 'text-bad' : 'text-white' },
+    { label: 'Deuda en tarjetas', valor: `-${fmt(deuda)}`, clase: deuda > 0 ? 'text-bad' : 'text-white', detalle: detalleDeuda },
   ]
 
   return (
@@ -17,6 +18,7 @@ export default function PatrimonioDesglose({ cuentas, inversiones, deuda }) {
         <div key={i.label} className="bg-surface-800 border border-white/[0.06] rounded-xl p-2.5 lg:p-4 min-w-0">
           <p className="text-[10px] text-gray-400 truncate">{i.label}</p>
           <p className={`text-[13px] lg:text-base font-mono font-medium mt-1 truncate ${i.clase}`}>{i.valor}</p>
+          {i.detalle && <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{i.detalle}</p>}
         </div>
       ))}
     </div>
