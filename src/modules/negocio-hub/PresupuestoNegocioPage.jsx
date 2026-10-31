@@ -1,14 +1,16 @@
 // src/modules/negocio-hub/PresupuestoNegocioPage.jsx
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Check, AlertCircle, TrendingDown } from 'lucide-react'
-import { usePresupuestos, useCrearPresupuesto, useActualizarPresupuesto, useEliminarPresupuesto, calcularDisponible, calcularDesglose, labelPeriodo } from '@modules/presupuestos/hooks/usePresupuestos'
+import { Plus, Pencil, Trash2, Check, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { format, addMonths, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { usePresupuestos, useCrearPresupuesto, useActualizarPresupuesto, useEliminarPresupuesto, coincideNegocio, aplicaEnMes, calcularMesNegocio } from '@modules/presupuestos/hooks/usePresupuestos'
 import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
 import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
 import { EmptyState, AmountInput, Select, Input } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
-import { fmt, cn, today, CAT_NEGOCIO_GASTO } from '@lib/utils'
+import { fmt, cn, today, currentMonth, CAT_NEGOCIO_GASTO } from '@lib/utils'
 
 const FRECUENCIAS = [
   { value: 'mensual',    label: 'Mensual' },
@@ -113,28 +115,11 @@ function FormPresupuestoNegocio({ open, onClose, presupuesto = null }) {
   )
 }
 
-// ── Card de presupuesto de negocio ────────────────────────────
-function PresupuestoNegocioCard({ presupuesto, transacciones, onEdit, onDelete }) {
-  // Filtrar solo gastos de negocio de esta categoría
-  const txFiltradas = useMemo(() => {
-    return transacciones.filter((t) => {
-      if (t.tipo !== 'gasto' || t.contexto !== 'negocio') return false
-      if (presupuesto.categoria) {
-        const cats = presupuesto.categoria === 'inventario'
-          ? ['inventario', 'compra_producto']
-          : [presupuesto.categoria]
-        if (!cats.includes(t.categoria)) return false
-      }
-      return t.fecha >= presupuesto.fecha_inicio
-    })
-  }, [transacciones, presupuesto])
-
-  const { disponible, presupuestoAcumulado, gastado, pctUsado } = calcularDisponible(presupuesto, txFiltradas)
-  const desglose  = calcularDesglose(presupuesto)
+// ── Card de presupuesto de negocio (un mes) ──────────────────
+function PresupuestoNegocioCard({ presupuesto, limite, gastado, disponible, pctUsado, onEdit, onDelete }) {
   const excedido  = disponible < 0
   const barColor  = pctUsado >= 100 ? 'bg-bad' : pctUsado >= 80 ? 'bg-warn' : 'bg-ok'
-
-  const catInfo = CAT_NEGOCIO_GASTO.find((c) => c.value === presupuesto.categoria)
+  const catInfo   = CAT_NEGOCIO_GASTO.find((c) => c.value === presupuesto.categoria)
 
   return (
     <div className={cn('card p-4', excedido && 'border border-bad/40')}>
@@ -151,7 +136,7 @@ function PresupuestoNegocioCard({ presupuesto, transacciones, onEdit, onDelete }
               {excedido && <span className="text-[10px] bg-bad/20 text-bad px-1.5 py-0.5 rounded-full">Excedido</span>}
             </div>
             <p className="text-[11px] text-gray-400">
-              {catInfo ? `${catInfo.emoji} ${catInfo.label}` : 'General'} · {labelPeriodo(presupuesto.tipo)}
+              {catInfo ? `${catInfo.emoji} ${catInfo.label}` : 'General · todos los gastos de negocio'}
             </p>
           </div>
         </div>
@@ -170,16 +155,16 @@ function PresupuestoNegocioCard({ presupuesto, transacciones, onEdit, onDelete }
       <div className="flex items-end justify-between mb-3">
         <div>
           <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-            {excedido ? 'Excedido' : 'Disponible'}
+            {excedido ? 'Te pasaste' : 'Te quedan'}
           </p>
           <p className={cn('text-2xl font-bold font-mono', excedido ? 'text-bad' : 'text-ok')}>
-            {excedido ? '-' : '+'}{fmt(Math.abs(disponible))}
+            {excedido ? '-' : ''}{fmt(Math.abs(disponible))}
           </p>
         </div>
         <div className="text-right">
           <p className="text-[10px] text-gray-400">Gastado</p>
           <p className="text-sm font-mono text-white font-medium">{fmt(gastado)}</p>
-          <p className="text-[10px] text-gray-400">de {fmt(presupuestoAcumulado)}</p>
+          <p className="text-[10px] text-gray-400">de {fmt(limite)}</p>
         </div>
       </div>
 
@@ -187,34 +172,10 @@ function PresupuestoNegocioCard({ presupuesto, transacciones, onEdit, onDelete }
         <div className={cn('h-full rounded-full transition-all', barColor)}
           style={{ width: `${Math.min(pctUsado, 100)}%` }} />
       </div>
-
-      <div className="flex justify-between mb-2">
-        <p className={cn('text-[11px] font-medium',
-          pctUsado >= 100 ? 'text-bad' : pctUsado >= 80 ? 'text-warn' : 'text-gray-400')}>
-          {pctUsado}% usado
-        </p>
-        <p className="text-[10px] text-gray-400">
-          {excedido ? 'Se descuenta del siguiente período' : `Acumulado: ${fmt(disponible)}`}
-        </p>
-      </div>
-
-      {desglose && (
-        <div className="flex gap-2 pt-2 border-t border-white/[0.06]">
-          <p className="text-[10px] text-gray-400 self-center">Equivale a:</p>
-          {desglose.porSemana && (
-            <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-              <p className="text-[10px] text-gray-400">Por semana</p>
-              <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(desglose.porSemana)}</p>
-            </div>
-          )}
-          {desglose.porDia && (
-            <div className="flex-1 bg-surface-700 rounded-xl p-2 text-center">
-              <p className="text-[10px] text-gray-400">Por día</p>
-              <p className="text-sm font-bold font-mono text-[var(--accent)]">{fmt(desglose.porDia)}</p>
-            </div>
-          )}
-        </div>
-      )}
+      <p className={cn('text-[11px] font-medium',
+        pctUsado >= 100 ? 'text-bad' : pctUsado >= 80 ? 'text-warn' : 'text-gray-400')}>
+        {pctUsado}% usado este mes
+      </p>
     </div>
   )
 }
@@ -224,33 +185,35 @@ export default function PresupuestoNegocioPage() {
   const toast = useToast()
   const confirmar = useConfirm()
   const { data: todosPresupuestos = [], isPending } = usePresupuestos()
-  const { data: transacciones = [] } = useTransacciones()
   const eliminar = useEliminarPresupuesto()
 
+  const [mes, setMes]               = useState(currentMonth())
   const [formOpen, setFormOpen]     = useState(false)
   const [editPresup, setEditPresup] = useState(null)
 
-  // Solo presupuestos de negocio
+  const { data: transacciones = [] } = useTransacciones({ contexto: 'negocio', mes })
+  const esMesActual = mes === currentMonth()
+  const moverMes = (n) => setMes(format(addMonths(parseISO(`${mes}-01`), n), 'yyyy-MM'))
+  const tituloMes = format(parseISO(`${mes}-01`), 'MMMM yyyy', { locale: es })
+
+  // Presupuestos de negocio que ya existían en el mes elegido
   const presupuestos = todosPresupuestos.filter((p) => p.contexto === 'negocio')
+  const delMes = presupuestos.filter((p) => aplicaEnMes(p, mes))
 
-  const items = useMemo(() => presupuestos.map((p) => {
-    const txFiltradas = transacciones.filter((t) => {
-      if (t.tipo !== 'gasto' || t.contexto !== 'negocio') return false
-      if (p.categoria) {
-        const cats = p.categoria === 'inventario'
-          ? ['inventario', 'compra_producto']
-          : [p.categoria]
-        if (!cats.includes(t.categoria)) return false
-      }
-      return t.fecha >= p.fecha_inicio
-    })
-    return { ...p, ...calcularDisponible(p, txFiltradas) }
-  }), [presupuestos, transacciones])
+  const items = useMemo(() => delMes.map((p) => ({ presupuesto: p, ...calcularMesNegocio(p, transacciones, mes) })),
+    [delMes, transacciones, mes])
 
-  const excedidos  = items.filter((i) => i.disponible < 0)
-  const enRegla    = items.filter((i) => i.disponible >= 0)
+  // Gastos de negocio del mes cuya categoría no tiene presupuesto
+  const sinPresupuesto = useMemo(() => transacciones.filter((t) =>
+    t.tipo === 'gasto' && t.contexto === 'negocio' && !delMes.some((p) => coincideNegocio(p, t))
+  ), [delMes, transacciones])
+  const montoSinPresupuesto = sinPresupuesto.reduce((s, t) => s + Number(t.monto), 0)
+  const catsSinPresupuesto = [...new Set(sinPresupuesto.map((t) =>
+    CAT_NEGOCIO_GASTO.find((c) => c.value === t.categoria)?.label || t.categoria))]
+
+  const excedidos    = items.filter((i) => i.disponible < 0)
   const gastadoTotal = items.reduce((s, i) => s + i.gastado, 0)
-  const limiteTotal  = items.reduce((s, i) => s + i.presupuestoAcumulado, 0)
+  const limiteTotal  = items.reduce((s, i) => s + i.limite, 0)
 
   const handleDelete = async (p) => {
     if (!(await confirmar({ message: `¿Eliminar "${p.nombre}"?` }))) return
@@ -261,6 +224,16 @@ export default function PresupuestoNegocioPage() {
   return (
     <>
       <div className="top-header flex-col items-stretch !h-auto pb-3">
+        <div className="flex items-center justify-between mb-2">
+          <button onClick={() => moverMes(-1)} aria-label="Mes anterior" className="icon-btn -ml-3 text-gray-400">
+            <ChevronLeft size={18} />
+          </button>
+          <span className="text-[15px] font-bold text-white capitalize">{tituloMes}</span>
+          <button onClick={() => moverMes(1)} aria-label="Mes siguiente" disabled={esMesActual}
+            className="icon-btn -mr-3 text-gray-400 disabled:text-gray-700">
+            <ChevronRight size={18} />
+          </button>
+        </div>
         {items.length > 0 && (
           <>
             <div className="grid grid-cols-3 gap-2 mb-3">
@@ -275,7 +248,7 @@ export default function PresupuestoNegocioPage() {
                 <p className="text-sm font-bold font-mono text-white">{fmt(gastadoTotal)}</p>
               </div>
               <div className="bg-surface-700 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400">Límite total</p>
+                <p className="text-[10px] text-gray-400">Límite del mes</p>
                 <p className="text-sm font-bold font-mono text-gray-300">{fmt(limiteTotal)}</p>
               </div>
             </div>
@@ -284,7 +257,7 @@ export default function PresupuestoNegocioPage() {
               <div className="flex items-center gap-2 p-3 bg-bad/10 border border-bad/20 rounded-xl">
                 <AlertCircle size={14} className="text-bad flex-shrink-0" />
                 <p className="text-xs text-bad">
-                  {excedidos.map((e) => e.nombre).join(', ')} {excedidos.length === 1 ? 'excedido' : 'excedidos'}
+                  {excedidos.map((e) => e.presupuesto.nombre).join(', ')} {excedidos.length === 1 ? 'excedido' : 'excedidos'}
                 </p>
               </div>
             )}
@@ -294,17 +267,29 @@ export default function PresupuestoNegocioPage() {
 
       <div className="page px-4 pt-4">
         {isPending ? (
-          <div className="space-y-3">{[1,2].map((i) => <div key={i} className="skeleton h-40" />)}</div>
+          <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="skeleton h-40" />)}</div>
         ) : presupuestos.length === 0 ? (
           <EmptyState emoji="🏪" title="Sin presupuestos de negocio"
             description="Crea límites de gasto para packaging, envíos, publicidad y más" />
         ) : (
           <div className="space-y-3">
+            {montoSinPresupuesto > 0 && (
+              <div className="flex items-start gap-2 p-3 bg-warn/[0.09] border border-warn/30 rounded-xl">
+                <AlertCircle size={14} className="text-warn flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-gray-200 leading-relaxed">
+                  <span className="font-semibold text-warn">{fmt(montoSinPresupuesto)} este mes no cuentan en ningún presupuesto</span>
+                  {' '}({sinPresupuesto.length} {sinPresupuesto.length === 1 ? 'gasto' : 'gastos'} de {catsSinPresupuesto.join(', ')}). Crea un presupuesto para esa categoría o uno General.
+                </p>
+              </div>
+            )}
+            {items.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-8">Ningún presupuesto existía en este mes</p>
+            )}
             {/* Excedidos primero */}
             {[...items.filter((i) => i.disponible < 0), ...items.filter((i) => i.disponible >= 0)]
-              .map((p) => (
+              .map((i) => (
                 <PresupuestoNegocioCard
-                  key={p.id} presupuesto={p} transacciones={transacciones}
+                  key={i.presupuesto.id} {...i}
                   onEdit={(p) => { setEditPresup(p); setFormOpen(true) }}
                   onDelete={handleDelete}
                 />

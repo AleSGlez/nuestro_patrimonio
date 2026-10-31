@@ -241,7 +241,7 @@ function VistaPareja({ txMesData, txHistoricoData, cuentas, tarjetas, apartados,
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {metricsGrid.map((m) => <MetricaCard key={m.label} {...m} />)}
       </div>
-      <PatrimonioDesglose {...desglose} detalleDeuda={`Ambos ${fmt(deuda.ambos)} · ${nombres.p1} ${fmt(deuda.p1)} · ${nombres.p2} ${fmt(deuda.p2)}`} />
+      <PatrimonioDesglose {...desglose} detalleDeuda={`Ambos ${fmt(deuda.ambos)} · ${nombres.p1} ${fmt(deuda.p1)} · ${nombres.p2} ${fmt(deuda.p2)}${deuda.negocio > 0 ? ` · Negocio ${fmt(deuda.negocio)}` : ''}`} />
       {txHist.length > 0 && <GraficaFlujo transacciones={txHist} />}
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
         <IngresosGastosCard ingresos={ingresos} gastos={gastos} />

@@ -76,11 +76,45 @@ export function etiquetasCubren(etiquetas, categoria, subcategoria) {
 
 // ¿Esta transacción se descuenta de este presupuesto?
 export function cuentaEnPresupuesto(presupuesto, t) {
+  if (presupuesto.contexto === 'negocio') return cuentaEnPresupuestoNegocio(presupuesto, t)
   if (t.tipo !== 'gasto') return false
   if (t.contexto === 'negocio') return false
   if (presupuesto.persona !== 'ambos' && t.persona !== presupuesto.persona && t.persona !== 'ambos') return false
   if (tieneEtiquetas(presupuesto) && !etiquetasCubren(presupuesto.categorias, t.categoria, t.subcategoria)) return false
   return t.fecha >= presupuesto.fecha_inicio
+}
+
+// Presupuestos de negocio: cuentan los gastos con contexto negocio (los
+// personales nunca). `categoria` vacía = General, todos los de negocio.
+const CATS_NEGOCIO_EQUIVALENTES = { inventario: ['inventario', 'compra_producto'] }
+export function coincideNegocio(presupuesto, t) {
+  if (t.tipo !== 'gasto' || t.contexto !== 'negocio') return false
+  return !presupuesto.categoria ||
+    (CATS_NEGOCIO_EQUIVALENTES[presupuesto.categoria] || [presupuesto.categoria]).includes(t.categoria)
+}
+export function cuentaEnPresupuestoNegocio(presupuesto, t) {
+  return coincideNegocio(presupuesto, t) && t.fecha >= presupuesto.fecha_inicio
+}
+
+// Negocio por mes, sin arrastre: el límite del mes contra lo gastado ese mes.
+// Un presupuesto aplica desde el mes de su fecha de inicio.
+export function aplicaEnMes(presupuesto, mes) {
+  return (presupuesto.fecha_inicio || '').slice(0, 7) <= mes
+}
+export function calcularMesNegocio(presupuesto, transacciones, mes) {
+  const [año, m] = mes.split('-').map(Number)
+  const diasMes = new Date(año, m, 0).getDate()
+  const base = Number(presupuesto.monto_base)
+  const limite = presupuesto.tipo === 'semanal' ? base * (diasMes / 7)
+    : presupuesto.tipo === 'trimestral' ? base / 3
+    : base
+  const movimientos = transacciones.filter((t) => (t.fecha || '').startsWith(mes) && coincideNegocio(presupuesto, t))
+  const gastado = movimientos.reduce((s, t) => s + Number(t.monto), 0)
+  return {
+    limite, gastado, movimientos,
+    disponible: limite - gastado,
+    pctUsado: limite > 0 ? Math.round((gastado / limite) * 100) : 0,
+  }
 }
 
 // Dos presupuestos compiten por un gasto si sus personas se traslapan

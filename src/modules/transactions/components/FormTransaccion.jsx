@@ -133,7 +133,8 @@ export default function FormTransaccion({ open, onClose, tx = null, plantilla = 
     const payload = {
       tipo, contexto, monto: Number(monto), categoria,
       descripcion: descripcion.trim() || null,
-      fecha, persona, metodo_pago: metodoValor,
+      // En negocio el selector de persona no se muestra: el gasto es del negocio, no de Ale o Ruli
+      fecha, persona: contexto === 'negocio' ? 'ambos' : persona, metodo_pago: metodoValor,
       cuenta_id:  tipoMetodo === 'cuenta' ? partes[1]
                 : tipoMetodo === 'apartado' ? partes[2] : null,
       tarjeta_id: tipoMetodo === 'tarjeta' ? partes[1] : null,
