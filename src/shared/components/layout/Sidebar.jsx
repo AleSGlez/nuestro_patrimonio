@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '@store/appStore'
 import { cn } from '@lib/utils'
+import ResumenRapido from '@modules/presupuestos/components/ResumenRapido'
 
 const NAV_ITEMS = [
   { id: 'inicio',     label: 'Inicio',     icon: Home },
@@ -36,9 +37,9 @@ export default function Sidebar({ active, onChange, onAccion }) {
   const colapsado = useAppStore((s) => s.sidebarColapsado)
   const setColapsado = useAppStore((s) => s.setSidebarColapsado)
 
-  const handleAccion = (id) => {
+  const handleAccion = (id, extra) => {
     setMenuOpen(false)
-    onAccion?.(id)
+    onAccion?.(id, extra)
   }
 
   return (
@@ -77,7 +78,7 @@ export default function Sidebar({ active, onChange, onAccion }) {
             <div className="fixed inset-0 z-40 animate-fade-in" onClick={() => setMenuOpen(false)} />
             <div className={cn(
               'absolute top-[52px] z-50 bg-surface-800 border border-white/10 rounded-2xl p-2 space-y-1 shadow-xl animate-scale-in origin-top',
-              colapsado ? 'left-3 w-56' : 'left-3 right-3'
+              'left-3 w-[340px]'
             )}>
               {ACCIONES.map(({ id, label, icon: Icon, color }) => (
                 <button
@@ -89,6 +90,9 @@ export default function Sidebar({ active, onChange, onAccion }) {
                   <span className="text-sm font-medium">{label}</span>
                 </button>
               ))}
+              <ResumenRapido className="pt-1"
+                onVerPresupuestos={() => handleAccion('ver-presupuestos')}
+                onRepetir={(tx) => handleAccion('repetir', tx)} />
             </div>
           </>
         )}

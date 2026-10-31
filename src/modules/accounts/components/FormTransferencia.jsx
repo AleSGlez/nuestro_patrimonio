@@ -215,6 +215,11 @@ export default function FormTransferencia({ open, onClose }) {
         <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="input" />
       </div>
 
+      <p className="text-[11px] text-gray-400 mb-3 leading-relaxed">
+        {tipo === 'pago_tarjeta'
+          ? 'Pagar la tarjeta no se descuenta de los presupuestos: esos gastos ya contaron cuando usaste la tarjeta.'
+          : 'Las transferencias no cuentan como gasto ni afectan los presupuestos.'}
+      </p>
       <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold">
         {loading ? <Spinner size="sm" /> : <><Check size={16} />Registrar transferencia</>}
       </button>

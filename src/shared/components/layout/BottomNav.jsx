@@ -4,6 +4,7 @@ import { Home, Wallet, Users, Store, MoreHorizontal, Plus, X,
          TrendingDown, TrendingUp, ArrowLeftRight, ShoppingCart, CreditCard, CalendarDays } from 'lucide-react'
 import { cn } from '@lib/utils'
 import { useAppStore } from '@store/appStore'
+import ResumenRapido from '@modules/presupuestos/components/ResumenRapido'
 
 const LEFT_TABS  = [
   { id: 'inicio',    label: 'Inicio',    icon: Home },
@@ -24,9 +25,9 @@ const ACCIONES = [
 export default function BottomNav({ active, onChange, onAccion }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const handleAccion = (id) => {
+  const handleAccion = (id, extra) => {
     setMenuOpen(false)
-    onAccion?.(id)
+    onAccion?.(id, extra)
   }
 
   return (
@@ -46,6 +47,9 @@ export default function BottomNav({ active, onChange, onAccion }) {
             width: 'calc(100% - 32px)', maxWidth: '398px',
           }}
         >
+          <ResumenRapido className="mb-2 animate-scale-in origin-bottom"
+            onVerPresupuestos={() => handleAccion('ver-presupuestos')}
+            onRepetir={(tx) => handleAccion('repetir', tx)} />
           <div className="bg-surface-800 border border-white/10 rounded-2xl p-3 grid grid-cols-2 gap-2 animate-scale-in origin-bottom">
             {ACCIONES.map(({ id, label, icon: Icon, color }) => (
               <button key={id} onClick={() => handleAccion(id)}

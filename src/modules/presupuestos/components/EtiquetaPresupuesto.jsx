@@ -5,7 +5,7 @@ import { usePresupuestos, presupuestosDeGasto, calcularDisponible } from '../hoo
 import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
 import { fmt, cn, montoParaPersona, CAT_GASTO } from '@lib/utils'
 
-export default function EtiquetaPresupuesto({ categoria, persona, monto, fecha, txId = null }) {
+export default function EtiquetaPresupuesto({ categoria, subcategoria = null, persona, monto, fecha, txId = null }) {
   const { data: presupuestos = [] } = usePresupuestos()
   const { data: transacciones = [] } = useTransacciones()
 
@@ -14,7 +14,7 @@ export default function EtiquetaPresupuesto({ categoria, persona, monto, fecha, 
 
   // Al editar, el gasto original no cuenta en el "disponible ahora"
   const txs = txId ? transacciones.filter((t) => t.id !== txId) : transacciones
-  const etiquetados = presupuestosDeGasto(personales, categoria, persona)
+  const etiquetados = presupuestosDeGasto(personales, categoria, persona, subcategoria)
   // Un gasto anterior al inicio del presupuesto no se descuenta de él
   const destinos = etiquetados.filter((p) => !fecha || fecha >= p.fecha_inicio)
 
@@ -27,7 +27,7 @@ export default function EtiquetaPresupuesto({ categoria, persona, monto, fecha, 
           <span className="text-xs font-semibold text-warn">Sin presupuesto</span>
         </div>
         <p className="text-[11px] text-gray-300 leading-relaxed">
-          {c ? `${c.emoji} ${c.label}` : categoria} no está etiquetada en ningún presupuesto, así que este gasto no se descuenta de ninguno. Puedes etiquetarla en Finanzas › Presupuestos.
+          {c ? `${c.emoji} ${c.label}` : categoria}{subcategoria ? ` › ${subcategoria}` : ''} no está etiquetada en ningún presupuesto, así que este gasto no se descuenta de ninguno. Puedes etiquetarla en Finanzas › Presupuestos.
         </p>
       </div>
     )

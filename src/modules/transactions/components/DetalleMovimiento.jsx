@@ -25,7 +25,7 @@ function PresupuestosDelGasto({ tx }) {
   const { data: presupuestos = [] } = usePresupuestos()
   const { data: transacciones = [] } = useTransacciones()
   const personales = presupuestos.filter((p) => !p.contexto || p.contexto === 'personal')
-  const destinos = presupuestosDeGasto(personales, tx.categoria, tx.persona)
+  const destinos = presupuestosDeGasto(personales, tx.categoria, tx.persona, tx.subcategoria)
     .filter((p) => tx.fecha >= p.fecha_inicio)
   if (destinos.length === 0) return <span className="text-gray-400">Ninguno</span>
   return (
@@ -97,7 +97,7 @@ export default function DetalleMovimiento({ item, onClose, nombres, cuentasMap, 
       </div>
 
       <div className="bg-surface-700 rounded-2xl px-3.5 mb-3">
-        <Fila label="Categoría">{cat.emoji} {cat.label}</Fila>
+        <Fila label="Categoría">{cat.emoji} {cat.label}{tx.subcategoria && ` › ${tx.subcategoria}`}</Fila>
         <Fila label={esIngreso ? 'Entró a' : 'Pagado con'}>{metodo || <span className="text-gray-400">Sin cuenta</span>}</Fila>
         {tx.contexto !== 'negocio' && (
           <Fila label="De quién">

@@ -82,6 +82,25 @@ export const CAT_INGRESO = [
   { value: 'otros',      label: 'Otros',       emoji: '📦' },
 ]
 
+// Subcategorías sugeridas de gastos/ingresos personales. Las que agrega la
+// pareja viven en la tabla `subcategorias` (useSubcategorias).
+export const SUBCATEGORIAS_GASTO = {
+  alimentacion:    ['Súper', 'Restaurantes', 'Café', 'Antojos', 'A domicilio'],
+  transporte:      ['Gasolina', 'Estacionamiento', 'Uber / Didi', 'Casetas', 'Transporte público', 'Servicio auto'],
+  entretenimiento: ['Cine', 'Bares', 'Conciertos', 'Juegos'],
+  salud:           ['Farmacia', 'Consultas', 'Gimnasio'],
+  educacion:       ['Colegiatura', 'Cursos', 'Libros'],
+  ropa:            ['Ropa', 'Zapatos', 'Accesorios'],
+  servicios:       ['Luz', 'Agua', 'Gas', 'Internet', 'Celular'],
+  hogar:           ['Renta', 'Limpieza', 'Muebles', 'Reparaciones'],
+  viajes:          ['Vuelos', 'Hospedaje', 'Comidas de viaje'],
+  mascotas:        ['Comida', 'Veterinario', 'Estética'],
+}
+
+export const SUBCATEGORIAS_INGRESO = {
+  sueldo: ['Quincena', 'Aguinaldo', 'Bono'],
+}
+
 export const CAT_NEGOCIO_GASTO = [
   { value: 'inventario', label: 'Inventario', emoji: '🃏' },
   { value: 'packaging',    label: 'Packaging',    emoji: '📦' },

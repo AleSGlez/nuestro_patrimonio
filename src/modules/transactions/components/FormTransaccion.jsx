@@ -11,13 +11,15 @@ import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useCrearTransaccion, useActualizarTransaccion, parsearMetodoPago } from '../hooks/useTransacciones'
 import { useAppStore } from '@store/appStore'
 import EtiquetaPresupuesto from '@modules/presupuestos/components/EtiquetaPresupuesto'
+import SelectorCategoria from './SelectorCategoria'
 import { CAT_GASTO, CAT_INGRESO, CAT_NEGOCIO_GASTO, CAT_NEGOCIO_INGRESO, today, cn,
          filtrarCuentasPorContexto, filtrarTarjetasPorContexto, opcionesApartadosNegocio,
          TIPO_EMOJI_CUENTA } from '@lib/utils'
 
 // `plantilla`: un movimiento existente para "Repetir" — se copian sus datos
 // como un movimiento NUEVO con fecha de hoy
-export default function FormTransaccion({ open, onClose, tx = null, plantilla = null, contextoInicial = 'personal', tipoInicial = 'gasto' }) {
+// `onTransferir`: si viene, el selector de tipo ofrece "Transferir" (abre FormTransferencia)
+export default function FormTransaccion({ open, onClose, tx = null, plantilla = null, contextoInicial = 'personal', tipoInicial = 'gasto', onTransferir = null }) {
   const { nombres } = useAppStore()
   const toast = useToast()
   const { data: cuentas = [] } = useCuentas()
@@ -38,6 +40,7 @@ export default function FormTransaccion({ open, onClose, tx = null, plantilla = 
   const [contexto, setContexto]     = useState(contextoInicial)
   const [monto, setMonto]           = useState('')
   const [categoria, setCategoria]   = useState('')
+  const [subcategoria, setSubcategoria] = useState(null)
   const [descripcion, setDesc]      = useState('')
   const [fecha, setFecha]           = useState(today())
   const [persona, setPersona]       = useState('p1')
@@ -76,7 +79,7 @@ export default function FormTransaccion({ open, onClose, tx = null, plantilla = 
     : contexto === 'negocio' ? CAT_NEGOCIO_GASTO
     : tipo === 'ingreso'    ? CAT_INGRESO
     : CAT_GASTO
-  ).map((c) => ({ value: c.value, label: `${c.emoji} ${c.label}` }))
+  )
 
   // Evita que el efecto de auto-selección pise el método recién inicializado:
   // ambos efectos corren en el mismo commit al abrir, y el segundo leería el
@@ -90,7 +93,7 @@ export default function FormTransaccion({ open, onClose, tx = null, plantilla = 
     const base = tx || plantilla
     if (base) {
       setTipo(base.tipo); setContexto(base.contexto); setMonto(String(base.monto))
-      setCategoria(base.categoria); setDesc(base.descripcion || ''); setFecha(tx ? tx.fecha : today())
+      setCategoria(base.categoria); setSubcategoria(base.subcategoria || null); setDesc(base.descripcion || ''); setFecha(tx ? tx.fecha : today())
       setPersona(base.persona)
       // Parsear con la misma lógica que aplicar/revertirEfecto — cubre los
       // formatos "tarjeta:UUID"/"cuenta:UUID"/"apartado:UUID:cuentaUUID" y el legacy
@@ -101,7 +104,7 @@ export default function FormTransaccion({ open, onClose, tx = null, plantilla = 
       else setMetodoValor('')
     } else {
       setTipo(tipoInicial); setContexto(contextoInicial); setMonto('')
-      setCategoria(''); setDesc(''); setFecha(today())
+      setCategoria(''); setSubcategoria(null); setDesc(''); setFecha(today())
       setPersona(contextoInicial === 'negocio' ? 'ambos' : 'p1')
       setMetodoValor('')
     }
@@ -135,6 +138,10 @@ export default function FormTransaccion({ open, onClose, tx = null, plantilla = 
                 : tipoMetodo === 'apartado' ? partes[2] : null,
       tarjeta_id: tipoMetodo === 'tarjeta' ? partes[1] : null,
     }
+    // Solo se manda la columna cuando hay subcategoría (o se quita una que
+    // había), así registrar sigue funcionando antes de la migración v3_27
+    const sub = contexto === 'personal' ? subcategoria : null
+    if (sub || tx?.subcategoria) payload.subcategoria = sub || null
 
     try {
       if (isEdit) {
@@ -150,103 +157,126 @@ export default function FormTransaccion({ open, onClose, tx = null, plantilla = 
     }
   }
 
+  const TIPOS = [
+    ['gasto', 'Gasto', 'bg-bad'],
+    ['ingreso', 'Ingreso', 'bg-ok'],
+    ...(onTransferir && !isEdit ? [['transferencia', 'Transferir', 'bg-[var(--accent)]']] : []),
+  ]
+
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar movimiento' : 'Nuevo movimiento'}>
-      <div className="flex bg-surface-700 rounded-xl p-1 mb-3">
-        {['gasto', 'ingreso'].map((t) => (
-          <button
-            key={t}
-            onClick={() => { setTipo(t); setCategoria('') }}
-            className={cn(
-              'flex-1 py-2 text-sm font-medium rounded-lg transition-all',
-              tipo === t ? (t === 'gasto' ? 'bg-bad text-white' : 'bg-ok text-white') : 'text-gray-400'
-            )}
-          >
-            {t === 'gasto' ? '↑ Gasto' : '↓ Ingreso'}
-          </button>
-        ))}
-      </div>
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar movimiento' : 'Registrar'} className="lg:max-w-3xl">
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+        <div>
+          <div className="flex bg-surface-700 rounded-xl p-1 mb-3">
+            {TIPOS.map(([t, label, color]) => (
+              <button
+                key={t}
+                onClick={() => {
+                  if (t === 'transferencia') { onTransferir(); return }
+                  setTipo(t); setCategoria(''); setSubcategoria(null)
+                }}
+                className={cn(
+                  'flex-1 py-2 text-sm font-medium rounded-lg transition-all',
+                  tipo === t ? `${color} text-white` : 'text-gray-400'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-      <div className="flex bg-surface-700 rounded-xl p-1 mb-5">
-        {[['personal','👤 Personal'],['negocio','🏪 Negocio']].map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => { setContexto(id); setCategoria('') }}
-            className={cn(
-              'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
-              contexto === id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+          <div className="flex bg-surface-700 rounded-xl p-1 mb-5">
+            {[['personal','👤 Personal'],['negocio','🏪 Negocio']].map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => { setContexto(id); setCategoria(''); setSubcategoria(null) }}
+                className={cn(
+                  'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
+                  contexto === id ? 'bg-[var(--accent)] text-white' : 'text-gray-400'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-      <div className="mb-5">
-        <label className="label">Monto</label>
-        <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400 font-mono">$</span>
-          <input
-            type="text" inputMode="decimal" value={monto}
-            onChange={(e) => setMonto(e.target.value.replace(/[^0-9.]/g, ''))}
-            placeholder="0.00"
-            className="input pl-10 text-2xl font-bold font-mono h-14"
-            autoFocus={!isEdit}
+          <div className="mb-5">
+            <label className="label">Monto</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400 font-mono">$</span>
+              <input
+                type="text" inputMode="decimal" value={monto}
+                onChange={(e) => setMonto(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="0.00"
+                className="input pl-10 text-2xl font-bold font-mono h-14"
+                autoFocus={!isEdit}
+              />
+            </div>
+          </div>
+
+          <SelectorCategoria
+            opciones={catOpts} tipo={tipo}
+            categoria={categoria} onCategoria={setCategoria}
+            subcategoria={subcategoria} onSubcategoria={setSubcategoria}
+            conSubcategorias={contexto === 'personal'}
           />
         </div>
-      </div>
 
-      <Select label="Categoría" value={categoria} onChange={setCategoria} options={catOpts} placeholder="Selecciona categoría" />
-
-      {tipo === 'gasto' && contexto === 'personal' && (
-        <EtiquetaPresupuesto categoria={categoria} persona={persona} monto={monto} fecha={fecha} txId={tx?.id} />
-      )}
-
-      <Input
-        label="Descripción (opcional)" value={descripcion}
-        onChange={(e) => setDesc(e.target.value)}
-        placeholder="¿En qué fue?"
-      />
-
-      <div className="grid grid-cols-2 gap-3 mb-4">
         <div>
-          <label className="label">Fecha</label>
-          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="input" />
+          {tipo === 'gasto' && contexto === 'personal' && (
+            <EtiquetaPresupuesto categoria={categoria} subcategoria={subcategoria} persona={persona} monto={monto} fecha={fecha} txId={tx?.id} />
+          )}
+          {tipo === 'ingreso' && contexto === 'personal' && (
+            <p className="text-[11px] text-gray-400 mb-4">Los ingresos no se descuentan de los presupuestos.</p>
+          )}
+
+          <Input
+            label="Descripción (opcional)" value={descripcion}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder="¿En qué fue?"
+          />
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="label">Fecha</label>
+              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="input" />
+            </div>
+            {contexto === 'personal' && (
+              <Select label="Persona" value={persona} onChange={setPersona} options={PERSONA_OPTS} className="mb-0" />
+            )}
+          </div>
+
+          {metodoOpts.length > 0 ? (
+            <Select
+              label="Método de pago"
+              value={metodoValor}
+              onChange={setMetodoValor}
+              options={metodoOpts}
+              placeholder="¿De dónde sale/entra el dinero?"
+            />
+          ) : (
+            <p className="text-xs text-warn mb-4">
+              {persona === 'ambos'
+                ? `No hay cuentas ${contexto === 'negocio' ? 'de negocio' : 'disponibles'}. Agrega una primero.`
+                : `${persona === 'p1' ? nombres.p1 : nombres.p2} no tiene cuentas ni tarjetas propias. Agrega una primero.`}
+            </p>
+          )}
+
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className={cn(
+              'btn w-full py-3.5 text-sm font-semibold mt-2',
+              tipo === 'gasto' ? 'bg-bad hover:brightness-110 text-white' : 'bg-ok hover:brightness-110 text-white'
+            )}
+          >
+            {loading
+              ? <Spinner size="sm" />
+              : <><Check size={16} />{isEdit ? 'Guardar cambios' : tipo === 'gasto' ? 'Registrar gasto' : 'Registrar ingreso'}</>
+            }
+          </button>
         </div>
-        {contexto === 'personal' && (
-          <Select label="Persona" value={persona} onChange={setPersona} options={PERSONA_OPTS} className="mb-0" />
-        )}
       </div>
-
-      {metodoOpts.length > 0 ? (
-        <Select
-          label="Método de pago"
-          value={metodoValor}
-          onChange={setMetodoValor}
-          options={metodoOpts}
-          placeholder="¿De dónde sale/entra el dinero?"
-        />
-      ) : (
-        <p className="text-xs text-warn mb-4">
-          {persona === 'ambos'
-            ? `No hay cuentas ${contexto === 'negocio' ? 'de negocio' : 'disponibles'}. Agrega una primero.`
-            : `${persona === 'p1' ? nombres.p1 : nombres.p2} no tiene cuentas ni tarjetas propias. Agrega una primero.`}
-        </p>
-      )}
-
-      <button
-        onClick={handleSave}
-        disabled={loading}
-        className={cn(
-          'btn w-full py-3.5 text-sm font-semibold mt-2',
-          tipo === 'gasto' ? 'bg-bad hover:brightness-110 text-white' : 'bg-ok hover:brightness-110 text-white'
-        )}
-      >
-        {loading
-          ? <Spinner size="sm" />
-          : <><Check size={16} />{isEdit ? 'Guardar cambios' : 'Registrar'}</>
-        }
-      </button>
     </Modal>
   )
 }

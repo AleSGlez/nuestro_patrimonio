@@ -12,9 +12,13 @@ import FormPresupuesto from './components/FormPresupuesto'
 import DetallePresupuesto from './components/DetallePresupuesto'
 import { fmt, cn, currentMonth, CAT_GASTO } from '@lib/utils'
 
-const catLabel = (value) => {
+// 'transporte' o 'transporte:Gasolina' (solo esa subcategoría)
+const catLabel = (etiqueta) => {
+  const i = (etiqueta || '').indexOf(':')
+  const value = i === -1 ? etiqueta : etiqueta.slice(0, i)
   const c = CAT_GASTO.find((x) => x.value === value)
-  return c ? `${c.emoji} ${c.label}` : `📦 ${value || 'Sin categoría'}`
+  const base = c ? `${c.emoji} ${c.label}` : `📦 ${value || 'Sin categoría'}`
+  return i === -1 ? base : `${base} › ${etiqueta.slice(i + 1)}`
 }
 
 const TIPO_LABEL = { diario: 'Diario', semanal: 'Semanal', mensual: 'Mensual' }

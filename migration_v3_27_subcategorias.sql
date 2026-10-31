@@ -6,7 +6,7 @@
 --  en el código; esta tabla guarda solo las que la pareja agrega.
 --  transacciones.subcategoria = nombre de la subcategoría (NULL = sin).
 --  presupuestos.categorias puede incluir 'categoria' (toda) o
---  'categoria›Subcategoría' (solo esa subcategoría).
+--  'categoria:Subcategoría' (solo esa subcategoría).
 -- ================================================================
 
 CREATE TABLE IF NOT EXISTS subcategorias (

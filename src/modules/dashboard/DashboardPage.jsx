@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [finanzasSubTab, setFinanzasSubTab] = useState('resumen')
   const [formOpen, setFormOpen]         = useState(false)
   const [formTipo, setFormTipo]         = useState('gasto')
+  const [plantilla, setPlantilla]       = useState(null)
   const [transfOpen, setTransfOpen]     = useState(false)
   const [susOpen, setSusOpen]           = useState(false)
 
@@ -28,9 +29,13 @@ export default function DashboardPage() {
     setTab(nuevoTab)
   }
 
-  const handleAccion = (accion) => {
+  const handleAccion = (accion, extra) => {
     if (accion === 'gasto' || accion === 'ingreso') {
-      setFormTipo(accion); setFormOpen(true)
+      setPlantilla(null); setFormTipo(accion); setFormOpen(true)
+    } else if (accion === 'repetir') {
+      setPlantilla(extra); setFormTipo('gasto'); setFormOpen(true)
+    } else if (accion === 'ver-presupuestos') {
+      handleNavegar('finanzas', 'presupuestos')
     } else if (accion === 'transferencia') {
       setTransfOpen(true)
     } else if (accion === 'suscripcion') {
@@ -60,7 +65,8 @@ export default function DashboardPage() {
       </div>
       <RightRail />
       {formOpen && (
-        <FormTransaccion open={formOpen} onClose={() => setFormOpen(false)} tipoInicial={formTipo} />
+        <FormTransaccion open={formOpen} onClose={() => setFormOpen(false)} tipoInicial={formTipo} plantilla={plantilla}
+          onTransferir={() => { setFormOpen(false); setTransfOpen(true) }} />
       )}
       <FormTransferencia open={transfOpen} onClose={() => setTransfOpen(false)} />
       <FormSuscripcionGlobal open={susOpen} onClose={() => setSusOpen(false)} />

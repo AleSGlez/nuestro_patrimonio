@@ -5,11 +5,76 @@ import Modal from '@ui/Modal'
 import { Input, AmountInput, Select } from '@ui/Field'
 import Spinner from '@ui/Spinner'
 import { useToast } from '@ui/Toast'
+import { ChevronDown } from 'lucide-react'
 import { usePresupuestos, useCrearPresupuesto, useActualizarPresupuesto,
-         calcularDisponible, tieneEtiquetas, personasSeTraslapan } from '../hooks/usePresupuestos'
+         calcularDisponible, tieneEtiquetas, personasSeTraslapan,
+         etiquetaSub, separarEtiqueta } from '../hooks/usePresupuestos'
 import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
+import { useSubcategorias, subcategoriasDe } from '@modules/transactions/hooks/useSubcategorias'
 import { useAppStore } from '@store/appStore'
 import { today, fmt, cn, CAT_GASTO } from '@lib/utils'
+
+// ¿Qué otro presupuesto ya tiene esta etiqueta (o la choca)? La categoría
+// completa choca con cualquiera de sus subcategorías y al revés.
+function dueñoDe(tag, tomadas) {
+  const { categoria, sub } = separarEtiqueta(tag)
+  if (tomadas[categoria]) return tomadas[categoria]
+  if (sub) return tomadas[tag] || null
+  const otra = Object.keys(tomadas).find((k) => separarEtiqueta(k).categoria === categoria)
+  return otra ? tomadas[otra] : null
+}
+
+function FilaCategoria({ cat, subs, etiquetas, tomadas, abierta, onAbrir, onToda, onSub }) {
+  const toda = etiquetas.includes(cat.value)
+  const elegidas = subs.filter((s) => toda || etiquetas.includes(etiquetaSub(cat.value, s)))
+  const dueñoToda = !toda && dueñoDe(cat.value, tomadas)
+  const activa = toda || elegidas.length > 0
+  const estado = toda ? 'Toda la categoría'
+    : elegidas.length ? `Solo ${elegidas.join(', ')}`
+    : dueñoToda ? `En «${dueñoToda}»` : 'No cuenta'
+
+  return (
+    <div className={cn('bg-surface-700 border rounded-xl', activa ? 'border-[var(--accent)]/50' : 'border-white/[0.06]')}>
+      <div className="flex items-center gap-2.5 pl-3 pr-1 min-h-[50px]">
+        <span className="text-lg flex-shrink-0">{cat.emoji}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white">{cat.label}</p>
+          <p className={cn('text-[11px] truncate', activa ? 'text-[var(--accent-light)]' : 'text-gray-400')}>{estado}</p>
+        </div>
+        <button
+          type="button" onClick={onToda} disabled={Boolean(dueñoToda)} aria-pressed={toda}
+          className={cn('h-8 px-3 rounded-full text-[11px] font-semibold border flex-shrink-0 disabled:opacity-40',
+            toda ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-white/15 text-gray-300')}
+        >
+          Toda
+        </button>
+        {subs.length > 0 && (
+          <button type="button" onClick={onAbrir} aria-label={`Elegir subcategorías de ${cat.label}`} aria-expanded={abierta}
+            className="w-10 h-10 flex items-center justify-center text-gray-400 flex-shrink-0">
+            <ChevronDown size={16} className={cn('transition-transform', abierta && 'rotate-180')} />
+          </button>
+        )}
+      </div>
+      {abierta && subs.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-3 pb-3">
+          {subs.map((s) => {
+            const on = elegidas.includes(s)
+            const dueño = !on && dueñoDe(etiquetaSub(cat.value, s), tomadas)
+            return (
+              <button
+                key={s} type="button" onClick={() => onSub(s)} disabled={Boolean(dueño)} aria-pressed={on}
+                className={cn('min-h-[34px] px-3 rounded-full text-xs font-medium border disabled:opacity-40',
+                  on ? 'bg-[var(--accent-muted)] border-[var(--accent)] text-white' : 'border-white/10 text-gray-300')}
+              >
+                {s}{dueño && <span className="text-[10px] text-gray-400"> · {dueño}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const TIPOS = [
   { value: 'diario',   label: '📅 Diario' },
@@ -40,6 +105,8 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
   const [persona, setPersona]       = useState('ambos')
   const [fechaInicio, setFechaInicio] = useState(today())
   const [categorias, setCategorias] = useState([])
+  const [abierta, setAbierta]       = useState(null)
+  const { data: propias = [] } = useSubcategorias()
 
   const { data: presupuestos = [] } = usePresupuestos()
   const { data: transacciones = [] } = useTransacciones()
@@ -65,9 +132,21 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
     .filter((p) => tieneEtiquetas(p) && personasSeTraslapan(p.persona, persona))
     .forEach((p) => p.categorias.forEach((c) => { tomadas[c] = p.nombre }))
 
-  const toggleCategoria = (c) => setCategorias((sel) =>
-    sel.includes(c) ? sel.filter((x) => x !== c) : [...sel, c]
+  // Toda la categoría: reemplaza a sus subcategorías sueltas
+  const toggleToda = (cat) => setCategorias((sel) =>
+    sel.includes(cat)
+      ? sel.filter((x) => x !== cat)
+      : [...sel.filter((x) => separarEtiqueta(x).categoria !== cat), cat]
   )
+  // Una subcategoría: si la categoría estaba completa, se abre en sus subs menos esta
+  const toggleSub = (cat, sub) => setCategorias((sel) => {
+    const tag = etiquetaSub(cat, sub)
+    if (sel.includes(cat)) {
+      const resto = subcategoriasDe(cat, propias).filter((s) => s !== sub).map((s) => etiquetaSub(cat, s))
+      return [...sel.filter((x) => x !== cat), ...resto]
+    }
+    return sel.includes(tag) ? sel.filter((x) => x !== tag) : [...sel, tag]
+  })
 
   // Efecto en vivo de las etiquetas elegidas
   const efecto = Number(montoBase) > 0 && fechaInicio
@@ -77,8 +156,8 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
     if (!montoBase || Number(montoBase) <= 0) { toast.error('Ingresa el monto'); return }
-    const choque = categorias.find((c) => tomadas[c])
-    if (choque) { toast.error(`Esa categoría ya está en "${tomadas[choque]}"`); return }
+    const choque = categorias.map((c) => dueñoDe(c, tomadas)).find(Boolean)
+    if (choque) { toast.error(`Parte de lo elegido ya está en "${choque}"`); return }
 
     const payload = {
       nombre: nombre.trim(), emoji, tipo,
@@ -146,32 +225,22 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
       )}
 
       <div className="mb-4">
-        <label className="label">Categorías que cuentan aquí</label>
+        <label className="label">Qué gastos cuentan aquí</label>
         <p className="text-[11px] text-gray-400 -mt-0.5 mb-2.5 leading-relaxed">
-          Solo los gastos de estas categorías se descuentan de este presupuesto. Una categoría pertenece a un solo presupuesto.
+          Toma la categoría completa o ábrela para elegir solo algunas subcategorías. Cada una pertenece a un solo presupuesto.
         </p>
-        <div className="flex flex-wrap gap-1.5">
-          {CAT_GASTO.map((c) => {
-            const activa = categorias.includes(c.value)
-            const dueno = !activa && tomadas[c.value]
-            return (
-              <button
-                key={c.value} type="button"
-                onClick={() => toggleCategoria(c.value)}
-                disabled={Boolean(dueno)} aria-pressed={activa}
-                className={cn(
-                  'inline-flex items-center gap-1 min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
-                  activa ? 'bg-[var(--accent-muted)] border-[var(--accent)]/50 text-[var(--accent-light)]'
-                  : dueno ? 'bg-white/[0.02] border-white/[0.06] text-gray-400'
-                  : 'bg-surface-700 border-white/10 text-gray-200'
-                )}
-              >
-                {c.emoji} {c.label}
-                {activa && <Check size={13} strokeWidth={3} />}
-                {dueno && <span className="text-[10px] text-gray-400">· {dueno}</span>}
-              </button>
-            )
-          })}
+        <div className="space-y-1.5">
+          {CAT_GASTO.map((c) => (
+            <FilaCategoria
+              key={c.value} cat={c}
+              subs={subcategoriasDe(c.value, propias)}
+              etiquetas={categorias} tomadas={tomadas}
+              abierta={abierta === c.value}
+              onAbrir={() => setAbierta(abierta === c.value ? null : c.value)}
+              onToda={() => toggleToda(c.value)}
+              onSub={(s) => toggleSub(c.value, s)}
+            />
+          ))}
         </div>
         {categorias.length === 0 && (
           <p className="text-[11px] text-warn mt-2">Sin categorías: cuentan todos los gastos</p>
@@ -189,7 +258,7 @@ export default function FormPresupuesto({ open, onClose, presupuesto = null }) {
           </div>
           <div className="flex justify-between text-[11px] mb-2">
             <span className="text-gray-300">
-              Gastado en {categorias.length === 0 ? 'todas las categorías' : categorias.length === 1 ? '1 categoría' : `${categorias.length} categorías`}
+              Gastado en {categorias.length === 0 ? 'todas las categorías' : 'lo elegido'}
             </span>
             <span className="font-mono text-white">{fmt(efecto.gastado)}</span>
           </div>

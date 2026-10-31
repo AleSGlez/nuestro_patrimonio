@@ -44,7 +44,7 @@ function TxRow({ tx, nombres, cuentasMap, tarjetasMap, onOpen }) {
             <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wide text-warn bg-warn/[0.14] px-1.5 py-0.5 rounded-md">Negocio</span>
           )}
         </div>
-        <p className="text-[11px] text-gray-400 truncate mt-0.5">{cat.label}{metodo && ` · ${metodo}`}</p>
+        <p className="text-[11px] text-gray-400 truncate mt-0.5">{cat.label}{tx.subcategoria && ` › ${tx.subcategoria}`}{metodo && ` · ${metodo}`}</p>
       </div>
       <div className="flex-shrink-0 flex flex-col items-end gap-1">
         <span className={cn('text-sm font-semibold font-mono', isIngreso ? 'text-ok' : 'text-white')}>
@@ -128,7 +128,7 @@ export default function TransactionsPage() {
       if (filtros.categorias.length && !filtros.categorias.includes(t.categoria)) return false
       if (filtros.cuentas.length && !filtros.cuentas.includes(claveMetodo(t))) return false
       if (q) {
-        const texto = [t.descripcion, getCatInfo(t.categoria).label, nombrePersona(t.persona),
+        const texto = [t.descripcion, getCatInfo(t.categoria).label, t.subcategoria, nombrePersona(t.persona),
           etiquetaMetodo(t, cuentasMap, tarjetasMap)].join(' ').toLowerCase()
         if (!texto.includes(q)) return false
       }

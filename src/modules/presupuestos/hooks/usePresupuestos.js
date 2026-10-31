@@ -62,12 +62,24 @@ export function tieneEtiquetas(presupuesto) {
   return Array.isArray(presupuesto.categorias) && presupuesto.categorias.length > 0
 }
 
+// Una etiqueta es la categoría completa ('transporte') o solo una
+// subcategoría de ella ('transporte:Gasolina')
+export const SEP_SUB = ':'
+export const etiquetaSub = (categoria, sub) => `${categoria}${SEP_SUB}${sub}`
+export function separarEtiqueta(etiqueta) {
+  const i = etiqueta.indexOf(SEP_SUB)
+  return i === -1 ? { categoria: etiqueta, sub: null } : { categoria: etiqueta.slice(0, i), sub: etiqueta.slice(i + 1) }
+}
+export function etiquetasCubren(etiquetas, categoria, subcategoria) {
+  return etiquetas.includes(categoria) || (!!subcategoria && etiquetas.includes(etiquetaSub(categoria, subcategoria)))
+}
+
 // ¿Esta transacción se descuenta de este presupuesto?
 export function cuentaEnPresupuesto(presupuesto, t) {
   if (t.tipo !== 'gasto') return false
   if (t.contexto === 'negocio') return false
   if (presupuesto.persona !== 'ambos' && t.persona !== presupuesto.persona && t.persona !== 'ambos') return false
-  if (tieneEtiquetas(presupuesto) && !presupuesto.categorias.includes(t.categoria)) return false
+  if (tieneEtiquetas(presupuesto) && !etiquetasCubren(presupuesto.categorias, t.categoria, t.subcategoria)) return false
   return t.fecha >= presupuesto.fecha_inicio
 }
 
@@ -77,11 +89,11 @@ export function personasSeTraslapan(a, b) {
 }
 
 // Presupuestos personales que se llevarían un gasto de esta categoría/persona
-export function presupuestosDeGasto(presupuestos, categoria, persona) {
+export function presupuestosDeGasto(presupuestos, categoria, persona, subcategoria = null) {
   return presupuestos.filter((p) =>
     (!p.contexto || p.contexto === 'personal') &&
     personasSeTraslapan(p.persona, persona) &&
-    (!tieneEtiquetas(p) || p.categorias.includes(categoria))
+    (!tieneEtiquetas(p) || etiquetasCubren(p.categorias, categoria, subcategoria))
   )
 }
 
