@@ -1,5 +1,7 @@
 // src/modules/suscripciones/hooks/useSuscripciones.js
+import { useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useToast } from '@ui/Toast'
 import { db } from '@lib/supabase'
 import { useAuthStore } from '@store/authStore'
 import { aplicarEfecto } from '@modules/transactions/hooks/useTransacciones'
@@ -77,53 +79,109 @@ export function gastoAnual(suscripcion) {
   return Number(suscripcion.monto) * (multiplicador[suscripcion.frecuencia] || 12)
 }
 
+// Registra un cobro: crea el gasto, aplica el efecto en cuenta/tarjeta y
+// avanza proxima_fecha. Lo comparten el botón "Cobrar" y el auto-registro.
+async function registrarCobro({ suscripcion, cuentas, tarjetas = [], parejaId }) {
+  // 1. Crear transacción siempre (debe aparecer en Movimientos aunque la
+  // suscripción no tenga método de pago asignado — antes se omitía por
+  // completo y solo avanzaba la fecha, dejando el cargo sin registrar).
+  const metodo_pago = suscripcion.cuenta_id
+    ? `cuenta:${suscripcion.cuenta_id}`
+    : suscripcion.tarjeta_id
+    ? `tarjeta:${suscripcion.tarjeta_id}`
+    : null
+  const [tx] = await db.from('transacciones').insert({
+    pareja_id: parejaId,
+    tipo: 'gasto',
+    monto: suscripcion.monto,
+    categoria: suscripcion.categoria || 'suscripciones',
+    descripcion: suscripcion.nombre,
+    fecha: suscripcion.proxima_fecha,
+    persona: suscripcion.persona,
+    contexto: suscripcion.contexto || 'personal',
+    metodo_pago,
+    cuenta_id: suscripcion.cuenta_id || null,
+    tarjeta_id: suscripcion.tarjeta_id || null,
+  })
+  // Mismo efecto en saldo/deuda que cualquier gasto de la app: descuenta la
+  // cuenta O sube saldo_total de la tarjeta. Si no hay método de pago,
+  // aplicarEfecto no hace nada (solo queda el registro en Movimientos).
+  await aplicarEfecto(tx, { cuentas, tarjetas })
+  // 2. Avanzar proxima_fecha
+  const siguiente = siguienteFecha(suscripcion.proxima_fecha, suscripcion.frecuencia)
+  await db.from('suscripciones').update(
+    { proxima_fecha: format(siguiente, 'yyyy-MM-dd'), ultimo_pago_fecha: suscripcion.proxima_fecha },
+    { id: suscripcion.id }
+  )
+}
+
+function invalidarTrasCobro(qc, parejaId) {
+  qc.invalidateQueries({ queryKey: ['suscripciones', parejaId] })
+  qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
+  qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
+  qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
+  qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
+  qc.invalidateQueries({ queryKey: ['movimientos-periodo-tarjeta'] })
+  qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
+}
+
 export function useRegistrarSuscripcion() {
   const qc = useQueryClient()
   const parejaId = useAuthStore((s) => s.pareja?.id)
   return useMutation({
-    mutationFn: async ({ suscripcion, cuentas, tarjetas = [] }) => {
-      // 1. Crear transacción siempre (debe aparecer en Movimientos aunque la
-      // suscripción no tenga método de pago asignado — antes se omitía por
-      // completo y solo avanzaba la fecha, dejando el cargo sin registrar).
-      const metodo_pago = suscripcion.cuenta_id
-        ? `cuenta:${suscripcion.cuenta_id}`
-        : suscripcion.tarjeta_id
-        ? `tarjeta:${suscripcion.tarjeta_id}`
-        : null
-      const [tx] = await db.from('transacciones').insert({
-        pareja_id: parejaId,
-        tipo: 'gasto',
-        monto: suscripcion.monto,
-        categoria: suscripcion.categoria || 'suscripciones',
-        descripcion: suscripcion.nombre,
-        fecha: suscripcion.proxima_fecha,
-        persona: suscripcion.persona,
-        contexto: suscripcion.contexto || 'personal',
-        metodo_pago,
-        cuenta_id: suscripcion.cuenta_id || null,
-        tarjeta_id: suscripcion.tarjeta_id || null,
-      })
-      // Mismo efecto en saldo/deuda que cualquier gasto de la app: descuenta la
-      // cuenta O sube saldo_total de la tarjeta. Si no hay método de pago,
-      // aplicarEfecto no hace nada (solo queda el registro en Movimientos).
-      await aplicarEfecto(tx, { cuentas, tarjetas })
-      // 2. Avanzar proxima_fecha
-      const siguiente = siguienteFecha(suscripcion.proxima_fecha, suscripcion.frecuencia)
-      await db.from('suscripciones').update(
-        { proxima_fecha: format(siguiente, 'yyyy-MM-dd'), ultimo_pago_fecha: suscripcion.proxima_fecha },
-        { id: suscripcion.id }
-      )
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['suscripciones', parejaId] })
-      qc.invalidateQueries({ queryKey: ['transacciones', parejaId] })
-      qc.invalidateQueries({ queryKey: ['cuentas', parejaId] })
-      qc.invalidateQueries({ queryKey: ['tarjetas', parejaId] })
-      qc.invalidateQueries({ queryKey: ['desglose-corte-tarjeta'] })
-      qc.invalidateQueries({ queryKey: ['movimientos-periodo-tarjeta'] })
-      qc.invalidateQueries({ queryKey: ['comparativo-tarjeta'] })
-    },
+    mutationFn: ({ suscripcion, cuentas, tarjetas = [] }) => registrarCobro({ suscripcion, cuentas, tarjetas, parejaId }),
+    onSuccess: () => invalidarTrasCobro(qc, parejaId),
   })
+}
+
+// Domiciliadas: al abrir la app, las que ya vencieron se registran solas
+// (poniéndose al corriente si pasaron varios cobros, máximo 12 por suscripción).
+// Antes de cada cobro se relee la suscripción para no duplicar si el otro
+// celular ya lo registró.
+export function useAutoRegistroDomiciliadas() {
+  const qc = useQueryClient()
+  const parejaId = useAuthStore((s) => s.pareja?.id)
+  const toast = useToast()
+  const { data: suscripciones = [] } = useSuscripciones()
+  const enCurso = useRef(new Set())
+
+  useEffect(() => {
+    if (!parejaId) return
+    const pendientes = suscripciones.filter((s) =>
+      s.domiciliada && s.estado === 'activa' && diasHasta(s.proxima_fecha) <= 0 && !enCurso.current.has(s.id))
+    if (pendientes.length === 0) return
+    pendientes.forEach((s) => enCurso.current.add(s.id))
+
+    ;(async () => {
+      const registradas = []
+      for (const sus of pendientes) {
+        try {
+          for (let i = 0; i < 12; i++) {
+            const [fresca] = await db.from('suscripciones').query(`id=eq.${sus.id}`)
+            if (!fresca || fresca.estado !== 'activa' || !fresca.domiciliada || diasHasta(fresca.proxima_fecha) > 0) break
+            // Saldos frescos en cada vuelta: aplicarEfecto calcula sobre ellos
+            const [cs, ts] = await Promise.all([
+              db.from('cuentas').query({ pareja_id: `eq.${parejaId}`, activa: 'eq.true' }),
+              db.from('tarjetas').query({ pareja_id: `eq.${parejaId}`, activa: 'eq.true' }),
+            ])
+            await registrarCobro({ suscripcion: fresca, cuentas: cs, tarjetas: ts, parejaId })
+            registradas.push(fresca.nombre)
+          }
+        } catch (e) {
+          toast.error(`No se pudo registrar ${sus.nombre}: ${e.message}`)
+        } finally {
+          enCurso.current.delete(sus.id)
+        }
+      }
+      if (registradas.length > 0) {
+        invalidarTrasCobro(qc, parejaId)
+        const nombres = [...new Set(registradas)].join(', ')
+        toast.success(registradas.length === 1
+          ? `Se registró el cobro domiciliado de ${nombres}`
+          : `Se registraron ${registradas.length} cobros domiciliados: ${nombres}`)
+      }
+    })()
+  }, [suscripciones, parejaId])
 }
 
 export const FRECUENCIA_LABEL = {

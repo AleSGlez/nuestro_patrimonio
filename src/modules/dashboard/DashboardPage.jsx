@@ -14,9 +14,11 @@ import ReportesPage     from '@modules/reportes/ReportesPage'
 import FormTransaccion  from '@modules/transactions/components/FormTransaccion'
 import FormTransferencia from '@modules/accounts/components/FormTransferencia'
 import { FormSuscripcionGlobal } from '@modules/suscripciones/SuscripcionesPage'
+import { useAutoRegistroDomiciliadas } from '@modules/suscripciones/hooks/useSuscripciones'
 
 export default function DashboardPage() {
   const { tab, setTab } = useAppStore()
+  useAutoRegistroDomiciliadas()
   const [finanzasSubTab, setFinanzasSubTab] = useState('resumen')
   const [formOpen, setFormOpen]         = useState(false)
   const [formTipo, setFormTipo]         = useState('gasto')

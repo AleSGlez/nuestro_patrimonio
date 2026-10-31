@@ -1,25 +1,27 @@
 // src/modules/suscripciones/SuscripcionesPage.jsx
+// Suscripciones: cuánto pagan al mes, qué se cobra pronto y detalle con
+// cobrar / pausar / cancelar. En computadora el detalle va a un lado de la lista.
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Check, Bell, Play } from 'lucide-react'
+import { Plus, Pencil, Check, Pause, Play, X } from 'lucide-react'
 import {
   useSuscripciones, useCrearSuscripcion, useActualizarSuscripcion,
   useEliminarSuscripcion, useRegistrarSuscripcion,
-  diasHasta, gastoAnual, FRECUENCIA_LABEL, siguienteFecha
+  diasHasta, gastoAnual, FRECUENCIA_LABEL,
 } from './hooks/useSuscripciones'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
 import { useTarjetas } from '@modules/cards/hooks/useTarjetas'
 import { useAppStore } from '@store/appStore'
 import { useToast } from '@ui/Toast'
 import { useConfirm } from '@ui/ConfirmDialog'
-import { EmptyState, Input, AmountInput, Select } from '@ui/Field'
+import { EmptyState, Input } from '@ui/Field'
 import Modal from '@ui/Modal'
 import Spinner from '@ui/Spinner'
-import { fmt, cn, today } from '@lib/utils'
-import { format } from 'date-fns'
+import { useEsEscritorio } from '@hooks/useEsEscritorio'
+import { fmt, cn, today, TIPO_EMOJI_CUENTA } from '@lib/utils'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const FRECUENCIAS = [
-  { value: 'diaria',     label: 'Diaria' },
   { value: 'semanal',    label: 'Semanal' },
   { value: 'mensual',    label: 'Mensual' },
   { value: 'bimestral',  label: 'Cada 2 meses' },
@@ -28,7 +30,52 @@ const FRECUENCIAS = [
   { value: 'anual',      label: 'Anual' },
 ]
 
-const EMOJIS = ['🔄','📺','🎵','🎮','☁️','📦','🏋️','📚','🍿','💊','🔐','📱','🌐','⚡']
+const EMOJIS = ['🔄','📺','🎵','🎮','☁️','📦','🏋️','📚','🍿','💊','🔐','📱','🌐','⚡','🎨','🎧']
+
+const alMes = (sus) => gastoAnual(sus) / 12
+const esPausada = (sus) => sus.estado === 'pausada'
+// Vencida y por cobrar a mano (las domiciliadas se registran solas)
+const porCobrar = (sus) => !esPausada(sus) && !sus.domiciliada && diasHasta(sus.proxima_fecha) <= 0
+
+function quienLabel(sus, nombres) {
+  if (sus.contexto === 'negocio') return 'Negocio'
+  return sus.persona === 'p1' ? nombres.p1 : sus.persona === 'p2' ? nombres.p2 : 'Ambos'
+}
+
+function metodoLabel(sus, cuentasMap, tarjetasMap) {
+  if (sus.tarjeta_id) return `💳 ${tarjetasMap[sus.tarjeta_id]?.nombre || 'Tarjeta'}`
+  if (sus.cuenta_id) {
+    const c = cuentasMap[sus.cuenta_id]
+    return `${TIPO_EMOJI_CUENTA[c?.tipo] || '🏦'} ${c?.nombre || 'Cuenta'}`
+  }
+  return 'Sin método de pago'
+}
+
+function cuandoInfo(sus) {
+  if (esPausada(sus)) return { texto: 'Pausada', clase: 'bg-white/[0.08] text-gray-300' }
+  const d = diasHasta(sus.proxima_fecha)
+  if (d < 0) return { texto: `Venció hace ${Math.abs(d)} d`, clase: 'bg-bad/20 text-red-300' }
+  if (d === 0) return { texto: 'Hoy', clase: 'bg-warn/15 text-warn' }
+  if (d <= 7) return { texto: `En ${d} d`, clase: 'bg-warn/15 text-warn' }
+  return { texto: `En ${d} d`, clase: 'bg-white/[0.07] text-gray-300' }
+}
+
+const fechaLarga = (f) => {
+  const s = format(parseISO(f), "EEEE d 'de' MMMM", { locale: es })
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+// ── Formulario ────────────────────────────────────────────────
+function ChipOpcion({ activo, onClick, children, className }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={activo}
+      className={cn('min-h-[40px] px-3 rounded-xl text-xs font-medium border transition-all whitespace-nowrap',
+        activo ? 'bg-[var(--accent-muted)] border-[var(--accent)]/60 text-[var(--accent-light)]' : 'bg-surface-700 border-white/10 text-gray-200',
+        className)}>
+      {children}
+    </button>
+  )
+}
 
 function FormSuscripcion({ open, onClose, suscripcion = null }) {
   const toast = useToast()
@@ -42,68 +89,68 @@ function FormSuscripcion({ open, onClose, suscripcion = null }) {
 
   const [nombre, setNombre]         = useState('')
   const [emoji, setEmoji]           = useState('🔄')
+  const [verEmojis, setVerEmojis]   = useState(false)
   const [monto, setMonto]           = useState('')
   const [frecuencia, setFrecuencia] = useState('mensual')
   const [proximaFecha, setProxima]  = useState(today())
-  const [persona, setPersona]       = useState('ambos')
-  const [contexto, setContexto]     = useState('personal')
-  const [cuentaId, setCuentaId]     = useState('')
+  const [quien, setQuien]           = useState('ambos') // p1 | p2 | ambos | negocio
+  const [metodo, setMetodo]         = useState('')
   const [nota, setNota]             = useState('')
+  const [domiciliada, setDomiciliada] = useState(false)
 
-  // Repoblar (o resetear) al abrir — el form vive montado todo el tiempo,
-  // así que sin este efecto los useState de arriba solo se leen una vez y
-  // el segundo "Editar" de una suscripción distinta dejaba los campos con
-  // los datos de la anterior (o vacíos si nunca se había abierto en editar).
+  // El form vive montado todo el tiempo: repoblar (o resetear) al abrir
   useEffect(() => {
     if (!open) return
+    setVerEmojis(false)
     if (suscripcion) {
       setNombre(suscripcion.nombre || '')
       setEmoji(suscripcion.emoji || '🔄')
       setMonto(suscripcion.monto ? String(suscripcion.monto) : '')
       setFrecuencia(suscripcion.frecuencia || 'mensual')
       setProxima(suscripcion.proxima_fecha || today())
-      setPersona(suscripcion.persona || 'ambos')
-      setContexto(suscripcion.contexto || 'personal')
-      setCuentaId(
+      setQuien(suscripcion.contexto === 'negocio' ? 'negocio' : (suscripcion.persona || 'ambos'))
+      setMetodo(
         suscripcion.tarjeta_id ? `tarjeta:${suscripcion.tarjeta_id}`
         : suscripcion.cuenta_id ? `cuenta:${suscripcion.cuenta_id}`
         : ''
       )
       setNota(suscripcion.nota || '')
+      setDomiciliada(Boolean(suscripcion.domiciliada))
     } else {
       setNombre(''); setEmoji('🔄'); setMonto(''); setFrecuencia('mensual')
-      setProxima(today()); setPersona('ambos'); setContexto('personal')
-      setCuentaId(''); setNota('')
+      setProxima(today()); setQuien('ambos'); setMetodo(''); setNota('')
+      setDomiciliada(false)
     }
   }, [open, suscripcion])
 
-  const PERSONA_OPTS = [
-    { value: 'ambos', label: '👫 Pareja' },
-    { value: 'p1', label: nombres.p1 },
-    { value: 'p2', label: nombres.p2 },
+  const QUIENES = [['p1', nombres.p1], ['p2', nombres.p2], ['ambos', 'Pareja'], ['negocio', 'Negocio']]
+  const metodos = [
+    ...cuentas
+      .filter((c) => (quien === 'negocio') === (c.persona === 'negocio'))
+      .map((c) => ({ value: `cuenta:${c.id}`, label: `${TIPO_EMOJI_CUENTA[c.tipo] || '🏦'} ${c.nombre}` })),
+    ...tarjetas.map((t) => ({ value: `tarjeta:${t.id}`, label: `💳 ${t.nombre}` })),
+    { value: '', label: 'Sin método' },
   ]
 
-  const metodoPagoOpts = [
-    { value: '', label: 'Sin método de pago' },
-    ...cuentas.map((c) => ({ value: `cuenta:${c.id}`, label: `🏦 ${c.nombre}` })),
-    ...tarjetas.map((t) => ({ value: `tarjeta:${t.id}`, label: `💳 ${t.nombre}` })),
-  ]
+  const vistaPrevia = { monto: Number(monto) || 0, frecuencia }
 
   const handleSave = async () => {
     if (!nombre.trim()) { toast.error('Ingresa el nombre'); return }
     if (!monto || Number(monto) <= 0) { toast.error('Ingresa el monto'); return }
 
-    let cuenta_id = null
-    let tarjeta_id = null
-    if (cuentaId.startsWith('cuenta:')) cuenta_id = cuentaId.replace('cuenta:', '')
-    if (cuentaId.startsWith('tarjeta:')) tarjeta_id = cuentaId.replace('tarjeta:', '')
-
+    const [tipoMetodo, idMetodo] = metodo.split(':')
     const payload = {
       nombre: nombre.trim(), emoji, monto: Number(monto),
       frecuencia, proxima_fecha: proximaFecha,
-      persona, contexto, nota: nota.trim() || null,
-      cuenta_id, tarjeta_id,
+      persona: quien === 'negocio' ? 'ambos' : quien,
+      contexto: quien === 'negocio' ? 'negocio' : 'personal',
+      nota: nota.trim() || null,
+      cuenta_id: tipoMetodo === 'cuenta' ? idMetodo : null,
+      tarjeta_id: tipoMetodo === 'tarjeta' ? idMetodo : null,
     }
+    // Solo se manda si aplica, así guardar funciona antes de la migración v3_28
+    const dom = domiciliada && Boolean(metodo)
+    if (dom || suscripcion?.domiciliada) payload.domiciliada = dom
     try {
       if (isEdit) {
         await actualizar.mutateAsync({ id: suscripcion.id, data: payload })
@@ -117,125 +164,99 @@ function FormSuscripcion({ open, onClose, suscripcion = null }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar suscripción' : 'Nueva suscripción'}>
-      <div className="mb-4">
-        <label className="label">Emoji</label>
-        <div className="flex gap-2 flex-wrap">
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar suscripción' : 'Nueva suscripción'} className="lg:max-w-lg">
+      <div className="flex gap-2.5 mb-3">
+        <button type="button" onClick={() => setVerEmojis((v) => !v)} aria-label="Cambiar emoji" aria-expanded={verEmojis}
+          className="w-[52px] h-[52px] flex-shrink-0 rounded-2xl bg-[var(--accent-muted)] border border-[var(--accent)]/50 text-2xl">
+          {emoji}
+        </button>
+        <div className="flex-1">
+          <label htmlFor="sus-nombre" className="label">Nombre</label>
+          <input id="sus-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)}
+            placeholder="Netflix, Spotify, iCloud…" className="input" autoFocus={!isEdit} />
+        </div>
+      </div>
+      {verEmojis && (
+        <div className="flex gap-1.5 flex-wrap mb-4">
           {EMOJIS.map((e) => (
-            <button key={e} onClick={() => setEmoji(e)}
-              className={cn('w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all',
-                emoji === e ? 'bg-[var(--accent-muted)] ring-2 ring-[var(--accent)]' : 'bg-surface-700'
-              )}>{e}</button>
+            <button key={e} type="button" onClick={() => { setEmoji(e); setVerEmojis(false) }}
+              className={cn('w-9 h-9 rounded-xl flex items-center justify-center text-lg',
+                emoji === e ? 'bg-[var(--accent-muted)] ring-2 ring-[var(--accent)]' : 'bg-surface-700')}>{e}</button>
           ))}
         </div>
-      </div>
+      )}
 
-      <Input label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)}
-        placeholder="Ej: Netflix, Spotify, iCloud" autoFocus />
-
-      <div className="grid grid-cols-2 gap-3">
-        <AmountInput label="Monto" value={monto} onChange={setMonto} placeholder="0.00" className="mb-0" />
-        <Select label="Frecuencia" value={frecuencia} onChange={setFrecuencia} options={FRECUENCIAS} className="mb-0" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mt-3">
-        <Select label="Quién paga" value={persona} onChange={setPersona} options={PERSONA_OPTS} className="mb-0" />
-        <div>
-          <label className="label">Próximo cobro</label>
-          <input type="date" value={proximaFecha} onChange={(e) => setProxima(e.target.value)} className="input" />
+      <div className="mb-3">
+        <label htmlFor="sus-monto" className="label">Monto por cobro</label>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400 font-mono">$</span>
+          <input id="sus-monto" type="text" inputMode="decimal" value={monto}
+            onChange={(e) => setMonto(e.target.value.replace(/[^0-9.]/g, ''))}
+            placeholder="0.00" className="input pl-10 text-2xl font-bold font-mono h-14" />
         </div>
       </div>
 
-      <Select label="Método de pago" value={cuentaId} onChange={setCuentaId}
-        options={metodoPagoOpts} className="mt-3" />
+      <p className="label">Cada cuánto</p>
+      <div className="flex flex-wrap gap-1.5 mb-2.5">
+        {FRECUENCIAS.map((f) => (
+          <ChipOpcion key={f.value} activo={frecuencia === f.value} onClick={() => setFrecuencia(f.value)} className="rounded-full">{f.label}</ChipOpcion>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="bg-surface-700 rounded-xl px-3 py-2">
+          <p className="text-[10px] text-gray-400">Equivale al mes</p>
+          <p className="font-mono text-[15px] font-bold text-[var(--accent-light)]">{fmt(alMes(vistaPrevia))}</p>
+        </div>
+        <div className="bg-surface-700 rounded-xl px-3 py-2">
+          <p className="text-[10px] text-gray-400">Al año</p>
+          <p className="font-mono text-[15px] font-bold text-white">{fmt(gastoAnual(vistaPrevia))}</p>
+        </div>
+      </div>
 
-      <div className="flex gap-2 mb-4">
-        {['personal','negocio'].map((c) => (
-          <button key={c} onClick={() => setContexto(c)}
-            className={cn('flex-1 py-2 rounded-xl text-xs font-medium border transition-all capitalize',
-              contexto === c ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-white/10 text-gray-400'
-            )}>{c}</button>
+      <p className="label">Quién paga</p>
+      <div className="grid grid-cols-4 gap-1.5 mb-4">
+        {QUIENES.map(([v, label]) => (
+          <ChipOpcion key={v} activo={quien === v} onClick={() => { setQuien(v); setMetodo('') }} className="px-1 truncate">{label}</ChipOpcion>
         ))}
       </div>
 
-      <Input label="Nota (opcional)" value={nota} onChange={(e) => setNota(e.target.value)}
-        placeholder="Contraseña, cuenta, etc." />
+      <p className="label">Se cobra a</p>
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {metodos.map((m) => (
+          <ChipOpcion key={m.value || 'ninguno'} activo={metodo === m.value} onClick={() => setMetodo(m.value)}>{m.label}</ChipOpcion>
+        ))}
+      </div>
 
-      <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold mt-2">
-        {loading ? <Spinner size="sm" /> : <><Check size={16} />{isEdit ? 'Guardar' : 'Agregar suscripción'}</>}
+      <button
+        type="button" role="switch" aria-checked={domiciliada && Boolean(metodo)}
+        onClick={() => setDomiciliada((v) => !v)} disabled={!metodo}
+        className="w-full flex items-center gap-3 bg-surface-700 border border-white/[0.08] rounded-xl px-3.5 py-3 mb-4 text-left disabled:opacity-50"
+      >
+        <span className="flex-1">
+          <span className="block text-sm font-medium text-white">Domiciliada: se cobra sola</span>
+          <span className="block text-[11px] text-gray-400 mt-0.5">
+            {metodo ? 'La app registra el gasto sola cuando llega la fecha' : 'Elige a qué cuenta o tarjeta se cobra'}
+          </span>
+        </span>
+        <span className={cn('w-11 h-6 rounded-full p-0.5 transition-colors flex-shrink-0',
+          domiciliada && metodo ? 'bg-[var(--accent)]' : 'bg-surface-500')}>
+          <span className={cn('block w-5 h-5 rounded-full bg-white transition-transform',
+            domiciliada && metodo && 'translate-x-5')} />
+        </span>
+      </button>
+
+      <div className="grid grid-cols-2 gap-3 mb-2">
+        <div>
+          <label htmlFor="sus-fecha" className="label">Próximo cobro</label>
+          <input id="sus-fecha" type="date" value={proximaFecha} onChange={(e) => setProxima(e.target.value)} className="input" />
+        </div>
+        <Input label="Nota" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Plan, cuenta…" className="mb-0" />
+      </div>
+
+      <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3.5 text-sm font-semibold mt-3">
+        {loading ? <Spinner size="sm" /> : <><Check size={16} />{isEdit ? 'Guardar cambios' : 'Agregar suscripción'}</>}
       </button>
     </Modal>
-  )
-}
-
-function SuscripcionCard({ sus, cuentas, onEdit, onDelete, onRegistrar }) {
-  const dias = diasHasta(sus.proxima_fecha)
-  const vencida = dias < 0
-  const hoy = dias === 0
-  const pronto = dias > 0 && dias <= 3
-
-  const alerta = vencida || hoy || pronto
-  const badgeColor = vencida ? 'bg-bad/20 text-bad' : (hoy || pronto) ? 'bg-warn/20 text-warn' : 'bg-surface-700 text-gray-400'
-  const badgeLabel = vencida ? `Venció hace ${Math.abs(dias)}d` : hoy ? 'Hoy' : pronto ? `${dias}d` : `${dias}d`
-
-  const metodoPago = sus.cuenta_id
-    ? cuentas.find((c) => c.id === sus.cuenta_id)?.nombre
-    : null
-
-  return (
-    <div className={cn('card p-4', alerta && 'border border-warn/30')}>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0',
-            alerta ? 'bg-warn/10' : 'bg-surface-700'
-          )}>
-            {sus.emoji}
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-semibold text-white">{sus.nombre}</p>
-              {alerta && <Bell size={11} className="text-warn" />}
-            </div>
-            <p className="text-[11px] text-gray-400">
-              {FRECUENCIA_LABEL[sus.frecuencia]} · {sus.persona === 'ambos' ? 'Pareja' : sus.persona}
-              {metodoPago && ` · ${metodoPago}`}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', badgeColor)}>
-            {badgeLabel}
-          </span>
-          <button onClick={() => onEdit(sus)} aria-label="Editar suscripción" className="icon-btn text-gray-500 hover:text-white">
-            <Pencil size={13} />
-          </button>
-          <button onClick={() => onDelete(sus)} aria-label="Eliminar suscripción" className="icon-btn text-gray-500 hover:text-bad">
-            <Trash2 size={13} />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-lg font-bold font-mono text-white">{fmt(sus.monto)}</p>
-          <p className="text-[10px] text-gray-400">~{fmt(gastoAnual(sus))} al año</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-right">
-            <p className="text-[10px] text-gray-400">Próximo cobro</p>
-            <p className="text-xs text-gray-300 capitalize">
-              {format(new Date(sus.proxima_fecha + 'T12:00:00'), "d 'de' MMM", { locale: es })}
-            </p>
-          </div>
-          {(vencida || hoy) && (
-            <button onClick={() => onRegistrar(sus)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[var(--accent)] text-white text-[11px] font-medium">
-              <Play size={11} /> Registrar
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -243,31 +264,240 @@ export function FormSuscripcionGlobal({ open, onClose }) {
   return <FormSuscripcion open={open} onClose={onClose} />
 }
 
+// ── Resumen: cuánto pagan al mes y al año ────────────────────
+function ResumenSuscripciones({ activas }) {
+  const totalMes = activas.reduce((s, x) => s + alMes(x), 0)
+
+  return (
+    <div className="card p-4 mb-3 lg:p-5">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="section-label mb-0.5">Pagan al mes</p>
+          <p className="text-[28px] lg:text-[32px] leading-tight font-bold font-mono text-white">{fmt(totalMes)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-gray-400">Al año</p>
+          <p className="text-sm font-bold font-mono text-gray-200">{fmt(totalMes * 12)}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Fila de la lista ─────────────────────────────────────────
+function FilaSuscripcion({ sus, sub, activa, onOpen, onCobrar, onReanudar }) {
+  const cuando = cuandoInfo(sus)
+  const dias = diasHasta(sus.proxima_fecha)
+  const pausada = esPausada(sus)
+  return (
+    <div className={cn('flex items-center gap-2.5 pr-3 border-t border-white/[0.05] first:border-0',
+      pausada && 'opacity-75', activa && 'lg:bg-[var(--accent-muted)]')}>
+      <button onClick={() => onOpen(sus)} className="flex-1 min-w-0 flex items-center gap-3 min-h-[62px] py-2 pl-3 text-left lg:hover:bg-white/[0.03]">
+        <span className={cn('w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-[19px]',
+          !pausada && dias < 0 ? 'bg-bad/[0.12]' : !pausada && dias === 0 ? 'bg-warn/[0.12]' : 'bg-surface-700')}>
+          {sus.emoji || '🔄'}
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-white truncate">{sus.nombre}</span>
+            {sus.contexto === 'negocio' && (
+              <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wide text-warn bg-warn/[0.14] px-1.5 py-0.5 rounded-md">Negocio</span>
+            )}
+            {sus.domiciliada && (
+              <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wide text-blue-300 bg-info/[0.15] px-1.5 py-0.5 rounded-md">Domiciliada</span>
+            )}
+          </span>
+          <span className="block text-[11px] text-gray-400 truncate mt-0.5">{sub}</span>
+        </span>
+        <span className="flex-shrink-0 flex flex-col items-end gap-1">
+          <span className="text-sm font-semibold font-mono text-white">
+            {fmt(sus.monto)}{sus.frecuencia === 'anual' && <span className="text-[10px] text-gray-400">/año</span>}
+          </span>
+          <span className={cn('text-[10px] font-semibold px-1.5 py-px rounded-full whitespace-nowrap', cuando.clase)}>{cuando.texto}</span>
+        </span>
+      </button>
+      {porCobrar(sus) && (
+        <button onClick={() => onCobrar(sus)} className="flex-shrink-0 min-h-[36px] px-2.5 rounded-xl bg-[var(--accent)] text-white text-[11px] font-semibold inline-flex items-center gap-1">
+          <Check size={12} strokeWidth={3} /> Cobrar
+        </button>
+      )}
+      {pausada && (
+        <button onClick={() => onReanudar(sus)} className="flex-shrink-0 min-h-[36px] px-2.5 rounded-xl bg-surface-700 border border-white/10 text-gray-200 text-[11px] font-semibold">
+          Reanudar
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Detalle (Modal en celular, panel en computadora) ─────────
+function Contenedor({ enPanel, onClose, children }) {
+  if (!enPanel) return <Modal open onClose={onClose}>{children}</Modal>
+  return (
+    <div className="relative bg-surface-800 border border-white/[0.06] rounded-2xl p-5">
+      <button onClick={onClose} aria-label="Cerrar detalle" className="icon-btn absolute top-2 right-2 text-gray-400 hover:text-white">
+        <X size={16} />
+      </button>
+      {children}
+    </div>
+  )
+}
+
+function DetalleSuscripcion({ sus, enPanel = false, metodo, quien, onClose, onEditar, onCobrar, onPausar, onReanudar, onCancelar }) {
+  const pausada = esPausada(sus)
+  const dias = diasHasta(sus.proxima_fecha)
+  const porPersona = sus.contexto !== 'negocio' && sus.persona === 'ambos'
+  const cuandoTxt = dias < 0 ? `venció hace ${Math.abs(dias)} d` : dias === 0 ? 'hoy' : `en ${dias} días`
+
+  return (
+    <Contenedor enPanel={enPanel} onClose={onClose}>
+      <div className="flex items-center gap-3 mb-4 pr-8">
+        <span className="w-14 h-14 flex-shrink-0 rounded-2xl bg-surface-700 flex items-center justify-center text-[27px]">{sus.emoji || '🔄'}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[17px] font-bold text-white truncate">{sus.nombre}</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {FRECUENCIA_LABEL[sus.frecuencia]} · {quien} · {sus.contexto === 'negocio' ? 'Negocio' : 'Personal'}
+          </p>
+        </div>
+        <button onClick={() => onEditar(sus)} aria-label="Editar suscripción" className="icon-btn text-gray-400 hover:text-white">
+          <Pencil size={16} />
+        </button>
+      </div>
+
+      {pausada ? (
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl px-3.5 py-3 mb-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Pausada</p>
+          <p className="text-sm text-gray-200">No cuenta en el total ni se cobra hasta que la reanudes.</p>
+        </div>
+      ) : (
+        <div className={cn('rounded-2xl px-3.5 py-3 mb-2.5 flex items-center justify-between gap-3 border',
+          dias < 0 ? 'bg-bad/[0.09] border-bad/30' : 'bg-warn/[0.09] border-warn/30')}>
+          <div>
+            <p className={cn('text-[10px] font-semibold uppercase tracking-wider mb-0.5', dias < 0 ? 'text-red-300' : 'text-warn')}>
+              {sus.domiciliada ? 'Se registra solo' : 'Próximo cobro'} · {cuandoTxt}
+            </p>
+            <p className="text-sm font-semibold text-white">{fechaLarga(sus.proxima_fecha)}</p>
+          </div>
+          <p className="font-mono text-xl font-bold text-white">{fmt(sus.monto)}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+        {[
+          ['Al mes', fmt(alMes(sus))],
+          ['Al año', fmt(gastoAnual(sus))],
+          [porPersona ? 'Por persona' : 'Por cobro', fmt(porPersona ? Number(sus.monto) / 2 : sus.monto)],
+        ].map(([k, v]) => (
+          <div key={k} className="bg-surface-700 rounded-xl px-2.5 py-2">
+            <p className="text-[10px] text-gray-400">{k}</p>
+            <p className="font-mono text-[13px] font-bold text-white truncate">{v}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-surface-700 rounded-2xl px-3.5 mb-3.5">
+        <div className="flex justify-between items-center gap-3 min-h-[46px] border-b border-white/[0.06]">
+          <span className="text-xs text-gray-400">Se cobra a</span>
+          <span className="text-[13px] font-medium text-white text-right">{metodo}</span>
+        </div>
+        <div className="flex justify-between items-center gap-3 min-h-[46px] border-b border-white/[0.06]">
+          <span className="text-xs text-gray-400">Cobro</span>
+          <span className="text-[13px] font-medium text-white text-right">{sus.domiciliada ? 'Domiciliado (se registra solo)' : 'Manual'}</span>
+        </div>
+        <div className={cn('flex justify-between items-center gap-3 min-h-[46px]', sus.nota && 'border-b border-white/[0.06]')}>
+          <span className="text-xs text-gray-400">Último cobro</span>
+          <span className="text-[13px] font-medium text-white text-right">
+            {sus.ultimo_pago_fecha ? format(parseISO(sus.ultimo_pago_fecha), "d MMM", { locale: es }) : 'Aún no se registra'}
+          </span>
+        </div>
+        {sus.nota && (
+          <div className="flex justify-between items-center gap-3 min-h-[46px]">
+            <span className="text-xs text-gray-400">Nota</span>
+            <span className="text-[13px] font-medium text-white text-right">{sus.nota}</span>
+          </div>
+        )}
+      </div>
+
+      {pausada ? (
+        <button onClick={() => onReanudar(sus)} className="btn-primary w-full min-h-[50px] text-sm font-semibold mb-2">
+          <Play size={15} /> Reanudar
+        </button>
+      ) : sus.domiciliada ? (
+        <button onClick={() => onCobrar(sus)} className="btn-ghost w-full min-h-[46px] text-[13px] font-semibold mb-2">
+          <Check size={14} strokeWidth={2.6} /> Registrar ahora
+        </button>
+      ) : (
+        <button onClick={() => onCobrar(sus)} className="btn-primary w-full min-h-[50px] text-sm font-semibold mb-2">
+          <Check size={15} strokeWidth={2.6} /> Registrar cobro ahora
+        </button>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        {!pausada ? (
+          <button onClick={() => onPausar(sus)} className="btn-ghost min-h-[46px] text-[13px] font-semibold">
+            <Pause size={14} /> Pausar
+          </button>
+        ) : <span />}
+        <button onClick={() => onCancelar(sus)} className="min-h-[46px] rounded-xl text-[13px] font-semibold text-bad inline-flex items-center justify-center gap-1.5">
+          <X size={14} /> Cancelar
+        </button>
+      </div>
+    </Contenedor>
+  )
+}
+
+// ── Página ────────────────────────────────────────────────────
+const FILTROS = [['todas', 'Todas'], ['personal', 'Personal'], ['negocio', 'Negocio'], ['pausadas', 'Pausadas']]
+
+function pasaFiltro(sus, filtro) {
+  if (filtro === 'pausadas') return esPausada(sus)
+  if (esPausada(sus)) return false
+  return filtro === 'todas' || (filtro === 'negocio') === (sus.contexto === 'negocio')
+}
+
 export default function SuscripcionesPage() {
   const toast = useToast()
   const confirmar = useConfirm()
+  const { nombres } = useAppStore()
   const { data: suscripciones = [], isPending } = useSuscripciones()
   const { data: cuentas = [] } = useCuentas()
   const { data: tarjetas = [] } = useTarjetas()
+  const actualizar = useActualizarSuscripcion()
   const eliminar = useEliminarSuscripcion()
   const registrar = useRegistrarSuscripcion()
+  const esEscritorio = useEsEscritorio()
+
+  const [filtro, setFiltro]     = useState('todas')
+  const [detalleId, setDetalleId] = useState(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editSus, setEditSus]   = useState(null)
 
-  const totalMensual = useMemo(() => suscripciones.reduce((s, sus) => {
-    const mult = { diaria: 30, semanal: 4.33, mensual: 1, bimestral: 0.5, trimestral: 0.33, semestral: 0.17, anual: 0.083 }
-    return s + Number(sus.monto) * (mult[sus.frecuencia] || 1)
-  }, 0), [suscripciones])
+  const cuentasMap  = useMemo(() => Object.fromEntries(cuentas.map((c) => [c.id, c])), [cuentas])
+  const tarjetasMap = useMemo(() => Object.fromEntries(tarjetas.map((t) => [t.id, t])), [tarjetas])
 
-  const alertas = suscripciones.filter((s) => diasHasta(s.proxima_fecha) <= 3)
+  const visibles = suscripciones.filter((s) => pasaFiltro(s, filtro))
+  // El resumen sigue al filtro (Todas / Personal / Negocio); en Pausadas muestra todas las activas
+  const activasResumen = suscripciones.filter((s) => pasaFiltro(s, filtro === 'pausadas' ? 'todas' : filtro))
+  const detalle = suscripciones.find((s) => s.id === detalleId) || null
 
-  const handleDelete = async (sus) => {
-    if (!(await confirmar({ message: `¿Desactivar "${sus.nombre}"?` }))) return
-    try { await eliminar.mutateAsync(sus.id); toast.success('Suscripción desactivada') }
-    catch (e) { toast.error(e.message) }
-  }
+  const grupos = useMemo(() => {
+    const ordenadas = [...visibles].sort((a, b) => diasHasta(a.proxima_fecha) - diasHasta(b.proxima_fecha))
+    const defs = filtro === 'pausadas'
+      ? [{ titulo: 'Pausadas', test: () => true }]
+      : [
+          { titulo: 'Por cobrar', test: porCobrar, alerta: true },
+          // Domiciliadas vencidas (aún no registradas) se quedan aquí, no en "Por cobrar"
+          { titulo: 'Próximos 7 días', test: (s) => { const d = diasHasta(s.proxima_fecha); return !porCobrar(s) && d <= 7 } },
+          { titulo: 'Más adelante', test: (s) => diasHasta(s.proxima_fecha) > 7 },
+        ]
+    return defs.map((g) => {
+      const items = ordenadas.filter(g.test)
+      return { ...g, items, total: items.reduce((s, x) => s + Number(x.monto), 0) }
+    }).filter((g) => g.items.length > 0)
+  }, [visibles, filtro])
 
-  const handleRegistrar = async (sus) => {
+  const abrirForm = (sus = null) => { setEditSus(sus); setFormOpen(true) }
+
+  const handleCobrar = async (sus) => {
     if (!(await confirmar({ message: `¿Registrar el cargo de ${fmt(sus.monto)} de ${sus.nombre}?`, confirmLabel: 'Registrar', danger: false }))) return
     try {
       await registrar.mutateAsync({ suscripcion: sus, cuentas, tarjetas })
@@ -275,48 +505,117 @@ export default function SuscripcionesPage() {
     } catch (e) { toast.error(e.message) }
   }
 
+  const cambiarEstado = async (sus, estado, mensaje) => {
+    try {
+      await actualizar.mutateAsync({ id: sus.id, data: { estado } })
+      toast.success(mensaje)
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const handleCancelar = async (sus) => {
+    if (!(await confirmar({ message: `¿Cancelar "${sus.nombre}"? Ya no aparecerá en la lista.` }))) return
+    try {
+      await eliminar.mutateAsync(sus.id)
+      setDetalleId(null)
+      toast.success('Suscripción cancelada')
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const propsDetalle = detalle && {
+    sus: detalle,
+    metodo: metodoLabel(detalle, cuentasMap, tarjetasMap),
+    quien: quienLabel(detalle, nombres),
+    onClose: () => setDetalleId(null),
+    onEditar: (s) => abrirForm(s),
+    onCobrar: handleCobrar,
+    onPausar: (s) => cambiarEstado(s, 'pausada', 'Suscripción pausada'),
+    onReanudar: (s) => cambiarEstado(s, 'activa', 'Suscripción reanudada'),
+    onCancelar: handleCancelar,
+  }
+
   return (
     <>
-      <div className="top-header flex-col items-stretch !h-auto pb-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-surface-700 rounded-xl p-3">
-            <p className="text-[10px] text-gray-400 mb-1">Gasto mensual</p>
-            <p className="text-lg font-bold font-mono text-white">{fmt(totalMensual)}</p>
+      <div className="page px-4 pt-3 lg:px-10 lg:pt-8">
+        <div className="lg:max-w-6xl">
+          <div className="hidden lg:flex items-end justify-between mb-5">
+            <div>
+              <h1 className="text-[26px] font-extrabold text-white">Suscripciones</h1>
+              <p className="text-sm text-gray-400">
+                {suscripciones.filter((s) => !esPausada(s)).length} activas · {suscripciones.filter(esPausada).length} pausadas
+              </p>
+            </div>
+            <button onClick={() => abrirForm()} className="btn-primary px-5 py-2.5 text-sm font-semibold">
+              <Plus size={16} /> Nueva suscripción
+            </button>
           </div>
-          <div className={cn('rounded-xl p-3', alertas.length > 0 ? 'bg-warn/10 border border-warn/20' : 'bg-surface-700')}>
-            <p className="text-[10px] text-gray-400 mb-1">Próximos 3 días</p>
-            <p className={cn('text-lg font-bold', alertas.length > 0 ? 'text-warn' : 'text-white')}>
-              {alertas.length} cobros
-            </p>
+
+          <div className="lg:flex lg:gap-6 lg:items-start">
+            <div className="lg:flex-1 lg:min-w-0">
+              {isPending ? (
+                <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="skeleton h-24" />)}</div>
+              ) : suscripciones.length === 0 ? (
+                <EmptyState emoji="🔄" title="Sin suscripciones"
+                  description="Agrega tus servicios recurrentes como Netflix, Spotify, gimnasio, etc."
+                  action={<button onClick={() => abrirForm()} className="btn-primary px-6 py-2.5 text-sm"><Plus size={15} /> Agregar</button>} />
+              ) : (
+                <>
+                  <ResumenSuscripciones activas={activasResumen} />
+
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar mb-1">
+                    {FILTROS.map(([id, label]) => (
+                      <button key={id} onClick={() => setFiltro(id)} aria-pressed={filtro === id}
+                        className={cn('flex-shrink-0 min-h-[36px] px-3 rounded-xl text-xs font-semibold whitespace-nowrap border transition-all',
+                          filtro === id ? 'bg-[var(--accent-muted)] border-[var(--accent)] text-[var(--accent-light)]'
+                            : 'bg-surface-700 border-white/[0.06] text-gray-300')}>
+                        {label} {suscripciones.filter((s) => pasaFiltro(s, id)).length}
+                      </button>
+                    ))}
+                  </div>
+
+                  {grupos.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-10">Nada por aquí</p>
+                  ) : grupos.map((g) => (
+                    <div key={g.titulo} className="mt-3.5">
+                      <div className="flex items-baseline justify-between mb-1.5 px-0.5">
+                        <span className={cn('section-label', g.alerta && 'text-warn')}>{g.titulo}</span>
+                        <span className="text-[11px] font-mono font-semibold text-gray-400">{fmt(g.total)}</span>
+                      </div>
+                      <div className={cn('card overflow-hidden', g.alerta && '!border-warn/35')}>
+                        {g.items.map((s) => (
+                          <FilaSuscripcion key={s.id} sus={s}
+                            sub={`${FRECUENCIA_LABEL[s.frecuencia]} · ${metodoLabel(s, cuentasMap, tarjetasMap)} · ${quienLabel(s, nombres)}`}
+                            activa={s.id === detalleId}
+                            onOpen={(x) => setDetalleId(x.id)}
+                            onCobrar={handleCobrar}
+                            onReanudar={(x) => cambiarEstado(x, 'activa', 'Suscripción reanudada')}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Computadora: detalle a un lado */}
+            <aside className="hidden lg:block w-96 flex-shrink-0 sticky top-0">
+              {esEscritorio && propsDetalle ? (
+                <DetalleSuscripcion enPanel {...propsDetalle} />
+              ) : (
+                <div className="border border-dashed border-white/10 rounded-2xl p-6 text-center text-sm text-gray-400">
+                  Elige una suscripción para ver su detalle
+                </div>
+              )}
+            </aside>
           </div>
         </div>
       </div>
 
-      <div className="page px-4 pt-4">
-        {isPending ? (
-          <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="skeleton h-24" />)}</div>
-        ) : suscripciones.length === 0 ? (
-          <EmptyState emoji="🔄" title="Sin suscripciones"
-            description="Agrega tus servicios recurrentes como Netflix, Spotify, gimnasio, etc." />
-        ) : (
-          <div className="space-y-3">
-            {/* Primero las que vencen pronto o ya vencieron */}
-            {suscripciones
-              .sort((a, b) => diasHasta(a.proxima_fecha) - diasHasta(b.proxima_fecha))
-              .map((sus) => (
-                <SuscripcionCard key={sus.id} sus={sus} cuentas={cuentas}
-                  onEdit={(s) => { setEditSus(s); setFormOpen(true) }}
-                  onDelete={handleDelete}
-                  onRegistrar={handleRegistrar}
-                />
-              ))}
-          </div>
-        )}
-      </div>
-
-      <button onClick={() => { setEditSus(null); setFormOpen(true) }} className="fab">
+      <button onClick={() => abrirForm()} aria-label="Nueva suscripción" className="fab lg:hidden">
         <Plus size={24} />
       </button>
+
+      {!esEscritorio && propsDetalle && <DetalleSuscripcion {...propsDetalle} />}
 
       <FormSuscripcion
         open={formOpen}
