@@ -1,7 +1,8 @@
 // src/modules/reportes/ReportesPage.jsx
 import { useState, useMemo } from 'react'
 import { Download, TrendingUp, TrendingDown, BarChart2, Package } from 'lucide-react'
-import { useTransacciones } from '@modules/transactions/hooks/useTransacciones'
+import { useTransaccionesReporte } from './hooks/useTransaccionesReporte'
+import ReporteTendencias from './components/ReporteTendencias'
 import { useVentas } from '@modules/ventas/hooks/useVentas'
 import { useProductos } from '@modules/inventario/hooks/useInventario'
 import { useCuentas } from '@modules/accounts/hooks/useCuentas'
@@ -16,6 +17,7 @@ import * as XLSX from 'xlsx'
 
 const TABS = [
   { id: 'personal', label: 'Personal', emoji: '👤' },
+  { id: 'tendencias', label: 'Tendencias', emoji: '📈' },
   { id: 'negocio',  label: 'Negocio',  emoji: '🏪' },
 ]
 
@@ -352,7 +354,9 @@ function ReporteNegocio({ transacciones, ventas, productos }) {
 // ── Página principal ──────────────────────────────────────────
 export default function ReportesPage() {
   const [tab, setTab] = useState('personal')
-  const { data: transacciones = [] } = useTransacciones()
+  // 12 meses completos + el actual: cubre el selector de período y Tendencias
+  const desde = format(startOfMonth(subMonths(new Date(), 12)), 'yyyy-MM-dd')
+  const { data: transacciones = [], isPending } = useTransaccionesReporte(desde)
   const { data: ventas = [] }        = useVentas()
   const { data: productos = [] }     = useProductos()
   const { data: cuentas = [] }       = useCuentas()
@@ -362,10 +366,9 @@ export default function ReportesPage() {
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       <SubNav tabs={TABS} active={tab} onChange={setTab} titulo="Reportes" />
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        {tab === 'personal'
-          ? <ReportePersonal transacciones={transacciones} cuentas={cuentas} tarjetas={tarjetas} />
-          : <ReporteNegocio  transacciones={transacciones} ventas={ventas} productos={productos} />
-        }
+        {tab === 'personal' && <ReportePersonal transacciones={transacciones} cuentas={cuentas} tarjetas={tarjetas} />}
+        {tab === 'tendencias' && <ReporteTendencias transacciones={transacciones} cargando={isPending} />}
+        {tab === 'negocio' && <ReporteNegocio transacciones={transacciones} ventas={ventas} productos={productos} />}
       </div>
     </div>
   )
