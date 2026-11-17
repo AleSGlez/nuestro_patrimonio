@@ -164,8 +164,11 @@ async function http(method, path, { body, token } = {}) {
   const r = new Request(SUPABASE_URL + path)
   r.method = method
   r.timeoutInterval = 20
-  r.headers = { apikey: anonKey(), 'Content-Type': 'application/json' }
-  if (token) r.headers.Authorization = `Bearer ${token}`
+  // OJO: en Scriptable `r.headers` devuelve una COPIA — mutarlo después de
+  // asignarlo no hace nada. Hay que armar el objeto completo y asignarlo una vez.
+  const headers = { apikey: anonKey(), 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
+  r.headers = headers
   if (body) r.body = JSON.stringify(body)
   let json = null
   try { json = await r.loadJSON() } catch (e) { json = null }
